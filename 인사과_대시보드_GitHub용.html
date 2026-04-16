@@ -370,6 +370,23 @@ function pushOverwrite(tab){
   });
 }
 
+
+function normalizeRow(row) {
+  var normalized = {};
+  Object.keys(row).forEach(function(k) {
+    var val = row[k];
+    // 날짜 형식 변환: "Thu Apr 16 2026 00:00:00 GMT+0900..." -> "2026-04-16"
+    if (val && typeof val === 'string' && val.match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/)) {
+      var d = new Date(val);
+      if (!isNaN(d.getTime())) {
+        val = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      }
+    }
+    normalized[k] = val;
+  });
+  return normalized;
+}
+
 async function syncAll(){
   setSyncStatus('loading','⟳ 동기화 중...');
   try{
