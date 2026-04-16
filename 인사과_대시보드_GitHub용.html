@@ -375,11 +375,17 @@ function normalizeRow(row) {
   var normalized = {};
   Object.keys(row).forEach(function(k) {
     var val = row[k];
-    // 날짜 형식 변환: "Thu Apr 16 2026 00:00:00 GMT+0900..." -> "2026-04-16"
-    if (val && typeof val === 'string' && val.match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/)) {
-      var d = new Date(val);
-      if (!isNaN(d.getTime())) {
-        val = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    if (val && typeof val === 'string') {
+      // 날짜 형식 변환
+      if (val.match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/)) {
+        var d = new Date(val);
+        if (!isNaN(d.getTime())) {
+          val = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        }
+      }
+      // 날짜 객체 문자열 변환
+      if (val.match(/\d{4}-\d{2}-\d{2}T/)) {
+        val = val.slice(0,10);
       }
     }
     normalized[k] = val;
