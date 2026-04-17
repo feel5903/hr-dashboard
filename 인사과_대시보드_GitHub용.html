@@ -158,7 +158,7 @@ tbody tr:hover{background:#FAFBFC}
   <div class="nav-divider"></div>
   <div class="nav-section">지시·관리</div>
   <div class="nav-item" onclick="switchNav('directive',this)"><span class="nav-icon">📌</span>지시사항<span class="nav-badge" id="badge-dir" style="background:#7C3AED">0</span></div>
-  <div class="nav-item" onclick="switchNav('members',this)"><span class="nav-icon">👥</span>팀원 관리</div>
+  <div class="nav-item" onclick="switchNav('members',this)"><span class="nav-icon">⚙️</span>설정</div>
   <div class="nav-divider"></div>
   <div class="nav-section">담당자별</div>
   <div id="member-nav-list"></div>
@@ -190,17 +190,25 @@ tbody tr:hover{background:#FAFBFC}
       <div class="card-head"><span class="card-title">주간 업무 보고</span>
         <div class="card-actions">
           <select id="week-select" onchange="renderWeekly()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"></select>
+          <select id="filter-weekly-member" onchange="renderWeekly()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 담당자</option></select>
+          <select id="filter-weekly-status" onchange="renderWeekly()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 상태</option><option>진행</option><option>완료</option><option>대기</option></select>
           <button class="btn primary" onclick="openForm('weekly')">+ 직접 추가</button>
         </div>
       </div>
-      <div class="week-meta"><span>📌 재직인원: <strong>266명</strong></span><span>💡 일일업무 추가 시 주간보고 연동 가능</span></div>
+      <div class="week-meta"><span>📌 재직인원: <strong id="headcount-display">266</strong>명 <button onclick="switchNav('members',null)" style="font-size:11px;padding:1px 6px;border-radius:4px;border:1px solid var(--navy);background:transparent;color:var(--navy);cursor:pointer">수정</button></span><span>💡 일일업무 추가 시 주간보고 연동 가능</span></div>
       <table><thead><tr><th>구분</th><th>담당자</th><th>업무 내용</th><th>완료예정일</th><th>완료일</th><th>상태</th><th>비고</th><th>관리</th></tr></thead>
       <tbody id="weekly-tbody"></tbody></table>
     </div>
   </div>
   <div id="pane-project" class="pane">
     <div class="card">
-      <div class="card-head"><span class="card-title">프로젝트 현황</span><button class="btn lime" onclick="openForm('project')">+ 프로젝트 추가</button></div>
+      <div class="card-head"><span class="card-title">프로젝트 현황</span>
+        <div class="card-actions">
+          <select id="filter-proj-member" onchange="renderProject()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 담당자</option></select>
+          <select id="filter-proj-status" onchange="renderProject()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 상태</option><option>진행</option><option>완료</option><option>대기</option></select>
+          <button class="btn lime" onclick="openForm('project')">+ 프로젝트 추가</button>
+        </div>
+      </div>
       <table><thead><tr><th>프로젝트명</th><th>담당자</th><th>기간</th><th>진행률</th><th>상태</th><th>관리</th></tr></thead>
       <tbody id="project-tbody"></tbody></table>
     </div>
@@ -217,15 +225,26 @@ tbody tr:hover{background:#FAFBFC}
   </div>
   <div id="pane-directive" class="pane">
     <div class="card">
-      <div class="card-head"><span class="card-title">지시사항</span><button class="btn lime" onclick="openForm('directive')">+ 지시 추가</button></div>
+      <div class="card-head"><span class="card-title">지시사항</span>
+        <div class="card-actions">
+          <select id="filter-dir-member" onchange="renderDirective()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 담당자</option></select>
+          <select id="filter-dir-status" onchange="renderDirective()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 상태</option><option>진행</option><option>완료</option><option>대기</option></select>
+          <button class="btn lime" onclick="openForm('directive')">+ 지시 추가</button>
+        </div>
+      </div>
       <table><thead><tr><th>지시자</th><th>내용</th><th>담당자</th><th>기한</th><th>상태</th><th>관리</th></tr></thead>
       <tbody id="directive-tbody"></tbody></table>
     </div>
   </div>
   <div id="pane-members" class="pane">
     <div class="card">
-      <div class="card-head"><span class="card-title">팀원 관리</span><button class="btn lime" onclick="openAddMember()">+ 팀원 추가</button></div>
-      <div class="member-grid" id="member-grid"></div>
+      <div class="card-head"><span class="card-title">설정</span><button class="btn lime" onclick="openAddMember()">+ 팀원 추가</button></div>
+      <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--gray-border);display:flex;align-items:center;gap:12px">
+  <label style="font-size:13px;font-weight:600;color:var(--navy)">재직인원 수</label>
+  <input type="number" id="headcount-input" value="266" style="width:100px;padding:.4rem .75rem;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:13px;font-family:inherit">
+  <button class="btn primary" onclick="saveHeadcount()">저장</button>
+</div>
+<div class="member-grid" id="member-grid"></div>
     </div>
   </div>
 </main>
@@ -376,7 +395,7 @@ function normalizeRow(row) {
   Object.keys(row).forEach(function(k) {
     var val = row[k];
     if (val && typeof val === 'string') {
-      // "Fri Apr 17 2026 00:00:00 GMT+0900..." 형식 변환
+      // "Fri Apr 17 2026..." 형식 변환
       if (val.match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s/)) {
         var d = new Date(val);
         if (!isNaN(d.getTime())) {
@@ -386,7 +405,7 @@ function normalizeRow(row) {
           val = y+'-'+m+'-'+dd;
         }
       }
-      // "2026-04-17T..." ISO 형식
+      // ISO 형식
       else if (val.match(/^\d{4}-\d{2}-\d{2}T/)) {
         val = val.slice(0,10);
       }
@@ -442,6 +461,16 @@ function renderMemberUI(){
   document.getElementById('f-member').innerHTML = members.map(function(m){
     return '<option>'+m.name+'</option>';
   }).join('');
+  // 각 탭 필터도 업데이트
+  ['filter-weekly-member','filter-proj-member','filter-dir-member'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el){
+      var cur = el.value;
+      el.innerHTML = '<option value="">전체 담당자</option>'+members.map(function(m){
+        return '<option'+(m.name===cur?' selected':'')+'>'+m.name+'</option>';
+      }).join('');
+    }
+  });
 }
 
 function renderMemberGrid(){
@@ -568,8 +597,12 @@ function renderWeeklySelect(){
 }
 function renderWeekly(){
   var wk = document.getElementById('week-select').value;
+  var fm = document.getElementById('filter-weekly-member') ? document.getElementById('filter-weekly-member').value : '';
+  var fs = document.getElementById('filter-weekly-status') ? document.getElementById('filter-weekly-status').value : '';
   var cats = ['전주 업무내용','금주 업무계획','건의 및 전달사항'];
-  var rows = data.weekly.filter(function(x){return getWeekKey(x.endPlan)===wk;});
+  var rows = data.weekly.filter(function(x){
+    return getWeekKey(x.endPlan)===wk && (!fm||x.member===fm) && (!fs||x.status===fs);
+  });
   var html = '';
   cats.forEach(function(cat){
     var cr = rows.filter(function(x){return x.cat===cat;});
@@ -595,8 +628,12 @@ function renderWeekly(){
 
 // ── RENDER PROJECT ──
 function renderProject(){
+  var fm = document.getElementById('filter-proj-member') ? document.getElementById('filter-proj-member').value : '';
+  var fs = document.getElementById('filter-proj-status') ? document.getElementById('filter-proj-status').value : '';
   var html = '';
-  data.project.forEach(function(x,i){
+  var filteredProj = data.project.filter(function(x){ return (!fm||x.member===fm)&&(!fs||x.status===fs); });
+  filteredProj.forEach(function(x,i){
+  var i = data.project.indexOf(x);
     html += '<tr>';
     html += '<td style="font-weight:600">'+x.name+'</td>';
     html += '<td>'+mdot(x.member)+'</td>';
@@ -650,8 +687,11 @@ function changeMonth(dir){ curMonth.m+=dir; if(curMonth.m>11){curMonth.m=0;curMo
 
 // ── DIRECTIVE ──
 function renderDirective(){
+  var fm = document.getElementById('filter-dir-member') ? document.getElementById('filter-dir-member').value : '';
+  var fs = document.getElementById('filter-dir-status') ? document.getElementById('filter-dir-status').value : '';
   var html = '';
-  data.directive.forEach(function(x,i){
+  data.directive.filter(function(x){ return (!fm||x.member===fm)&&(!fs||x.status===fs); }).forEach(function(x,i){
+  var i = data.directive.indexOf(x);
     html += '<tr>';
     html += '<td style="font-size:12px;font-weight:600;color:'+(x.director&&x.director.includes('병원장')?'var(--coral)':'#7C3AED')+'">'+(x.director||'')+'</td>';
     html += '<td style="font-weight:500">'+x.content+'</td>';
@@ -779,9 +819,23 @@ async function saveForm(){
   setTimeout(syncAll, 2000);
 }
 
+function saveHeadcount(){
+  var v = document.getElementById('headcount-input').value;
+  localStorage.setItem('hr_headcount', v);
+  document.getElementById('headcount-display').textContent = v;
+  alert('재직인원이 ' + v + '명으로 저장됐어요!');
+}
+
+function loadHeadcount(){
+  var v = localStorage.getItem('hr_headcount') || '266';
+  document.getElementById('headcount-display').textContent = v;
+  document.getElementById('headcount-input').value = v;
+}
+
 function renderAll(){ updateStats(); renderMemberUI(); renderDaily(); renderWeeklySelect(); renderWeekly(); renderProject(); renderCalendar(); renderDirective(); }
 
 renderAll();
+loadHeadcount();
 syncAll();
 setInterval(syncAll, 60000);
 </script>
