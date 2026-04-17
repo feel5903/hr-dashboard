@@ -261,7 +261,7 @@ tbody tr:hover{background:#FAFBFC}
     <div class="field" id="field-progress" style="display:none"><label>진행률 (%)</label><input type="number" id="f-progress" min="0" max="100" value="0"></div>
     <div class="field"><label>상태</label>
       <select id="f-status"><option>진행</option><option>완료</option><option>대기</option><option>피드백</option><option>보류</option></select></div>
-    <div class="field"><label>비고</label><input type="text" id="f-note" placeholder="비고 입력"></div>
+    <div class="field"><label>비고</label><textarea id="f-note" placeholder="비고 입력 (엔터로 줄바꿈 가능)" style="height:80px;resize:vertical"></textarea></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeOverlay()">취소</button>
       <button class="btn primary" id="save-btn" onclick="saveForm()">저장</button>
@@ -416,9 +416,9 @@ async function syncAll(){
 function updateStats(){
   var all=data.daily.concat(data.directive);
   document.getElementById('s-total').textContent=data.daily.length+data.project.length+data.directive.length;
-  document.getElementById('s-prog').textContent=all.filter(function(x){return x.status==='진행';}).length;
+  document.getElementById('s-prog').textContent=data.daily.filter(function(x){return x.status==='진행';}).length;
   document.getElementById('s-due').textContent=data.daily.filter(function(x){return isToday(x.end)&&x.status!=='완료';}).length;
-  document.getElementById('s-done').textContent=all.filter(function(x){return x.status==='완료';}).length;
+  document.getElementById('s-done').textContent=data.daily.filter(function(x){return x.status==='완료';}).length;
   document.getElementById('badge-daily').textContent=data.daily.filter(function(x){return x.status==='진행';}).length;
   document.getElementById('badge-dir').textContent=data.directive.filter(function(x){return x.status!=='완료';}).length;
 }
@@ -504,7 +504,7 @@ function renderDaily(){
     html+='<td>'+mdot(x.member)+'</td>';
     html+='<td style="font-size:12px;color:'+(over?'#DC2626':due?'#D97706':x.status==='완료'?'var(--text-muted)':'inherit')+'">'+(x.end||'')+'</td>';
     html+='<td>'+badge(x.status)+'</td>';
-    html+='<td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td>';
+    html+='<td style="font-size:12px;color:var(--text-muted);white-space:pre-wrap">'+(x.note||'')+'</td>';
     html+='<td><div class="action-btns">';
     html+='<select onchange="changeStatus(\'daily\','+di+',this.value)" style="font-size:11px;padding:2px 4px;border:1px solid var(--gray-border);border-radius:4px">';
     html+='<option'+(x.status==='진행'?' selected':'')+'>진행</option><option'+(x.status==='완료'?' selected':'')+'>완료</option><option'+(x.status==='대기'?' selected':'')+'>대기</option><option'+(x.status==='피드백'?' selected':'')+'>피드백</option><option'+(x.status==='보류'?' selected':'')+'>보류</option>';
@@ -598,7 +598,7 @@ function renderCalendar(){
     html+='<div class="cal-day '+(ds===todayStr?'today':'')+'" data-date="'+ds+'"'+(evts.length?' style="cursor:pointer"':'')+'>'+
       '<div class="day-num">'+dd+'</div>'+
       evts.slice(0,2).map(function(e){return '<div class="cal-evt '+e.type+'">'+e.label+'</div>';}).join('')+
-      (evts.length>2?'<div style="font-size:10px;color:var(--navy);font-weight:600">+'+(evts.length-2)+'건 더보기</div>':'')+
+      (evts.length>2?'<div style="font-size:10px;color:var(--navy);font-weight:600;margin-top:2px;padding:1px 3px;background:var(--navy-light);border-radius:3px;text-align:center">+' +(evts.length-2)+'건 더보기 👆</div>':'')+
       '</div>';
   }
   document.getElementById('cal-grid').innerHTML=html;
