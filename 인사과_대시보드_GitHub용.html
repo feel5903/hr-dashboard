@@ -595,10 +595,11 @@ function renderCalendar(){
   for(var dd=1;dd<=last.getDate();dd++){
     var ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(dd).padStart(2,'0');
     var evts=allEvts.filter(function(x){return x.date===ds;});
-    html+='<div class="cal-day '+(ds===todayStr?'today':'')+'" data-date="'+ds+'"'+(evts.length?' style="cursor:pointer"':'')+'>'+
+    var onclk=evts.length?'onclick="showCalModal(\''+ds+'\')" style="cursor:pointer"':'';
+    html+='<div class="cal-day '+(ds===todayStr?'today':'')+'" '+onclk+'>'+
       '<div class="day-num">'+dd+'</div>'+
       evts.slice(0,2).map(function(e){return '<div class="cal-evt '+e.type+'">'+e.label+'</div>';}).join('')+
-      (evts.length>2?'<div style="font-size:10px;color:var(--navy);font-weight:600;margin-top:2px;padding:1px 3px;background:var(--navy-light);border-radius:3px;text-align:center">+' +(evts.length-2)+'건 더보기 👆</div>':'')+
+      (evts.length>2?'<div style="font-size:10px;color:var(--navy);font-weight:600;margin-top:2px">+' +(evts.length-2)+'건 더보기</div>':'')+
       '</div>';
   }
   document.getElementById('cal-grid').innerHTML=html;
