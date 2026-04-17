@@ -274,13 +274,7 @@ tbody tr:hover{background:#FAFBFC}
     <div class="field"><label>상태</label>
       <select id="f-status"><option>진행</option><option>완료</option><option>대기</option><option>피드백</option><option>보류</option></select></div>
     <div class="field"><label>비고 / 산출물</label><input type="text" id="f-note" placeholder="산출물, 협의 대상 등"></div>
-    <div class="sync-box" id="sync-box" style="display:none">
-      <p>📊 이 업무를 주간 보고에도 추가할까요?</p>
-      <div class="sync-btns">
-        <button class="sync-btn yes" id="sync-yes" onclick="setSyncChoice(true)">✓ 주간보고에도 추가</button>
-        <button class="sync-btn no" id="sync-no" onclick="setSyncChoice(false)">일일업무만 추가</button>
-      </div>
-    </div>
+    
     <div class="modal-actions">
       <button class="btn" onclick="closeOverlay()">취소</button>
       <button class="btn primary" id="save-btn" onclick="saveForm()">저장</button>
@@ -542,9 +536,7 @@ function editItem(type, idx){
   } else if(type==='weekly'){
     document.querySelector('#sync-box p').textContent = '📋 일일업무에도 같은 내용으로 수정할까요?';
   }
-  document.getElementById('sync-yes').classList.remove('sel');
-  document.getElementById('sync-no').classList.remove('sel');
-  syncChoice = false;
+  
   // 기존 값 채우기
   setTimeout(function(){
     document.getElementById('f-member').value = x.member||'';
@@ -558,6 +550,9 @@ function editItem(type, idx){
     if(type==='directive') document.getElementById('f-director').value = x.director||'병원장 이지선';
   }, 50);
   document.getElementById('save-btn').textContent = '수정 완료';
+  // 담당자 목록 강제 업데이트
+  var fmSel = document.getElementById('f-member');
+  fmSel.innerHTML = members.map(function(m){return '<option>'+m.name+'</option>';}).join('');
   document.getElementById('overlay').classList.add('open');
 }
 
@@ -804,7 +799,7 @@ function filterByMember(name,el){ document.getElementById('filter-member').value
 
 
 function openForm(type){
-  curForm=type; syncChoice=false; editIdx=null;
+  curForm=type; editIdx=null;
   var titles={daily:'일일 업무 추가',weekly:'주간 보고 추가',project:'프로젝트 추가',directive:'지시사항 추가'};
   document.getElementById('modal-title').textContent=titles[type];
   document.getElementById('field-cat').style.display=type==='weekly'?'block':'none';
@@ -851,8 +846,7 @@ async function saveForm(){
       x.member=member; x.content=content; x.end=end; x.status=status; x.note=note;
       await pushOverwrite('daily');
       // 주간보고 연동
-      if(syncChoice){
-        var wi = data.weekly.findIndex(function(w){ return w.content===oldContent; });
+      );
         if(wi >= 0){
           data.weekly[wi].member=member; data.weekly[wi].content=content;
           data.weekly[wi].endPlan=end; data.weekly[wi].status=status; data.weekly[wi].output=note;
@@ -863,8 +857,7 @@ async function saveForm(){
       x.member=member; x.content=content; x.endPlan=end; x.status=status; x.output=note; x.cat=document.getElementById('f-cat').value;
       await pushOverwrite('weekly');
       // 일일업무 연동
-      if(syncChoice){
-        var di = data.daily.findIndex(function(d){ return d.content===oldContent; });
+      );
         if(di >= 0){
           data.daily[di].member=member; data.daily[di].content=content;
           data.daily[di].end=end; data.daily[di].status=status; data.daily[di].note=note;
@@ -888,7 +881,7 @@ async function saveForm(){
   if(curForm==='daily'){
     var nr={id:genId('d'),member:member,content:content,end:end,status:status,note:note};
     data.daily.push(nr); await pushRow('daily',Object.values(nr));
-    if(syncChoice){ var wr={id:genId('w'),cat:'금주 업무계획',member:member,content:content,endPlan:end,endActual:'',status:status,output:note}; data.weekly.push(wr); await pushRow('weekly',Object.values(wr)); }
+    ; data.weekly.push(wr); await pushRow('weekly',Object.values(wr)); }
   } else if(curForm==='weekly'){
     var nr={id:genId('w'),cat:document.getElementById('f-cat').value,member:member,content:content,endPlan:end,endActual:'',status:status,output:note};
     data.weekly.push(nr); await pushRow('weekly',Object.values(nr));
