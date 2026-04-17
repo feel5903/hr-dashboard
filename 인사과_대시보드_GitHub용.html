@@ -390,25 +390,27 @@ function pushOverwrite(tab){
 }
 
 
+function formatDate(val) {
+  if (!val || typeof val !== 'string') return val;
+  // "Mon Apr 20 2026 00:00:00 GMT+0900..." 형식
+  if (val.match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s/)) {
+    var d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    }
+  }
+  // ISO 형식 "2026-04-17T..."
+  if (val.match(/^\d{4}-\d{2}-\d{2}T/)) return val.slice(0,10);
+  return val;
+}
+
 function normalizeRow(row) {
   var normalized = {};
+  var dateFields = ['end','endPlan','endActual','start'];
   Object.keys(row).forEach(function(k) {
     var val = row[k];
-    if (val && typeof val === 'string') {
-      // "Fri Apr 17 2026..." 형식 변환
-      if (val.match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s/)) {
-        var d = new Date(val);
-        if (!isNaN(d.getTime())) {
-          var y = d.getFullYear();
-          var m = String(d.getMonth()+1).padStart(2,'0');
-          var dd = String(d.getDate()).padStart(2,'0');
-          val = y+'-'+m+'-'+dd;
-        }
-      }
-      // ISO 형식
-      else if (val.match(/^\d{4}-\d{2}-\d{2}T/)) {
-        val = val.slice(0,10);
-      }
+    if (dateFields.indexOf(k) >= 0) {
+      val = formatDate(val);
     }
     normalized[k] = val;
   });
