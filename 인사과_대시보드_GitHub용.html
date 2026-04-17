@@ -186,17 +186,26 @@ tbody tr:hover{background:#FAFBFC}
     </div>
   </div>
   <div id="pane-weekly" class="pane">
-    <div class="card">
-      <div class="card-head"><span class="card-title">주간 업무 보고</span>
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-head">
+        <span class="card-title">주간 업무 보고</span>
         <div class="card-actions">
           <select id="week-select" onchange="renderWeekly()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"></select>
           <select id="filter-weekly-member" onchange="renderWeekly()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 담당자</option></select>
-          <select id="filter-weekly-status" onchange="renderWeekly()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 상태</option><option>진행</option><option>완료</option><option>대기</option></select>
-          <button class="btn primary" onclick="openForm('weekly')">+ 직접 추가</button>
         </div>
       </div>
-      <div class="week-meta"><span>📌 재직인원: <strong id="headcount-display">266</strong>명 <button onclick="switchNav('members',null)" style="font-size:11px;padding:1px 6px;border-radius:4px;border:1px solid var(--navy);background:transparent;color:var(--navy);cursor:pointer">수정</button></span><span>💡 일일업무 추가 시 주간보고 연동 가능</span></div>
-      <table><thead><tr><th>구분</th><th>담당자</th><th>업무 내용</th><th>완료예정일</th><th>완료일</th><th>상태</th><th>비고</th><th>관리</th></tr></thead>
+      <div class="week-meta">
+        <span>📌 재직인원: <strong id="headcount-display">266</strong>명</span>
+        <span>💡 일일업무에서 자동 집계됩니다</span>
+      </div>
+      <div id="weekly-summary" style="padding:1rem 1.25rem;display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">이번 주 업무 상세</span>
+      </div>
+      <table><thead><tr><th>담당자</th><th>업무 내용</th><th>마감일</th><th>상태</th><th>비고</th></tr></thead>
       <tbody id="weekly-tbody"></tbody></table>
     </div>
   </div>
@@ -597,45 +606,84 @@ function renderDaily(){
 // ── RENDER WEEKLY ──
 function renderWeeklySelect(){
   var weeks = {};
-  data.weekly.concat(data.daily).forEach(function(x){ var d=x.endPlan||x.end; if(!d)return; var k=getWeekKey(d); if(!weeks[k])weeks[k]=getWeekLabel(d); });
+  // 일일업무에서 주차 목록 생성
+  data.daily.forEach(function(x){
+    var d = x.end;
+    if(!d) return;
+    var k = getWeekKey(d);
+    if(!weeks[k]) weeks[k] = getWeekLabel(d);
+  });
   var sel = document.getElementById('week-select');
   var cur = sel.value;
   var opts = Object.entries(weeks).sort(function(a,b){return a[0]>b[0]?-1:1;});
   sel.innerHTML = opts.map(function(e){return '<option value="'+e[0]+'">'+e[1]+'</option>';}).join('');
-  if(cur) sel.value = cur;
+  // 현재 주차 자동 선택
+  if(cur && opts.some(function(o){return o[0]===cur;})){
+    sel.value = cur;
+  } else {
+    var thisWeek = getWeekKey(todayStr);
+    var found = opts.find(function(o){return o[0]===thisWeek;});
+    if(found) sel.value = found[0];
+    else if(opts.length) sel.value = opts[0][0];
+  }
+  // 필터 담당자 업데이트
+  var fwm = document.getElementById('filter-weekly-member');
+  if(fwm){
+    var curM = fwm.value;
+    fwm.innerHTML = '<option value="">전체 담당자</option>'+members.map(function(m){
+      return '<option'+(m.name===curM?' selected':'')+'>'+m.name+'</option>';
+    }).join('');
+  }
 }
+
 function renderWeekly(){
   var wk = document.getElementById('week-select').value;
-  var fm = document.getElementById('filter-weekly-member') ? document.getElementById('filter-weekly-member').value : '';
-  var fs = document.getElementById('filter-weekly-status') ? document.getElementById('filter-weekly-status').value : '';
-  var cats = ['전주 업무내용','금주 업무계획','건의 및 전달사항'];
-  var rows = data.weekly.filter(function(x){
-    return getWeekKey(x.endPlan)===wk && (!fm||x.member===fm) && (!fs||x.status===fs);
+  var fwm = document.getElementById('filter-weekly-member');
+  var fm = fwm ? fwm.value : '';
+
+  // 일일업무에서 해당 주차 자동 집계
+  var weekRows = data.daily.filter(function(x){
+    return getWeekKey(x.end) === wk && (!fm || x.member === fm);
   });
+
+  // 요약 카드
+  var total = weekRows.length;
+  var done = weekRows.filter(function(x){return x.status==='완료';}).length;
+  var ing = weekRows.filter(function(x){return x.status==='진행';}).length;
+  var wait = weekRows.filter(function(x){return x.status==='대기'||x.status==='보류';}).length;
+
+  document.getElementById('weekly-summary').innerHTML =
+    '<div style="background:var(--navy-light);border-radius:var(--radius);padding:.75rem 1rem;text-align:center"><div style="font-size:11px;color:var(--navy-mid);margin-bottom:4px">전체</div><div style="font-size:22px;font-weight:700;color:var(--navy)">'+total+'</div></div>'+
+    '<div style="background:#DBEAFE;border-radius:var(--radius);padding:.75rem 1rem;text-align:center"><div style="font-size:11px;color:#1E40AF;margin-bottom:4px">진행 중</div><div style="font-size:22px;font-weight:700;color:#1E40AF">'+ing+'</div></div>'+
+    '<div style="background:var(--lime-light);border-radius:var(--radius);padding:.75rem 1rem;text-align:center"><div style="font-size:11px;color:var(--lime-dark);margin-bottom:4px">완료</div><div style="font-size:22px;font-weight:700;color:var(--lime-dark)">'+done+'</div></div>'+
+    '<div style="background:var(--gray-light);border-radius:var(--radius);padding:.75rem 1rem;text-align:center"><div style="font-size:11px;color:var(--gray);margin-bottom:4px">대기/보류</div><div style="font-size:22px;font-weight:700;color:var(--gray)">'+wait+'</div></div>';
+
+  // 담당자별로 그룹화해서 표시
+  var byMember = {};
+  weekRows.forEach(function(x){
+    if(!byMember[x.member]) byMember[x.member] = [];
+    byMember[x.member].push(x);
+  });
+
   var html = '';
-  cats.forEach(function(cat){
-    var cr = rows.filter(function(x){return x.cat===cat;});
-    if(!cr.length) return;
-    html += '<tr><td colspan="8" style="background:var(--navy-light);font-size:11px;font-weight:700;color:var(--navy);padding:.4rem 1rem">'+cat+'</td></tr>';
-    cr.forEach(function(x){
-      var wi = data.weekly.indexOf(x);
+  Object.keys(byMember).forEach(function(memberName){
+    var rows = byMember[memberName];
+    html += '<tr><td colspan="5" style="background:var(--navy-light);font-size:11px;font-weight:700;color:var(--navy);padding:.4rem 1rem">'+memberName+'</td></tr>';
+    rows.forEach(function(x){
       html += '<tr>';
-      html += '<td style="font-size:11px;color:var(--text-muted)">'+cat+'</td>';
       html += '<td>'+mdot(x.member)+'</td>';
-      html += '<td>'+x.content+'</td>';
-      html += '<td style="font-size:12px">'+(x.endPlan||'')+'</td>';
-      html += '<td style="font-size:12px;color:var(--text-muted)">'+(x.endActual||'—')+'</td>';
+      html += '<td style="font-weight:500">'+x.content+'</td>';
+      html += '<td style="font-size:12px">'+(x.end||'')+'</td>';
       html += '<td>'+badge(x.status)+'</td>';
-      html += '<td style="font-size:12px;color:var(--text-muted)">'+(x.output||'')+'</td>';
-      html += '<td><div class="action-btns"><button class="edit-btn" onclick="editItem(\'weekly\','+wi+')">✏️</button><button class="del-btn" onclick="deleteItem(\'weekly\','+wi+')">🗑️</button></div></td>';
+      html += '<td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td>';
       html += '</tr>';
     });
   });
-  if(!html) html = '<tr><td colspan="8" class="empty">이번 주 보고 내용이 없습니다</td></tr>';
+
+  if(!html) html = '<tr><td colspan="5" class="empty">이번 주 업무가 없습니다</td></tr>';
   document.getElementById('weekly-tbody').innerHTML = html;
 }
 
-// ── RENDER PROJECT ──
 function renderProject(){
   var fm = document.getElementById('filter-proj-member') ? document.getElementById('filter-proj-member').value : '';
   var fs = document.getElementById('filter-proj-status') ? document.getElementById('filter-proj-status').value : '';
