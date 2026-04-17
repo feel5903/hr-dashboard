@@ -269,6 +269,7 @@ tbody tr:hover{background:#FAFBFC}
     <div class="field"><label>담당자</label><select id="f-member"></select></div>
     <div class="field"><label>업무 내용</label><textarea id="f-content" placeholder="업무 내용을 입력하세요"></textarea></div>
     <div class="field" id="field-start" style="display:none"><label>시작일</label><input type="date" id="f-start"></div>
+    <div class="field" id="field-created"><label>작성일</label><input type="date" id="f-created"></div>
     <div class="field"><label>마감일</label><input type="date" id="f-end"></div>
     <div class="field" id="field-progress" style="display:none"><label>진행률 (%)</label><input type="number" id="f-progress" min="0" max="100" value="0"></div>
     <div class="field"><label>상태</label>
@@ -481,11 +482,13 @@ function editItem(type,idx){
   document.getElementById('modal-title').textContent=titles[type];
   document.getElementById('field-director').style.display=type==='directive'?'block':'none';
   document.getElementById('field-start').style.display=type==='project'?'block':'none';
+  document.getElementById('field-created').style.display=type==='daily'?'block':'none';
   document.getElementById('field-progress').style.display=type==='project'?'block':'none';
   document.getElementById('f-member').innerHTML=members.map(function(m){return '<option>'+m.name+'</option>';}).join('');
   setTimeout(function(){
     document.getElementById('f-member').value=x.member||'';
     document.getElementById('f-content').value=x.content||x.name||'';
+    document.getElementById('f-created').value=x.created||todayStr;
     document.getElementById('f-end').value=x.end||'';
     document.getElementById('f-start').value=x.start||'';
     document.getElementById('f-status').value=x.status||'진행';
@@ -707,9 +710,11 @@ function openForm(type){
   document.getElementById('modal-title').textContent=titles[type]||'추가';
   document.getElementById('field-director').style.display=type==='directive'?'block':'none';
   document.getElementById('field-start').style.display=type==='project'?'block':'none';
+  document.getElementById('field-created').style.display=type==='daily'?'block':'none';
   document.getElementById('field-progress').style.display=type==='project'?'block':'none';
   document.getElementById('f-member').innerHTML=members.map(function(m){return '<option>'+m.name+'</option>';}).join('');
   document.getElementById('f-content').value='';
+  document.getElementById('f-created').value=todayStr;
   document.getElementById('f-end').value=todayStr;
   document.getElementById('f-start').value=todayStr;
   document.getElementById('f-status').value='진행';
@@ -736,7 +741,7 @@ async function saveForm(){
 
   if(editIdx!==null){
     var x=data[curForm][editIdx];
-    if(curForm==='daily'){x.member=member;x.content=content;x.end=end;x.status=status;x.note=note;}
+    if(curForm==='daily'){x.member=member;x.content=content;x.created=document.getElementById('f-created').value||x.created||todayStr;x.end=end;x.status=status;x.note=note;}
     else if(curForm==='project'){x.member=member;x.name=content;x.start=document.getElementById('f-start').value;x.end=end;x.status=status;x.progress=parseInt(document.getElementById('f-progress').value)||0;}
     else if(curForm==='directive'){x.member=member;x.content=content;x.end=end;x.status=status;x.director=document.getElementById('f-director').value;}
     await overwriteTab(curForm);
@@ -744,7 +749,7 @@ async function saveForm(){
   }
 
   if(curForm==='daily'){
-    var nr={id:genId('d'),member:member,content:content,created:todayStr,end:end,status:status,note:note,feedback:''};
+    var nr={id:genId('d'),member:member,content:content,created:document.getElementById('f-created').value||todayStr,end:end,status:status,note:note,feedback:''};
     data.daily.push(nr); await saveRow('daily',Object.values(nr));
   } else if(curForm==='project'){
     var nr={id:genId('p'),name:content,member:member,start:document.getElementById('f-start').value,end:end,progress:parseInt(document.getElementById('f-progress').value)||0,status:status};
