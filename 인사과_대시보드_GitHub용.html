@@ -686,11 +686,23 @@ function renderCalendar(){
   for(var dd=1;dd<=last.getDate();dd++){
     var ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(dd).padStart(2,'0');
     var evts=allEvts.filter(function(x){return x.date===ds;});
-    html+='<div class="cal-day '+(ds===todayStr?'today':'')+'"><div class="day-num">'+dd+'</div>'
-      +evts.slice(0,3).map(function(e){return '<div class="cal-evt '+e.type+'">'+e.label+'</div>';}).join('')
-      +(evts.length>3?'<div style="font-size:10px;color:var(--text-muted)">+'+(evts.length-3)+'건</div>':'')+'</div>';
+    var hasEvt=evts.length>0;
+    html+='<div class="cal-day '+(ds===todayStr?'today':'')+'" data-date="'+ds+'" '+(hasEvt?'style="cursor:pointer"':'')+'>'+
+      '<div class="day-num">'+dd+'</div>'+
+      evts.slice(0,2).map(function(e){return '<div class="cal-evt '+e.type+'">'+e.label+'</div>';}).join('')+
+      (evts.length>2?'<div style="font-size:10px;color:var(--navy);font-weight:600">+' + (evts.length-2) + '건 더보기</div>':'')+
+      '</div>';
   }
   document.getElementById('cal-grid').innerHTML = html;
+  // 클릭 이벤트 직접 바인딩
+  document.querySelectorAll('.cal-day[data-date]').forEach(function(el){
+    var evts2 = allEvts.filter(function(x){return x.date===el.getAttribute('data-date');});
+    if(evts2.length>0){
+      el.addEventListener('click', function(){
+        showCalModal(el.getAttribute('data-date'));
+      });
+    }
+  });
 }
 function showCalModal(ds){
   var allEvts = data.daily.map(function(x){return{date:x.end,label:x.content,type:x.status,member:x.member,note:x.note||''};})
