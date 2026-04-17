@@ -323,7 +323,6 @@ var members = JSON.parse(localStorage.getItem('hr_members')||'null') || [
 ];
 var curMonth = {y:TODAY.getFullYear(), m:TODAY.getMonth()};
 var curForm = 'daily';
-var syncChoice = false;
 var editMemberIdx = null;
 var editIdx = null;
 var data = {daily:[], weekly:[], project:[], directive:[]};
@@ -352,11 +351,11 @@ function getWeekLabel(d){
   if(!d) return '';
   var dt = new Date(d);
   var mon = new Date(dt); mon.setDate(dt.getDate()-dt.getDay()+1);
-  var sun = new Date(mon); sun.setDate(mon.getDate()+6);
-  var fmt = function(x){ return (x.getMonth()+1)+'/'+x.getDate(); };
-  var j = new Date(dt.getFullYear(),0,1);
-  var w = Math.ceil(((dt-j)/86400000+j.getDay()+1)/7);
-  return dt.getFullYear()+'년 '+w+'주차 ('+fmt(mon)+'~'+fmt(sun)+')';
+  var month = mon.getMonth()+1;
+  // 해당 월의 몇 번째 주인지 계산
+  var firstDay = new Date(mon.getFullYear(), mon.getMonth(), 1);
+  var weekOfMonth = Math.ceil((mon.getDate() + firstDay.getDay()) / 7);
+  return dt.getFullYear()+'년 '+month+'월 '+weekOfMonth+'주차';
 }
 
 function setSyncStatus(t, txt){
@@ -802,7 +801,7 @@ function changeStatus(type,idx,val){ data[type][idx].status=val; setTimeout(func
 function switchNav(name,el){ document.querySelectorAll('.nav-item,.member-nav').forEach(function(n){n.classList.remove('active');}); if(el)el.classList.add('active'); document.querySelectorAll('.pane').forEach(function(p){p.classList.remove('active');}); document.getElementById('pane-'+name).classList.add('active'); if(name==='members')renderMemberGrid(); }
 function filterByMember(name,el){ document.getElementById('filter-member').value=name; document.querySelectorAll('.nav-item,.member-nav').forEach(function(n){n.classList.remove('active');}); if(el)el.classList.add('active'); document.querySelectorAll('.pane').forEach(function(p){p.classList.remove('active');}); document.getElementById('pane-daily').classList.add('active'); renderDaily(); }
 
-function setSyncChoice(val){ syncChoice=val; document.getElementById('sync-yes').classList.toggle('sel',val); document.getElementById('sync-no').classList.toggle('sel',!val); }
+
 
 function openForm(type){
   curForm=type; syncChoice=false; editIdx=null;
@@ -812,9 +811,7 @@ function openForm(type){
   document.getElementById('field-director').style.display=type==='directive'?'block':'none';
   document.getElementById('field-start').style.display=type==='project'?'block':'none';
   document.getElementById('field-progress').style.display=type==='project'?'block':'none';
-  document.getElementById('sync-box').style.display=type==='daily'?'block':'none';
-  document.getElementById('sync-yes').classList.remove('sel');
-  document.getElementById('sync-no').classList.remove('sel');
+
   document.getElementById('f-content').value='';
   document.getElementById('f-end').value=todayStr;
   document.getElementById('f-start').value=todayStr;
