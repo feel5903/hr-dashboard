@@ -279,6 +279,13 @@ tbody tr:hover{background:#FAFBFC}
   </div>
 </div>
 
+<div class="overlay" id="cal-overlay" onclick="closeCalModal(event)">
+  <div class="modal" style="width:500px">
+    <h3 id="cal-modal-title">업무 목록</h3>
+    <div id="cal-modal-body" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto"></div>
+    <div class="modal-actions"><button class="btn primary" onclick="document.getElementById('cal-overlay').classList.remove('open')">닫기</button></div>
+  </div>
+</div>
 <div class="overlay" id="member-overlay" onclick="closeMemberOutside(event)">
   <div class="modal">
     <h3 id="member-modal-title">팀원 추가</h3>
@@ -685,6 +692,22 @@ function renderCalendar(){
   }
   document.getElementById('cal-grid').innerHTML = html;
 }
+function showCalModal(ds){
+  var allEvts = data.daily.map(function(x){return{date:x.end,label:x.content,type:x.status,member:x.member,note:x.note||''};})
+    .concat(data.directive.map(function(x){return{date:x.end,label:'[지시] '+x.content,type:'지시',member:x.member,note:x.director||''};}));
+  var evts = allEvts.filter(function(x){return x.date===ds;});
+  document.getElementById('cal-modal-title').textContent = ds+' 업무 목록 ('+evts.length+'건)';
+  document.getElementById('cal-modal-body').innerHTML = evts.length===0?'<div class="empty">업무가 없습니다</div>':evts.map(function(e){
+    return '<div style="padding:.75rem 1rem;border:.5px solid var(--gray-border);border-radius:var(--radius);background:var(--white)">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'
+      +'<span style="font-weight:600;font-size:13px">'+e.label+'</span>'+badge(e.type)+'</div>'
+      +'<div style="font-size:12px;color:var(--text-muted)">담당자: '+mdot(e.member)+(e.note?' · '+e.note:'')+'</div>'
+      +'</div>';
+  }).join('');
+  document.getElementById('cal-overlay').classList.add('open');
+}
+function closeCalModal(e){if(e.target===document.getElementById('cal-overlay'))document.getElementById('cal-overlay').classList.remove('open');}
+
 function changeMonth(dir){ curMonth.m+=dir; if(curMonth.m>11){curMonth.m=0;curMonth.y++;} if(curMonth.m<0){curMonth.m=11;curMonth.y--;} renderCalendar(); renderGantt(); }
 
 // ── DIRECTIVE ──
