@@ -368,9 +368,9 @@ function setSyncStatus(t,txt){
 
 async function callScript(params){
   try{
-    var url=SHEET_URL;
-    Object.keys(params).forEach(function(k){ url+='&'+k+'='+encodeURIComponent(typeof params[k]==='object'?JSON.stringify(params[k]):params[k]); });
-    url+='&t='+Date.now();
+    var url=SHEET_URL+'?';
+    Object.keys(params).forEach(function(k){ url+=k+'='+encodeURIComponent(typeof params[k]==='object'?JSON.stringify(params[k]):params[k])+'&'; });
+    url+='t='+Date.now();
     var r=await fetch(url,{redirect:'follow',mode:'cors'});
     if(!r.ok) return null;
     var txt=await r.text();
