@@ -182,7 +182,7 @@ tbody tr:hover{background:#FAFBFC}
     </div>
     <div class="card">
       <div class="card-head"><span class="card-title">업무 상세</span></div>
-      <table><thead><tr><th>담당자</th><th>업무 내용</th><th>마감일</th><th>상태</th><th>비고</th></tr></thead>
+      <table><thead><tr><th>담당자</th><th>업무 내용</th><th>마감일</th><th>상태</th><th>비고</th><th>피드백</th></tr></thead>
       <tbody id="weekly-tbody"></tbody></table>
     </div>
   </div>
@@ -544,7 +544,7 @@ function renderWeekly(){
   var html='';
   Object.keys(byMember).forEach(function(mn){
     html+='<tr><td colspan="5" style="background:var(--navy-light);font-size:11px;font-weight:700;color:var(--navy);padding:.4rem 1rem">'+mn+'</td></tr>';
-    byMember[mn].forEach(function(x){ html+='<tr><td>'+mdot(x.member)+'</td><td style="font-weight:500">'+x.content+'</td><td style="font-size:12px">'+(x.end||'')+'</td><td>'+badge(x.status)+'</td><td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td></tr>'; });
+    byMember[mn].forEach(function(x){ html+='<tr><td>'+mdot(x.member)+'</td><td style="font-weight:500">'+x.content+'</td><td style="font-size:12px">'+(x.end||'')+'</td><td>'+badge(x.status)+'</td><td style="font-size:12px;color:var(--text-muted);white-space:pre-wrap">'+(x.note||'')+'</td><td><input type="text" placeholder="피드백 입력" onchange="saveFeedback('+"'"+x.id+"'"+',this.value)" value="'+(x.feedback||'')+'" style="width:150px;font-size:11px;padding:3px 6px;border:1px solid var(--gray-border);border-radius:4px;font-family:inherit"></td></tr>'; });
   });
   if(!html)html='<tr><td colspan="5" class="empty">이번 주 업무가 없습니다</td></tr>';
   document.getElementById('weekly-tbody').innerHTML=html;
@@ -621,6 +621,14 @@ function showCalModal(ds, evts){
     return '<div style="padding:.75rem 1rem;border:.5px solid var(--gray-border);border-radius:var(--radius)"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="font-weight:600;font-size:13px">'+e.label+'</span>'+badge(e.type)+'</div><div style="font-size:12px;color:var(--text-muted)">담당자: '+mdot(e.member)+(e.note?' · '+e.note:'')+'</div></div>';
   }).join('');
   document.getElementById('cal-overlay').classList.add('open');
+}
+
+function saveFeedback(id, val){
+  var item = data.daily.find(function(x){ return x.id===id; });
+  if(item){
+    item.feedback = val;
+    setTimeout(function(){ overwriteTab('daily'); }, 500);
+  }
 }
 
 function changeMonth(dir){ curMonth.m+=dir; if(curMonth.m>11){curMonth.m=0;curMonth.y++;} if(curMonth.m<0){curMonth.m=11;curMonth.y--;} renderCalendar(); renderGantt(); }
