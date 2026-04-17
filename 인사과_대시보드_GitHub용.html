@@ -353,6 +353,8 @@ function normalizeRow(row){
   Object.keys(row).forEach(function(k){
     out[k]=dateFields.indexOf(k)>=0?formatDateVal(row[k]):row[k];
   });
+  // feedback 필드 기본값
+  if(!('feedback' in out)) out.feedback='';
   return out;
 }
 
@@ -627,7 +629,9 @@ function saveFeedback(id, val){
   var item = data.daily.find(function(x){ return x.id===id; });
   if(item){
     item.feedback = val;
-    setTimeout(function(){ overwriteTab('daily'); }, 500);
+    // 전체 overwrite로 저장
+    clearTimeout(window._feedbackTimer);
+    window._feedbackTimer = setTimeout(function(){ overwriteTab('daily'); }, 1000);
   }
 }
 
@@ -710,7 +714,7 @@ async function saveForm(){
   }
 
   if(curForm==='daily'){
-    var nr={id:genId('d'),member:member,content:content,end:end,status:status,note:note};
+    var nr={id:genId('d'),member:member,content:content,end:end,status:status,note:note,feedback:''};
     data.daily.push(nr); await saveRow('daily',Object.values(nr));
   } else if(curForm==='project'){
     var nr={id:genId('p'),name:content,member:member,start:document.getElementById('f-start').value,end:end,progress:parseInt(document.getElementById('f-progress').value)||0,status:status};
