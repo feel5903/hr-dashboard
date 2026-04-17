@@ -687,10 +687,12 @@ function changeMonth(dir){ curMonth.m+=dir; if(curMonth.m>11){curMonth.m=0;curMo
 
 // ── DIRECTIVE ──
 function renderDirective(){
-  var fm = document.getElementById('filter-dir-member') ? document.getElementById('filter-dir-member').value : '';
-  var fs = document.getElementById('filter-dir-status') ? document.getElementById('filter-dir-status').value : '';
+  var fdm = document.getElementById('filter-dir-member');
+  var fds = document.getElementById('filter-dir-status');
+  var fm = fdm ? fdm.value : '';
+  var fs = fds ? fds.value : '';
   var html = '';
-  data.directive.filter(function(x){ return (!fm||x.member===fm)&&(!fs||x.status===fs); }).forEach(function(x,i){
+  data.directive.filter(function(x){ return (!fm||x.member===fm)&&(!fs||x.status===fs); }).forEach(function(x){
   var i = data.directive.indexOf(x);
     html += '<tr>';
     html += '<td style="font-size:12px;font-weight:600;color:'+(x.director&&x.director.includes('병원장')?'var(--coral)':'#7C3AED')+'">'+(x.director||'')+'</td>';
