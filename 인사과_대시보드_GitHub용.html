@@ -185,6 +185,18 @@ tbody tr:hover{background:#FAFBFC}
       <table><thead><tr><th>담당자</th><th>업무 내용</th><th>마감일</th><th>상태</th><th>비고</th><th>피드백</th></tr></thead>
       <tbody id="weekly-tbody"></tbody></table>
     </div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">📝 회의 메모</span>
+        <div class="card-actions">
+          <span style="font-size:11px;color:var(--text-muted)" id="memo-save-status"></span>
+          <button class="btn primary" onclick="saveMemo()">저장</button>
+        </div>
+      </div>
+      <div style="padding:1rem 1.25rem">
+        <textarea id="meeting-memo" placeholder="회의 중 나온 내용, 추가 논의사항 등을 자유롭게 메모하세요..." style="width:100%;height:200px;padding:.75rem;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:13px;font-family:inherit;resize:vertical;line-height:1.6;outline:none"></textarea>
+      </div>
+    </div>
   </div>
 
   <!-- 프로젝트 -->
@@ -550,6 +562,7 @@ function renderWeekly(){
   });
   if(!html)html='<tr><td colspan="5" class="empty">이번 주 업무가 없습니다</td></tr>';
   document.getElementById('weekly-tbody').innerHTML=html;
+  loadMemo();
 }
 
 function renderProject(){
@@ -633,6 +646,22 @@ function saveFeedback(id, val){
     clearTimeout(window._feedbackTimer);
     window._feedbackTimer = setTimeout(function(){ overwriteTab('daily'); }, 1000);
   }
+}
+
+function saveMemo(){
+  var wk = document.getElementById('week-select').value;
+  var val = document.getElementById('meeting-memo').value;
+  localStorage.setItem('memo_'+wk, val);
+  var st = document.getElementById('memo-save-status');
+  st.textContent = '✅ 저장됨';
+  setTimeout(function(){ st.textContent=''; }, 2000);
+}
+
+function loadMemo(){
+  var wk = document.getElementById('week-select').value;
+  var val = localStorage.getItem('memo_'+wk)||'';
+  var el = document.getElementById('meeting-memo');
+  if(el) el.value = val;
 }
 
 function changeMonth(dir){ curMonth.m+=dir; if(curMonth.m>11){curMonth.m=0;curMonth.y++;} if(curMonth.m<0){curMonth.m=11;curMonth.y--;} renderCalendar(); renderGantt(); }
