@@ -163,7 +163,7 @@ tbody tr:hover{background:#FAFBFC}
           <button class="btn lime" onclick="openForm('daily')">+ 업무 추가</button>
         </div>
       </div>
-      <table><thead><tr><th>업무 내용</th><th>담당자</th><th>마감일</th><th>상태</th><th>비고</th><th>관리</th></tr></thead>
+      <table><thead><tr><th>업무 내용</th><th>담당자</th><th>작성일</th><th>마감일</th><th>상태</th><th>비고</th><th>관리</th></tr></thead>
       <tbody id="daily-tbody"></tbody></table>
     </div>
   </div>
@@ -367,6 +367,7 @@ function normalizeRow(row){
   });
   // feedback 필드 기본값
   if(!('feedback' in out)) out.feedback='';
+  if(!('created' in out)) out.created=out.end||'';
   return out;
 }
 
@@ -532,7 +533,7 @@ function renderDaily(){
 
 function renderWeeklySelect(){
   var weeks={};
-  data.daily.forEach(function(x){ var d=x.end; if(!d)return; var k=getWeekKey(d); if(!weeks[k])weeks[k]=getWeekLabel(d); });
+  data.daily.forEach(function(x){ var d=x.created||x.end; if(!d)return; var k=getWeekKey(d); if(!weeks[k])weeks[k]=getWeekLabel(d); });
   var sel=document.getElementById('week-select'); var cur=sel.value;
   var opts=Object.entries(weeks).sort(function(a,b){return a[0]>b[0]?-1:1;});
   sel.innerHTML=opts.map(function(e){return '<option value="'+e[0]+'">'+e[1]+'</option>';}).join('');
@@ -543,7 +544,7 @@ function renderWeeklySelect(){
 function renderWeekly(){
   var wk=document.getElementById('week-select').value;
   var fm=document.getElementById('filter-weekly-member')?document.getElementById('filter-weekly-member').value:'';
-  var rows=data.daily.filter(function(x){ return getWeekKey(x.end)===wk&&(!fm||x.member===fm); });
+  var rows=data.daily.filter(function(x){ return getWeekKey(x.created||x.end)===wk&&(!fm||x.member===fm); });
   var total=rows.length;
   var done=rows.filter(function(x){return x.status==='완료';}).length;
   var ing=rows.filter(function(x){return x.status==='진행';}).length;
@@ -743,7 +744,7 @@ async function saveForm(){
   }
 
   if(curForm==='daily'){
-    var nr={id:genId('d'),member:member,content:content,end:end,status:status,note:note,feedback:''};
+    var nr={id:genId('d'),member:member,content:content,created:todayStr,end:end,status:status,note:note,feedback:''};
     data.daily.push(nr); await saveRow('daily',Object.values(nr));
   } else if(curForm==='project'){
     var nr={id:genId('p'),name:content,member:member,start:document.getElementById('f-start').value,end:end,progress:parseInt(document.getElementById('f-progress').value)||0,status:status};
