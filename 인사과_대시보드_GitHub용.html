@@ -512,7 +512,7 @@ function renderDaily(){
   var fm=document.getElementById('filter-member').value;
   var fs=document.getElementById('filter-status').value;
   var rows=data.daily.filter(function(x){return(!fm||x.member===fm)&&(!fs||x.status===fs);});
-  if(!rows.length){document.getElementById('daily-tbody').innerHTML='<tr><td colspan="6" class="empty">업무가 없습니다</td></tr>';return;}
+  if(!rows.length){document.getElementById('daily-tbody').innerHTML='<tr><td colspan="7" class="empty">업무가 없습니다</td></tr>';return;}
   var html='';
   rows.forEach(function(x){
     var di=data.daily.indexOf(x);
@@ -520,6 +520,7 @@ function renderDaily(){
     var over=isOverdue(x.end,x.status);
     html+='<tr><td style="font-weight:500;color:'+(over?'#DC2626':due?'#D97706':'inherit')+'">'+x.content+(due?' 🔔':over?' ⚠️':'')+'</td>';
     html+='<td>'+mdot(x.member)+'</td>';
+    html+='<td style="font-size:12px;color:var(--text-muted)">'+(x.created||'')+'</td>';
     html+='<td style="font-size:12px;color:'+(over?'#DC2626':due?'#D97706':x.status==='완료'?'var(--text-muted)':'inherit')+'">'+(x.end||'')+'</td>';
     html+='<td>'+badge(x.status)+'</td>';
     html+='<td style="font-size:12px;color:var(--text-muted);white-space:pre-wrap">'+(x.note||'')+'</td>';
