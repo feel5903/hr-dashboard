@@ -360,15 +360,17 @@ function formatDateVal(val){
   return val;
 }
 
-function normalizeRow(row){
-  var dateFields=['end','endPlan','endActual','start'];
+function normalizeRow(row, tab){
+  var dateFields=['end','endPlan','endActual','start','created'];
   var out={};
   Object.keys(row).forEach(function(k){
+    if(!k||k==='') return;
     out[k]=dateFields.indexOf(k)>=0?formatDateVal(row[k]):row[k];
   });
-  // feedback 필드 기본값
-  if(!('feedback' in out)) out.feedback='';
-  if(!('created' in out)) out.created=out.end||'';
+  if(tab==='daily'){
+    if(!('feedback' in out)) out.feedback='';
+    if(!('created' in out)) out.created=out.end||'';
+  }
   return out;
 }
 
@@ -418,9 +420,9 @@ async function syncAll(){
     var d=await callScript({tab:'daily'});
     var p=await callScript({tab:'project'});
     var dir=await callScript({tab:'directive'});
-    var fd=filterRows(d).map(normalizeRow);
-    var fp=filterRows(p).map(function(x){ x=normalizeRow(x); x.progress=parseInt(x.progress)||0; return x; });
-    var fdir=filterRows(dir).map(normalizeRow);
+    var fd=filterRows(d).map(function(r){return normalizeRow(r,'daily');});
+    var fp=filterRows(p).map(function(x){ x=normalizeRow(x,'project'); x.progress=parseInt(x.progress)||0; return x; });
+    var fdir=filterRows(dir).map(function(r){return normalizeRow(r,'directive');});
     if(fd.length) data.daily=fd;
     if(fp.length) data.project=fp;
     if(fdir.length) data.directive=fdir;
