@@ -448,7 +448,7 @@ async function saveRow(tab,row){
 }
 
 async function overwriteTab(tab){
-  var rows=data[tab]; if(!rows||!rows.length) return;
+  var rows=data[tab]||[];
   // 중복 id 제거
   var seen={};
   rows=rows.filter(function(r){
@@ -457,6 +457,11 @@ async function overwriteTab(tab){
     return true;
   });
   data[tab]=rows;
+  // 빈 배열이면 시트 데이터 전체 삭제
+  if(!rows.length){
+    await callScript({action:'overwrite',tab:tab,rows:[]});
+    return;
+  }
   var headers=Object.keys(rows[0]);
   var dataRows=rows.map(function(r){ return headers.map(function(h){ return r[h]||''; }); });
   await callScript({action:'overwrite',tab:tab,rows:dataRows});
