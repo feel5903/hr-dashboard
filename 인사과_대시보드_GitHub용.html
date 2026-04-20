@@ -459,7 +459,8 @@ async function overwriteTab(tab){
   data[tab]=rows;
   // 빈 배열이면 시트 데이터 전체 삭제
   if(!rows.length){
-    await callScript({action:'overwrite',tab:tab,rows:[]});
+    var url=SHEET_URL+'?action=overwrite&tab='+tab+'&rows='+encodeURIComponent('[]')+'&t='+Date.now();
+    try{ await fetch(url,{redirect:'follow',mode:'cors'}); }catch(e){}
     return;
   }
   var headers=Object.keys(rows[0]);
@@ -755,6 +756,8 @@ async function deleteSelected(){
   data.daily = data.daily.filter(function(x){ return ids.indexOf(x.id) < 0; });
   await overwriteTab('daily');
   renderAll();
+  // 동기화해서 시트와 일치시키기
+  setTimeout(syncAll, 1500);
 }
 
 function openLeaveForm(){
