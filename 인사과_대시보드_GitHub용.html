@@ -91,6 +91,7 @@ tbody tr:hover{background:#FAFBFC}
 .cal-evt.완료{background:var(--lime-light);color:var(--lime-dark)}
 .cal-evt.지시{background:#EDE9FE;color:#5B21B6}
 .cal-evt.대기{background:var(--gray-light);color:var(--gray)}
+.cal-evt.휴가{background:#FEF3DC;color:#92400E}
 .gantt-wrap{overflow-x:auto;padding:1rem}
 .gantt-row{display:flex;align-items:center;min-height:36px;border-bottom:.5px solid var(--gray-border)}
 .gantt-row:last-child{border-bottom:none}
@@ -183,6 +184,13 @@ tbody tr:hover{background:#FAFBFC}
       </div>
       <div class="week-meta"><span>📌 재직인원: <strong id="headcount-display">266</strong>명</span><span>💡 일일업무에서 자동 집계</span></div>
       <div class="summary-grid" id="weekly-summary"></div>
+      <div style="padding:.75rem 1.25rem;border-top:1px solid var(--gray-border)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+          <span style="font-size:12px;font-weight:700;color:var(--navy)">🏖️ 이번 주 휴가</span>
+          <button class="btn lime" onclick="openLeaveForm()" style="font-size:11px;padding:3px 10px">+ 휴가 등록</button>
+        </div>
+        <div id="leave-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
     </div>
     <div class="card">
       <div class="card-head"><span class="card-title">업무 상세</span>
@@ -289,6 +297,26 @@ tbody tr:hover{background:#FAFBFC}
 </div>
 
 <!-- 캘린더 상세 모달 -->
+<div class="overlay" id="leave-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="width:360px">
+    <h3>🏖️ 휴가 등록</h3>
+    <div class="field"><label>담당자</label><select id="lv-member"></select></div>
+    <div class="field"><label>날짜</label><input type="date" id="lv-date"></div>
+    <div class="field"><label>휴가 종류</label>
+      <select id="lv-type">
+        <option>연차</option>
+        <option>오전 반차</option>
+        <option>오후 반차</option>
+        <option>시간차</option>
+      </select>
+    </div>
+    <div class="field"><label>비고</label><input type="text" id="lv-note" placeholder="예: 개인 사유"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('leave-overlay').classList.remove('open')">취소</button>
+      <button class="btn primary" onclick="saveLeave()">저장</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="cal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal" style="width:500px">
     <h3 id="cal-modal-title"></h3>
@@ -328,7 +356,7 @@ var curMonth = {y:TODAY.getFullYear(), m:TODAY.getMonth()};
 var curForm = 'daily';
 var editMemberIdx = null;
 var editIdx = null;
-var data = {daily:[], project:[], directive:[]};
+var data = {daily:[], project:[], directive:[], leave:[]};
 
 function genId(p){ return p+Date.now(); }
 function saveLocal(){ localStorage.setItem('hr_members', JSON.stringify(members)); }
@@ -440,12 +468,15 @@ async function syncAll(){
     var d=await callScript({tab:'daily'});
     var p=await callScript({tab:'project'});
     var dir=await callScript({tab:'directive'});
+    var lv=await callScript({tab:'leave'});
     var fd=filterRows(d).map(function(r){return normalizeRow(r,'daily');});
     var fp=filterRows(p).map(function(x){ x=normalizeRow(x,'project'); x.progress=parseInt(x.progress)||0; return x; });
     var fdir=filterRows(dir).map(function(r){return normalizeRow(r,'directive');});
+    var flv=filterRows(lv).map(function(r){return normalizeRow(r,'leave');});
     if(fd.length) data.daily=fd;
     if(fp.length) data.project=fp;
     if(fdir.length) data.directive=fdir;
+    if(flv.length) data.leave=flv;
     setSyncStatus('ok','● 동기화 완료 ('+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+')');
     renderAll();
   }catch(e){ setSyncStatus('err','⚠ 오류'); renderAll(); }
@@ -600,6 +631,7 @@ function renderWeekly(){
   });
   if(!html)html='<tr><td colspan="5" class="empty">이번 주 업무가 없습니다</td></tr>';
   document.getElementById('weekly-tbody').innerHTML=html;
+  renderLeaveList(wk);
   loadMemo();
 }
 
@@ -643,7 +675,8 @@ function renderCalendar(){
   document.getElementById('cal-month-label').textContent=y+'년 '+(m+1)+'월';
   var first=new Date(y,m,1); var last=new Date(y,m+1,0);
   var allEvts=data.daily.map(function(x){return{date:x.end,label:x.content.slice(0,14),type:x.status};})
-    .concat(data.directive.map(function(x){return{date:x.end,label:'[지시]'+x.content.slice(0,8),type:'지시'};}));
+    .concat(data.directive.map(function(x){return{date:x.end,label:'[지시]'+x.content.slice(0,8),type:'지시'};}))
+    .concat(data.leave.map(function(x){return{date:x.date,label:'[휴가]'+x.member+' '+x.type,type:'휴가'};}));
   var html='';
   for(var i=0;i<first.getDay();i++) html+='<div class="cal-day other-month"></div>';
   for(var dd=1;dd<=last.getDate();dd++){
@@ -716,6 +749,48 @@ async function deleteSelected(){
   data.daily = data.daily.filter(function(x){ return ids.indexOf(x.id) < 0; });
   await overwriteTab('daily');
   renderAll();
+}
+
+function openLeaveForm(){
+  document.getElementById('lv-member').innerHTML = members.map(function(m){return '<option>'+m.name+'</option>';}).join('');
+  document.getElementById('lv-date').value = todayStr;
+  document.getElementById('lv-note').value = '';
+  document.getElementById('leave-overlay').classList.add('open');
+}
+
+async function saveLeave(){
+  var member = document.getElementById('lv-member').value;
+  var date = document.getElementById('lv-date').value;
+  var type = document.getElementById('lv-type').value;
+  var note = document.getElementById('lv-note').value;
+  if(!date){ alert('날짜를 선택해주세요'); return; }
+  var nr = {id:genId('lv'), member:member, date:date, type:type, note:note};
+  data.leave.push(nr);
+  await saveRow('leave', Object.values(nr));
+  document.getElementById('leave-overlay').classList.remove('open');
+  renderWeekly();
+  renderCalendar();
+}
+
+async function deleteLeave(id){
+  if(!confirm('휴가를 삭제할까요?')) return;
+  data.leave = data.leave.filter(function(x){return x.id!==id;});
+  await overwriteTab('leave');
+  renderWeekly();
+  renderCalendar();
+}
+
+function renderLeaveList(wk){
+  var leaves = data.leave.filter(function(x){ return getWeekKey(x.date)===wk; });
+  var typeColors = {'연차':'#FEF3DC;color:#92400E','오전 반차':'#DBEAFE;color:#1E40AF','오후 반차':'#EDE9FE;color:#5B21B6','시간차':'#D1FAE5;color:#065F46'};
+  document.getElementById('leave-list').innerHTML = leaves.length===0
+    ? '<span style="font-size:12px;color:var(--text-muted)">이번 주 휴가 없음</span>'
+    : leaves.map(function(x){
+        var col = typeColors[x.type]||'var(--gray-light);color:var(--gray)';
+        return '<div style="display:inline-flex;align-items:center;gap:6px;background:'+col+';padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600">'
+          +mdot(x.member)+' '+x.type+(x.note?' ('+x.note+')':'')
+          +' <span onclick="deleteLeave(''+x.id+'')" style="cursor:pointer;opacity:.6;font-size:10px">✕</span></div>';
+      }).join('');
 }
 
 function changeMonth(dir){ curMonth.m+=dir; if(curMonth.m>11){curMonth.m=0;curMonth.y++;} if(curMonth.m<0){curMonth.m=11;curMonth.y--;} renderCalendar(); renderGantt(); }
