@@ -802,7 +802,7 @@ function renderLeaveList(wk){
   leaves.forEach(function(x){
     var bg = bgMap[x.type] || '#F3F4F6';
     var col = colMap[x.type] || '#6B7280';
-    var delBtn = '<span onclick="deleteLeave(' + JSON.stringify(x.id) + ')" style="cursor:pointer;opacity:.6;font-size:10px;margin-left:4px">✕</span>';
+    var delBtn = '<span onclick="deleteLeave(\'' + x.id + '\')" style="cursor:pointer;opacity:.6;font-size:10px;margin-left:4px">✕</span>';
     html += '<div style="display:inline-flex;align-items:center;background:' + bg + ';color:' + col + ';padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;margin:2px">';
     html += x.date + ' ' + mdot(x.member) + ' ' + x.type + (x.note ? ' (' + x.note + ')' : '') + delBtn + '</div>';
   });
