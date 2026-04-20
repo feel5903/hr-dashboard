@@ -160,10 +160,14 @@ tbody tr:hover{background:#FAFBFC}
         <div class="card-actions">
           <select id="filter-member" onchange="renderDaily()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 담당자</option></select>
           <select id="filter-status" onchange="renderDaily()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 상태</option><option>진행</option><option>완료</option><option>대기</option><option>피드백</option><option>보류</option></select>
+          <button class="btn" onclick="deleteSelected()" style="color:#991B1B;border-color:#FECACA;background:#FEE2E2">🗑️ 선택 삭제</button>
           <button class="btn lime" onclick="openForm('daily')">+ 업무 추가</button>
         </div>
       </div>
-      <table><thead><tr><th>업무 내용</th><th>담당자</th><th>작성일</th><th>마감일</th><th>상태</th><th>비고</th><th>관리</th></tr></thead>
+      <table><thead><tr>
+<th style="width:36px"><input type="checkbox" id="check-all" onchange="toggleAllCheck(this)" style="cursor:pointer"></th>
+<th>업무 내용</th><th>담당자</th><th>작성일</th><th>마감일</th><th>상태</th><th>비고</th><th>관리</th>
+</tr></thead>
       <tbody id="daily-tbody"></tbody></table>
     </div>
   </div>
@@ -530,13 +534,15 @@ function renderDaily(){
   var fm=document.getElementById('filter-member').value;
   var fs=document.getElementById('filter-status').value;
   var rows=data.daily.filter(function(x){return(!fm||x.member===fm)&&(!fs||x.status===fs);});
-  if(!rows.length){document.getElementById('daily-tbody').innerHTML='<tr><td colspan="7" class="empty">업무가 없습니다</td></tr>';return;}
+  if(!rows.length){document.getElementById('daily-tbody').innerHTML='<tr><td colspan="8" class="empty">업무가 없습니다</td></tr>';return;}
   var html='';
   rows.forEach(function(x){
     var di=data.daily.indexOf(x);
     var due=isToday(x.end)&&x.status!=='완료';
     var over=isOverdue(x.end,x.status);
-    html+='<tr><td style="font-weight:500;color:'+(over?'#DC2626':due?'#D97706':'inherit')+'">'+x.content+(due?' 🔔':over?' ⚠️':'')+'</td>';
+    html+='<tr>';
+    html+='<td><input type="checkbox" class="row-check" data-idx="'+di+'" style="cursor:pointer"></td>';
+    html+='<td style="font-weight:500;color:'+(over?'#DC2626':due?'#D97706':'inherit')+'">'+x.content+(due?' 🔔':over?' ⚠️':'')+'</td>';
     html+='<td>'+mdot(x.member)+'</td>';
     html+='<td style="font-size:12px;color:var(--text-muted)">'+(x.created||'')+'</td>';
     html+='<td style="font-size:12px;color:'+(over?'#DC2626':due?'#D97706':x.status==='완료'?'var(--text-muted)':'inherit')+'">'+(x.end||'')+'</td>';
@@ -695,6 +701,23 @@ function loadMemo(){
   var val = localStorage.getItem('memo_'+wk)||'';
   var el = document.getElementById('meeting-memo');
   if(el) el.value = val;
+}
+
+function toggleAllCheck(el){
+  document.querySelectorAll('.row-check').forEach(function(cb){ cb.checked=el.checked; });
+}
+
+async function deleteSelected(){
+  var checked = document.querySelectorAll('.row-check:checked');
+  if(!checked.length){ alert('삭제할 업무를 선택해주세요'); return; }
+  if(!confirm(checked.length+'건을 삭제할까요?')) return;
+  var idxs = [];
+  checked.forEach(function(cb){ idxs.push(parseInt(cb.getAttribute('data-idx'))); });
+  // 큰 인덱스부터 삭제
+  idxs.sort(function(a,b){return b-a;});
+  idxs.forEach(function(i){ data.daily.splice(i,1); });
+  await overwriteTab('daily');
+  renderAll();
 }
 
 function changeMonth(dir){ curMonth.m+=dir; if(curMonth.m>11){curMonth.m=0;curMonth.y++;} if(curMonth.m<0){curMonth.m=11;curMonth.y--;} renderCalendar(); renderGantt(); }
