@@ -377,7 +377,13 @@ function normalizeRow(row, tab){
 }
 
 function filterRows(rows){
-  return (rows||[]).filter(function(r){ return r.id!=='id'&&r.member!=='member'&&r.id&&r.id!==''; });
+  var seen={};
+  return (rows||[]).filter(function(r){
+    if(!r.id||r.id==='id'||r.member==='member'||r.id==='') return false;
+    if(seen[r.id]) return false;
+    seen[r.id]=true;
+    return true;
+  });
 }
 
 function setSyncStatus(t,txt){
@@ -411,6 +417,14 @@ async function saveRow(tab,row){
 
 async function overwriteTab(tab){
   var rows=data[tab]; if(!rows||!rows.length) return;
+  // 중복 id 제거
+  var seen={};
+  rows=rows.filter(function(r){
+    if(!r.id||seen[r.id]) return false;
+    seen[r.id]=true;
+    return true;
+  });
+  data[tab]=rows;
   var headers=Object.keys(rows[0]);
   var dataRows=rows.map(function(r){ return headers.map(function(h){ return r[h]||''; }); });
   await callScript({action:'overwrite',tab:tab,rows:dataRows});
