@@ -541,7 +541,7 @@ function renderDaily(){
     var due=isToday(x.end)&&x.status!=='완료';
     var over=isOverdue(x.end,x.status);
     html+='<tr>';
-    html+='<td><input type="checkbox" class="row-check" data-idx="'+di+'" style="cursor:pointer"></td>';
+    html+='<td><input type="checkbox" class="row-check" data-id="'+x.id+'" style="cursor:pointer"></td>';
     html+='<td style="font-weight:500;color:'+(over?'#DC2626':due?'#D97706':'inherit')+'">'+x.content+(due?' 🔔':over?' ⚠️':'')+'</td>';
     html+='<td>'+mdot(x.member)+'</td>';
     html+='<td style="font-size:12px;color:var(--text-muted)">'+(x.created||'')+'</td>';
@@ -711,11 +711,9 @@ async function deleteSelected(){
   var checked = document.querySelectorAll('.row-check:checked');
   if(!checked.length){ alert('삭제할 업무를 선택해주세요'); return; }
   if(!confirm(checked.length+'건을 삭제할까요?')) return;
-  var idxs = [];
-  checked.forEach(function(cb){ idxs.push(parseInt(cb.getAttribute('data-idx'))); });
-  // 큰 인덱스부터 삭제
-  idxs.sort(function(a,b){return b-a;});
-  idxs.forEach(function(i){ data.daily.splice(i,1); });
+  var ids = [];
+  checked.forEach(function(cb){ ids.push(cb.getAttribute('data-id')); });
+  data.daily = data.daily.filter(function(x){ return ids.indexOf(x.id) < 0; });
   await overwriteTab('daily');
   renderAll();
 }
