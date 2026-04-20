@@ -395,7 +395,7 @@ function formatDateVal(val){
 }
 
 function normalizeRow(row, tab){
-  var dateFields=['end','endPlan','endActual','start','created'];
+  var dateFields=['end','endPlan','endActual','start','created','date'];
   var out={};
   Object.keys(row).forEach(function(k){
     if(!k||k==='') return;
