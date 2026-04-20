@@ -676,7 +676,7 @@ function renderCalendar(){
   var first=new Date(y,m,1); var last=new Date(y,m+1,0);
   var allEvts=data.daily.map(function(x){return{date:x.end,label:x.content.slice(0,14),type:x.status};})
     .concat(data.directive.map(function(x){return{date:x.end,label:'[지시]'+x.content.slice(0,8),type:'지시'};}))
-    .concat(data.leave.map(function(x){return{date:x.date,label:'[휴가]'+x.member+' '+x.type,type:'휴가'};}));
+    .concat(data.leave.map(function(x){return{date:formatDateVal(x.date),label:'[휴가]'+x.member+' '+x.type,type:'휴가'};}));
   var html='';
   for(var i=0;i<first.getDay();i++) html+='<div class="cal-day other-month"></div>';
   for(var dd=1;dd<=last.getDate();dd++){
@@ -795,7 +795,7 @@ function renderLeaveList(wk){
     var col = colMap[x.type] || '#6B7280';
     var delBtn = '<span onclick="deleteLeave(' + JSON.stringify(x.id) + ')" style="cursor:pointer;opacity:.6;font-size:10px;margin-left:4px">✕</span>';
     html += '<div style="display:inline-flex;align-items:center;background:' + bg + ';color:' + col + ';padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;margin:2px">';
-    html += mdot(x.member) + ' ' + x.type + (x.note ? ' (' + x.note + ')' : '') + delBtn + '</div>';
+    html += x.date + ' ' + mdot(x.member) + ' ' + x.type + (x.note ? ' (' + x.note + ')' : '') + delBtn + '</div>';
   });
   document.getElementById('leave-list').innerHTML = html;
 }
