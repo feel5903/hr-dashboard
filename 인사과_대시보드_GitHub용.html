@@ -758,7 +758,7 @@ async function saveForm(){
   if(editIdx!==null){
     var x=data[curForm][editIdx];
     if(curForm==='daily'){x.member=member;x.content=content;x.created=document.getElementById('f-created').value||x.created||todayStr;x.end=end;x.status=status;x.note=note;}
-    else if(curForm==='project'){x.member=member;x.name=content;x.start=document.getElementById('f-start').value;x.end=end;x.status=status;x.progress=parseInt(document.getElementById('f-progress').value)||0;}
+    else if(curForm==='project'){x.member=member;x.name=content;x.start=document.getElementById('f-start').value;x.end=end;x.status=status;x.progress=parseInt(document.getElementById('f-progress').value)||0;x.note=note;}
     else if(curForm==='directive'){x.member=member;x.content=content;x.end=end;x.status=status;x.director=document.getElementById('f-director').value;x.note=note;}
     await overwriteTab(curForm);
     closeOverlay(); renderAll(); return;
@@ -768,7 +768,7 @@ async function saveForm(){
     var nr={id:genId('d'),member:member,content:content,created:document.getElementById('f-created').value||todayStr,end:end,status:status,note:note,feedback:''};
     data.daily.push(nr); await saveRow('daily',Object.values(nr));
   } else if(curForm==='project'){
-    var nr={id:genId('p'),name:content,member:member,start:document.getElementById('f-start').value,end:end,progress:parseInt(document.getElementById('f-progress').value)||0,status:status};
+    var nr={id:genId('p'),name:content,member:member,start:document.getElementById('f-start').value,end:end,progress:parseInt(document.getElementById('f-progress').value)||0,status:status,note:note};
     data.project.push(nr); await saveRow('project',Object.values(nr));
   } else if(curForm==='directive'){
     var nr={id:genId('dir'),director:document.getElementById('f-director').value,content:content,member:member,end:end,status:status,note:note};
