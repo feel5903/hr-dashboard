@@ -593,6 +593,7 @@ function renderDaily(){
 function renderWeeklySelect(){
   var weeks={};
   data.daily.forEach(function(x){ var d=x.created||x.end; if(!d)return; var k=getWeekKey(d); if(!weeks[k])weeks[k]=getWeekLabel(d); });
+  data.leave.forEach(function(x){ var d=x.date; if(!d)return; var k=getWeekKey(d); if(!weeks[k])weeks[k]=getWeekLabel(d); });
   var sel=document.getElementById('week-select'); var cur=sel.value;
   var opts=Object.entries(weeks).sort(function(a,b){return a[0]>b[0]?-1:1;});
   sel.innerHTML=opts.map(function(e){return '<option value="'+e[0]+'">'+e[1]+'</option>';}).join('');
