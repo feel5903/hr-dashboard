@@ -209,7 +209,7 @@ tbody tr:hover{background:#FAFBFC}
           <button class="btn lime" onclick="openForm('project')">+ 프로젝트 추가</button>
         </div>
       </div>
-      <table><thead><tr><th>프로젝트명</th><th>담당자</th><th>기간</th><th>진행률</th><th>상태</th><th>관리</th></tr></thead>
+      <table><thead><tr><th>프로젝트명</th><th>담당자</th><th>기간</th><th>진행률</th><th>상태</th><th>비고</th><th>관리</th></tr></thead>
       <tbody id="project-tbody"></tbody></table>
     </div>
     <div class="card"><div class="card-head"><span class="card-title">간트 차트</span></div><div class="gantt-wrap" id="gantt-area"></div></div>
@@ -236,7 +236,7 @@ tbody tr:hover{background:#FAFBFC}
           <button class="btn lime" onclick="openForm('directive')">+ 지시 추가</button>
         </div>
       </div>
-      <table><thead><tr><th>지시자</th><th>내용</th><th>담당자</th><th>기한</th><th>상태</th><th>관리</th></tr></thead>
+      <table><thead><tr><th>지시자</th><th>내용</th><th>담당자</th><th>기한</th><th>상태</th><th>비고</th><th>관리</th></tr></thead>
       <tbody id="directive-tbody"></tbody></table>
     </div>
   </div>
@@ -580,6 +580,7 @@ function renderProject(){
     html+='<td style="font-size:12px;color:var(--text-muted)">'+(x.start||'')+' ~ '+(x.end||'')+'</td>';
     html+='<td><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill '+(x.progress===100?'done':'')+'" style="width:'+(x.progress||0)+'%"></div></div><span class="prog-pct">'+(x.progress||0)+'%</span></div></td>';
     html+='<td>'+badge(x.status)+'</td>';
+    html+='<td style="font-size:12px;color:var(--text-muted);white-space:pre-wrap">'+(x.note||'')+'</td>';
     html+='<td><div class="action-btns"><input type="number" min="0" max="100" value="'+(x.progress||0)+'" onchange="updateProgress('+i+',this.value)" style="width:55px;font-size:12px;padding:2px 6px;border:1px solid var(--gray-border);border-radius:4px"><button class="edit-btn" onclick="editItem(\'project\','+i+')">✏️</button><button class="del-btn" onclick="deleteItem(\'project\','+i+')">🗑️</button></div></td></tr>';
   });
   document.getElementById('project-tbody').innerHTML=html||'<tr><td colspan="6" class="empty">프로젝트가 없습니다</td></tr>';
@@ -681,6 +682,7 @@ function renderDirective(){
     html+='<td style="font-weight:500">'+x.content+'</td><td>'+mdot(x.member)+'</td>';
     html+='<td style="font-size:12px;color:'+(isOverdue(x.end,x.status)?'#DC2626':isToday(x.end)?'#D97706':'inherit')+'">'+(x.end||'')+'</td>';
     html+='<td>'+badge(x.status)+'</td>';
+    html+='<td style="font-size:12px;color:var(--text-muted);white-space:pre-wrap">'+(x.note||'')+'</td>';
     html+='<td><div class="action-btns"><select onchange="changeStatus(\'directive\','+i+',this.value)" style="font-size:11px;padding:2px 4px;border:1px solid var(--gray-border);border-radius:4px"><option'+(x.status==='진행'?' selected':'')+'>진행</option><option'+(x.status==='완료'?' selected':'')+'>완료</option><option'+(x.status==='대기'?' selected':'')+'>대기</option></select><button class="edit-btn" onclick="editItem(\'directive\','+i+')">✏️</button><button class="del-btn" onclick="deleteItem(\'directive\','+i+')">🗑️</button></div></td></tr>';
   });
   document.getElementById('directive-tbody').innerHTML=html||'<tr><td colspan="6" class="empty">지시사항이 없습니다</td></tr>';
@@ -744,7 +746,7 @@ async function saveForm(){
     var x=data[curForm][editIdx];
     if(curForm==='daily'){x.member=member;x.content=content;x.created=document.getElementById('f-created').value||x.created||todayStr;x.end=end;x.status=status;x.note=note;}
     else if(curForm==='project'){x.member=member;x.name=content;x.start=document.getElementById('f-start').value;x.end=end;x.status=status;x.progress=parseInt(document.getElementById('f-progress').value)||0;}
-    else if(curForm==='directive'){x.member=member;x.content=content;x.end=end;x.status=status;x.director=document.getElementById('f-director').value;}
+    else if(curForm==='directive'){x.member=member;x.content=content;x.end=end;x.status=status;x.director=document.getElementById('f-director').value;x.note=note;}
     await overwriteTab(curForm);
     closeOverlay(); renderAll(); return;
   }
@@ -756,7 +758,7 @@ async function saveForm(){
     var nr={id:genId('p'),name:content,member:member,start:document.getElementById('f-start').value,end:end,progress:parseInt(document.getElementById('f-progress').value)||0,status:status};
     data.project.push(nr); await saveRow('project',Object.values(nr));
   } else if(curForm==='directive'){
-    var nr={id:genId('dir'),director:document.getElementById('f-director').value,content:content,member:member,end:end,status:status};
+    var nr={id:genId('dir'),director:document.getElementById('f-director').value,content:content,member:member,end:end,status:status,note:note};
     data.directive.push(nr); await saveRow('directive',Object.values(nr));
   }
   closeOverlay(); renderAll();
