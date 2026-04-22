@@ -420,7 +420,16 @@ function getWeekLabel(d){
 }
 
 function formatDateVal(val){
-  if(!val||typeof val!=='string') return val;
+  if(!val) return val;
+  if(val instanceof Date){
+    if(isNaN(val.getTime())) return '';
+    return val.getFullYear()+'-'+String(val.getMonth()+1).padStart(2,'0')+'-'+String(val.getDate()).padStart(2,'0');
+  }
+  if(typeof val!=='string') return String(val);
+  if(val.indexOf('GMT')>=0||val.indexOf('표준시')>=0){
+    var d=new Date(val);
+    if(!isNaN(d.getTime())) return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
   if(val.match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s/)){
     var d=new Date(val);
     if(!isNaN(d.getTime())) return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -486,6 +495,11 @@ async function overwriteTab(tab){
     if(!r.id||seen[r.id]) return false;
     seen[r.id]=true;
     return true;
+  });
+  // 날짜 필드 정규화 (GMT 문자열 방지)
+  var dateFields=['end','start','created','date'];
+  rows=rows.map(function(r){
+    var out={}; Object.keys(r).forEach(function(k){ out[k]=dateFields.indexOf(k)>=0?formatDateVal(r[k]):r[k]; }); return out;
   });
   data[tab]=rows;
   saveLocalBackup(); // 로컬 백업 항상 저장
