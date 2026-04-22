@@ -185,7 +185,6 @@ tbody tr:hover{background:#FAFBFC}
         <span>📌 재직인원: <strong id="headcount-display">266</strong>명</span>
         <span>💡 일일업무에서 자동 집계</span>
       </div>
-      <div class="summary-grid" id="weekly-summary"></div>
       <div style="padding:.75rem 1.25rem;border-top:1px solid var(--gray-border)">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
           <span style="font-size:12px;font-weight:700;color:var(--navy)">🏖️ 이번 주 휴가</span>
@@ -733,11 +732,7 @@ function renderWeekly(){
   var ing=rows.filter(function(x){return x.status==='진행';}).length;
   var wait=rows.filter(function(x){return x.status==='대기'||x.status==='보류';}).length;
 
-  document.getElementById('weekly-summary').innerHTML=
-    '<div class="summary-card" style="background:var(--navy-light)"><div style="font-size:11px;color:var(--navy-mid);margin-bottom:4px">전체</div><div style="font-size:22px;font-weight:700;color:var(--navy)">'+total+'</div></div>'+
-    '<div class="summary-card" style="background:#DBEAFE"><div style="font-size:11px;color:#1E40AF;margin-bottom:4px">진행 중</div><div style="font-size:22px;font-weight:700;color:#1E40AF">'+ing+'</div></div>'+
-    '<div class="summary-card" style="background:var(--lime-light)"><div style="font-size:11px;color:var(--lime-dark);margin-bottom:4px">완료</div><div style="font-size:22px;font-weight:700;color:var(--lime-dark)">'+done+'</div></div>'+
-    '<div class="summary-card" style="background:var(--gray-light)"><div style="font-size:11px;color:var(--gray);margin-bottom:4px">대기/보류</div><div style="font-size:22px;font-weight:700;color:var(--gray)">'+wait+'</div></div>';
+
 
 
 
