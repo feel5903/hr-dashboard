@@ -654,8 +654,9 @@ function renderDaily(){
 
 function renderWeeklySelect(){
   var weeks={};
-  data.daily.forEach(function(x){ var d=x.start||x.created||x.end; if(!d)return; var k=getWeekKey(d); if(!weeks[k])weeks[k]=getWeekLabel(d); });
+  data.daily.forEach(function(x){ var d=x.start||x.created; if(!d)return; var k=getWeekKey(d); if(!weeks[k])weeks[k]=getWeekLabel(d); });
   data.leave.forEach(function(x){ var d=x.date; if(!d)return; var k=getWeekKey(d); if(!weeks[k])weeks[k]=getWeekLabel(d); });
+  (data.task||[]).forEach(function(x){ var d=x.start; if(!d)return; var k=getWeekKey(d); if(!weeks[k])weeks[k]=getWeekLabel(d); });
   var sel=document.getElementById('week-select'); var cur=sel.value;
   var opts=Object.entries(weeks).sort(function(a,b){return a[0]>b[0]?-1:1;});
   sel.innerHTML=opts.map(function(e){return '<option value="'+e[0]+'">'+e[1]+'</option>';}).join('');
@@ -890,7 +891,6 @@ function renderProject(){
       this.textContent=isHidden?'✕ 닫기':'+ 단계 추가';
       if(isHidden) document.getElementById('tf-content-'+pid).focus();
     };})(proj.id);
-    body.appendChild(addBtn);
 
     // 단계 추가/수정 인라인 폼 (기본 숨김)
     var form=document.createElement('div');
@@ -912,6 +912,11 @@ function renderProject(){
       '</div>';
 
     body.appendChild(clWrap);
+    // 단계추가 버튼 - 오른쪽 하단
+    var addBtnWrap=document.createElement('div');
+    addBtnWrap.style.cssText='display:flex;justify-content:flex-end;margin-top:.5rem';
+    addBtnWrap.appendChild(addBtn);
+    body.appendChild(addBtnWrap);
     body.appendChild(form);
     card.appendChild(header);
     card.appendChild(body);
@@ -969,6 +974,9 @@ async function saveTaskInline(projId){
 function openTaskEditForm(taskId, projId){
   var t=data.task.find(function(x){return x.id===taskId;});
   if(!t) return;
+  // 폼 열기
+  var form=document.getElementById('task-form-'+projId);
+  if(form) form.style.display='block';
   document.getElementById('tf-content-'+projId).value=t.content;
   document.getElementById('tf-member-'+projId).value=t.member;
   document.getElementById('tf-note-'+projId).value=t.note||'';
@@ -977,7 +985,11 @@ function openTaskEditForm(taskId, projId){
   document.getElementById('tf-editid-'+projId).value=t.id;
   document.getElementById('tf-title-'+projId).textContent='✏️ 단계 수정';
   document.getElementById('tf-cancel-'+projId).style.display='';
+  // 단계추가 버튼 텍스트도 변경
+  var addBtnEl=form.previousElementSibling;
+  if(addBtnEl&&addBtnEl.tagName==='DIV') addBtnEl=addBtnEl.querySelector('button');
   document.getElementById('tf-content-'+projId).focus();
+  document.getElementById('tf-content-'+projId).scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
 function cancelTaskForm(projId){
@@ -1088,7 +1100,10 @@ function switchNav(name,el){
   if(el)el.classList.add('active');
   document.querySelectorAll('.pane').forEach(function(p){p.classList.remove('active');});
   document.getElementById('pane-'+name).classList.add('active');
-  if(name==='settings')renderMemberGrid();
+  if(name==='settings') renderMemberGrid();
+  if(name==='calendar') renderCalendar();
+  if(name==='project') renderProject();
+  if(name==='weekly'){ renderWeeklySelect(); renderWeekly(); }
 }
 
 function filterByMember(name,el){
