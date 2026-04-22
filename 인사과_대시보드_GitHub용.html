@@ -272,8 +272,6 @@ tbody tr:hover{background:#FAFBFC}
 <div class="overlay" id="overlay" onclick="closeOverlayOutside(event)">
   <div class="modal">
     <h3 id="modal-title">업무 추가</h3>
-    <div class="field" id="field-director" style="display:none"><label>지시자</label>
-      <select id="f-director"><option>병원장 이지선</option><option>행정처장 김병진</option></select></div>
     <div class="field"><label>담당자</label><select id="f-member"></select></div>
     <div class="field"><label>업무 내용</label><textarea id="f-content" placeholder="업무 내용을 입력하세요"></textarea></div>
     <div class="field" id="field-start" style="display:none"><label>시작일</label><input type="date" id="f-start"></div>
@@ -506,7 +504,7 @@ async function syncAll(){
 }
 
 function updateStats(){
-  var all=data.daily.concat(data.directive);
+  var all=data.daily;
   document.getElementById('s-total').textContent=data.daily.length+data.project.length;
   document.getElementById('s-prog').textContent=data.daily.filter(function(x){return x.status==='진행';}).length;
   document.getElementById('s-due').textContent=data.daily.filter(function(x){return isToday(x.end)&&x.status!=='완료';}).length;
@@ -554,11 +552,11 @@ function loadHeadcount(){ var v=localStorage.getItem('hr_headcount')||'266'; doc
 
 function editItem(type,idx){
   var x=data[type][idx]; editIdx=idx; curForm=type;
-  var titles={daily:'일일 업무 수정',project:'프로젝트 수정',directive:'지시사항 수정'};
+  var titles={daily:'일일 업무 수정',project:'프로젝트 수정'};
   document.getElementById('modal-title').textContent=titles[type];
-  document.getElementById('field-director').style.display=type==='directive'?'block':'none';
+
   document.getElementById('field-start').style.display=type==='project'?'block':'none';
-  document.getElementById('field-created').style.display=type==='daily'?'block':'none';
+  document.getElementById('field-created').style.display=(type==='daily')?'block':'none';
   document.getElementById('field-progress').style.display=type==='project'?'block':'none';
   document.getElementById('f-member').innerHTML=members.map(function(m){return '<option>'+m.name+'</option>';}).join('');
   setTimeout(function(){
@@ -903,21 +901,6 @@ function changeGanttMonth(dir){
 
 function changeMonth(dir){ curMonth.m+=dir; if(curMonth.m>11){curMonth.m=0;curMonth.y++;} if(curMonth.m<0){curMonth.m=11;curMonth.y--;} renderCalendar(); renderGantt(); }
 
-function renderDirective(){
-  var fm=document.getElementById('filter-dir-member')?document.getElementById('filter-dir-member').value:'';
-  var fs=document.getElementById('filter-dir-status')?document.getElementById('filter-dir-status').value:'';
-  var html='';
-  data.directive.filter(function(x){return(!fm||x.member===fm)&&(!fs||x.status===fs);}).forEach(function(x){
-    var i=data.directive.indexOf(x);
-    html+='<tr><td style="font-size:12px;font-weight:600;color:'+(x.director&&x.director.includes('병원장')?'var(--coral)':'#7C3AED')+'">'+(x.director||'')+'</td>';
-    html+='<td style="font-weight:500">'+x.content+'</td><td>'+mdot(x.member)+'</td>';
-    html+='<td style="font-size:12px;color:'+(isOverdue(x.end,x.status)?'#DC2626':isToday(x.end)?'#D97706':'inherit')+'">'+(x.end||'')+'</td>';
-    html+='<td>'+badge(x.status)+'</td>';
-    html+='<td style="font-size:12px;color:var(--text-muted);white-space:pre-wrap">'+(x.note||'')+'</td>';
-    html+='<td><div class="action-btns"><select onchange="changeStatus(\'directive\','+i+',this.value)" style="font-size:11px;padding:2px 4px;border:1px solid var(--gray-border);border-radius:4px"><option'+(x.status==='진행'?' selected':'')+'>진행</option><option'+(x.status==='완료'?' selected':'')+'>완료</option><option'+(x.status==='대기'?' selected':'')+'>대기</option></select><button class="edit-btn" onclick="editItem(\'directive\','+i+')">✏️</button><button class="del-btn" onclick="deleteItem(\'directive\','+i+')">🗑️</button></div></td></tr>';
-  });
-  document.getElementById('directive-tbody').innerHTML=html||'<tr><td colspan="6" class="empty">지시사항이 없습니다</td></tr>';
-}
 
 function changeStatus(type,idx,val){ data[type][idx].status=val; setTimeout(function(){overwriteTab(type);},500); renderAll(); }
 
@@ -942,9 +925,9 @@ function openForm(type){
   curForm=type; editIdx=null;
   var titles={daily:'일일 업무 추가',project:'프로젝트 추가',directive:'지시사항 추가'};
   document.getElementById('modal-title').textContent=titles[type]||'추가';
-  document.getElementById('field-director').style.display=type==='directive'?'block':'none';
+
   document.getElementById('field-start').style.display=type==='project'?'block':'none';
-  document.getElementById('field-created').style.display=type==='daily'?'block':'none';
+  document.getElementById('field-created').style.display=(type==='daily')?'block':'none';
   document.getElementById('field-progress').style.display=type==='project'?'block':'none';
   document.getElementById('f-member').innerHTML=members.map(function(m){return '<option>'+m.name+'</option>';}).join('');
   document.getElementById('f-content').value='';
@@ -977,7 +960,7 @@ async function saveForm(){
     var x=data[curForm][editIdx];
     if(curForm==='daily'){x.member=member;x.content=content;x.created=document.getElementById('f-created').value||x.created||todayStr;x.end=end;x.status=status;x.note=note;}
     else if(curForm==='project'){x.member=member;x.name=content;x.start=document.getElementById('f-start').value;x.end=end;x.status=status;x.progress=parseInt(document.getElementById('f-progress').value)||0;x.note=note;}
-    else if(curForm==='directive'){x.member=member;x.content=content;x.end=end;x.status=status;x.director=document.getElementById('f-director').value;x.note=note;}
+    
     await overwriteTab(curForm);
     closeOverlay(); renderAll(); return;
   }
@@ -988,9 +971,6 @@ async function saveForm(){
   } else if(curForm==='project'){
     var nr={id:genId('p'),name:content,member:member,start:document.getElementById('f-start').value,end:end,progress:parseInt(document.getElementById('f-progress').value)||0,status:status,note:note};
     data.project.push(nr); await saveRow('project',Object.values(nr));
-  } else if(curForm==='directive'){
-    var nr={id:genId('dir'),director:document.getElementById('f-director').value,content:content,member:member,end:end,status:status,note:note};
-    data.directive.push(nr); await saveRow('directive',Object.values(nr));
   }
   closeOverlay(); renderAll();
 }
