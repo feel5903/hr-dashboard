@@ -449,8 +449,7 @@ function normalizeRow(row, tab){
   });
   if(tab==='daily'){
     if(!('feedback' in out)) out.feedback='';
-    if(!('created' in out)) out.created=out.start||out.end||'';
-    if(!('start' in out)) out.start=out.created||'';
+    if(!out.created) out.created=out.end||'';
   }
   return out;
 }
@@ -1093,8 +1092,7 @@ async function saveForm(){
     var x=data[curForm][editIdx];
     if(curForm==='daily'){
       x.member=member; x.content=content;
-      x.start=document.getElementById('f-created').value||todayStr;
-      x.created=x.start; // 동기화
+      x.created=document.getElementById('f-created').value||todayStr;
       x.end=end; x.status=status; x.note=note;
     } else if(curForm==='project'){
       x.member=member; x.name=content;
@@ -1109,7 +1107,7 @@ async function saveForm(){
 
   if(curForm==='daily'){
     var startVal=document.getElementById('f-created').value||todayStr;
-    var nr={id:genId('d'),member:member,content:content,start:startVal,created:startVal,end:end,status:status,note:note,feedback:''};
+    var nr={id:genId('d'),member:member,content:content,created:startVal,end:end,status:status,note:note,feedback:''};
     data.daily.push(nr);
     await saveRow('daily',Object.values(nr));
   } else if(curForm==='project'){
