@@ -951,7 +951,7 @@ function cancelEditTask(){
 
 function renderTaskList(projectId){
   var tasks=data.task.filter(function(t){return t.projectId===projectId;});
-  tasks.sort(function(a,b){ return parseInt(a.step||0)>parseInt(b.step||0)?1:-1; });
+  tasks.sort(function(a,b){return parseInt(a.step||0)>parseInt(b.step||0)?1:-1;});
 
   var total=tasks.length;
   var done=tasks.filter(function(t){return t.status==='완료';}).length;
@@ -964,34 +964,48 @@ function renderTaskList(projectId){
     return;
   }
 
-  document.getElementById('task-list').innerHTML=tasks.map(function(t,i){
+  var el=document.getElementById('task-list');
+  el.innerHTML='';
+  tasks.forEach(function(t,i){
     var isDone=t.status==='완료';
     var isOver=t.end&&t.end<todayStr&&!isDone;
-    return '<div style="display:flex;align-items:flex-start;gap:10px;padding:.7rem .9rem;border:.5px solid '+(isDone?'var(--lime)':isOver?'#FECACA':'var(--gray-border)')+';border-radius:var(--radius);background:'+(isDone?'var(--lime-light)':isOver?'#FEF2F2':'var(--white)')+';transition:background .2s">'+
-      '<div style="padding-top:2px">'+
-        '<input type="checkbox" '+(isDone?'checked':'')+' onchange="toggleTaskDone(''+t.id+'',this.checked)" style="width:16px;height:16px;accent-color:var(--lime-dark);cursor:pointer">'+
-      '</div>'+
-      '<div style="flex:1;min-width:0">'+
-        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'+
-          '<span style="font-size:11px;font-weight:700;color:var(--navy-mid)">'+(i+1)+'단계</span>'+
-          '<span style="font-weight:600;font-size:13px;'+(isDone?'text-decoration:line-through;color:var(--text-muted)':isOver?'color:#DC2626':'')+'">'+t.content+'</span>'+
-          (isOver?'<span style="font-size:10px;color:#DC2626">⚠️ 지연</span>':'')+
-        '</div>'+
-        '<div style="font-size:11px;color:var(--text-muted);display:flex;gap:10px;flex-wrap:wrap">'+
-          '<span>👤 '+t.member+'</span>'+
-          '<span>📅 '+t.start+' ~ '+t.end+'</span>'+
-          (t.note?'<span>📝 '+t.note+'</span>':'')+
-        '</div>'+
-      '</div>'+
-      '<div style="display:flex;gap:3px;flex-shrink:0">'+
-        '<button class="edit-btn" onclick="editTask(''+t.id+'')">✏️</button>'+
-        '<button class="del-btn" onclick="deleteTask(''+t.id+'')">🗑️</button>'+
-      '</div>'+
-    '</div>';
-  }).join('');
-}
+    var wrap=document.createElement('div');
+    wrap.style.cssText='display:flex;align-items:flex-start;gap:10px;padding:.7rem .9rem;border:.5px solid '+(isDone?'var(--lime)':isOver?'#FECACA':'var(--gray-border)')+';border-radius:var(--radius);background:'+(isDone?'var(--lime-light)':isOver?'#FEF2F2':'var(--white)')+';transition:background .2s;margin-bottom:2px';
 
-async function toggleTaskDone(id, checked){
+    // 체크박스
+    var cb=document.createElement('input');
+    cb.type='checkbox'; cb.checked=isDone;
+    cb.style.cssText='width:16px;height:16px;accent-color:var(--lime-dark);cursor:pointer;margin-top:2px;flex-shrink:0';
+    cb.addEventListener('change', (function(taskId){return function(){toggleTaskDone(this,taskId);};})(t.id));
+    wrap.appendChild(cb);
+
+    // 내용 영역
+    var info=document.createElement('div'); info.style.cssText='flex:1;min-width:0';
+    var top=document.createElement('div'); top.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:3px';
+    var stepBadge=document.createElement('span'); stepBadge.style.cssText='font-size:11px;font-weight:700;color:var(--navy-mid)'; stepBadge.textContent=(i+1)+'단계';
+    var title=document.createElement('span'); title.style.cssText='font-weight:600;font-size:13px;'+(isDone?'text-decoration:line-through;color:var(--text-muted)':isOver?'color:#DC2626':''); title.textContent=t.content;
+    top.appendChild(stepBadge); top.appendChild(title);
+    if(isOver){var warn=document.createElement('span');warn.style.cssText='font-size:10px;color:#DC2626';warn.textContent='⚠️ 지연';top.appendChild(warn);}
+    info.appendChild(top);
+
+    var meta=document.createElement('div'); meta.style.cssText='font-size:11px;color:var(--text-muted);display:flex;gap:10px;flex-wrap:wrap';
+    meta.innerHTML='<span>👤 '+t.member+'</span><span>📅 '+t.start+' ~ '+t.end+'</span>'+(t.note?'<span>📝 '+t.note+'</span>':'');
+    info.appendChild(meta);
+    wrap.appendChild(info);
+
+    // 버튼 영역
+    var btns=document.createElement('div'); btns.style.cssText='display:flex;gap:3px;flex-shrink:0';
+    var editBtn=document.createElement('button'); editBtn.className='edit-btn'; editBtn.textContent='✏️';
+    editBtn.addEventListener('click',(function(taskId){return function(){editTask(taskId);};})(t.id));
+    var delBtn=document.createElement('button'); delBtn.className='del-btn'; delBtn.textContent='🗑️';
+    delBtn.addEventListener('click',(function(taskId){return function(){deleteTask(taskId);};})(t.id));
+    btns.appendChild(editBtn); btns.appendChild(delBtn);
+    wrap.appendChild(btns);
+    el.appendChild(wrap);
+  });
+}
+async function toggleTaskDone(cb, id){
+  var checked=cb.checked;
   var t=data.task.find(function(x){return x.id===id;});
   if(!t) return;
   t.status=checked?'완료':'진행';
