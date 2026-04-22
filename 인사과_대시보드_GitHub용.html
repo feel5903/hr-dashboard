@@ -140,7 +140,6 @@ tbody tr:hover{background:#FAFBFC}
   <div class="nav-item" onclick="switchNav('calendar',this)"><span class="nav-icon">📅</span>캘린더</div>
   <div class="nav-divider"></div>
   <div class="nav-section">지시·관리</div>
-  <div class="nav-item" onclick="switchNav('directive',this)"><span class="nav-icon">📌</span>지시사항<span class="nav-badge" id="badge-dir" style="background:#7C3AED">0</span></div>
   <div class="nav-item" onclick="switchNav('settings',this)"><span class="nav-icon">⚙️</span>설정</div>
   <div class="nav-divider"></div>
   <div class="nav-section">담당자별</div>
@@ -167,7 +166,7 @@ tbody tr:hover{background:#FAFBFC}
       </div>
       <table><thead><tr>
 <th style="width:36px"><input type="checkbox" id="check-all" onchange="toggleAllCheck(this)" style="cursor:pointer"></th>
-<th>업무 내용</th><th>담당자</th><th>작성일</th><th>마감일</th><th>상태</th><th>비고</th><th>관리</th>
+<th>업무 내용</th><th>담당자</th><th>시작일</th><th>마감일</th><th>상태</th><th>비고</th><th>관리</th>
 </tr></thead>
       <tbody id="daily-tbody"></tbody></table>
     </div>
@@ -250,21 +249,6 @@ tbody tr:hover{background:#FAFBFC}
     </div>
   </div>
 
-  <!-- 지시사항 -->
-  <div id="pane-directive" class="pane">
-    <div class="card">
-      <div class="card-head"><span class="card-title">지시사항</span>
-        <div class="card-actions">
-          <select id="filter-dir-member" onchange="renderDirective()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 담당자</option></select>
-          <select id="filter-dir-status" onchange="renderDirective()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 상태</option><option>진행</option><option>완료</option><option>대기</option></select>
-          <button class="btn lime" onclick="openForm('directive')">+ 지시 추가</button>
-        </div>
-      </div>
-      <table><thead><tr><th>지시자</th><th>내용</th><th>담당자</th><th>기한</th><th>상태</th><th>비고</th><th>관리</th></tr></thead>
-      <tbody id="directive-tbody"></tbody></table>
-    </div>
-  </div>
-
   <!-- 설정 -->
   <div id="pane-settings" class="pane">
     <div class="card" style="margin-bottom:12px">
@@ -293,7 +277,7 @@ tbody tr:hover{background:#FAFBFC}
     <div class="field"><label>담당자</label><select id="f-member"></select></div>
     <div class="field"><label>업무 내용</label><textarea id="f-content" placeholder="업무 내용을 입력하세요"></textarea></div>
     <div class="field" id="field-start" style="display:none"><label>시작일</label><input type="date" id="f-start"></div>
-    <div class="field" id="field-created"><label>작성일</label><input type="date" id="f-created"></div>
+    <div class="field" id="field-created"><label>시작일</label><input type="date" id="f-created"></div>
     <div class="field"><label>마감일</label><input type="date" id="f-end"></div>
     <div class="field" id="field-progress" style="display:none"><label>진행률 (%)</label><input type="number" id="f-progress" min="0" max="100" value="0"></div>
     <div class="field"><label>상태</label>
@@ -324,6 +308,29 @@ tbody tr:hover{background:#FAFBFC}
     <div class="modal-actions">
       <button class="btn" onclick="document.getElementById('leave-overlay').classList.remove('open')">취소</button>
       <button class="btn primary" onclick="saveLeave()">저장</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="task-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="width:600px;max-height:85vh">
+    <h3 id="task-modal-title">📋 단계 관리</h3>
+    <div id="task-list" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto;margin-bottom:1rem"></div>
+    <div style="border-top:1px solid var(--gray-border);padding-top:1rem">
+      <div style="font-size:12px;font-weight:600;color:var(--navy);margin-bottom:.5rem">+ 단계 추가</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="field" style="margin:0"><label>단계명</label><input type="text" id="tk-content" placeholder="예: 협조공지 발송"></div>
+        <div class="field" style="margin:0"><label>담당자</label><select id="tk-member"></select></div>
+        <div class="field" style="margin:0"><label>시작일</label><input type="date" id="tk-start"></div>
+        <div class="field" style="margin:0"><label>마감일</label><input type="date" id="tk-end"></div>
+        <div class="field" style="margin:0"><label>상태</label>
+          <select id="tk-status"><option>진행</option><option>완료</option><option>대기</option></select>
+        </div>
+        <div class="field" style="margin:0"><label>비고</label><input type="text" id="tk-note" placeholder="비고"></div>
+      </div>
+      <div style="text-align:right;margin-top:.75rem">
+        <button class="btn" onclick="document.getElementById('task-overlay').classList.remove('open')">닫기</button>
+        <button class="btn primary" onclick="saveTask()">단계 저장</button>
+      </div>
     </div>
   </div>
 </div>
@@ -366,7 +373,7 @@ var curMonth = {y:TODAY.getFullYear(), m:TODAY.getMonth()};
 var curForm = 'daily';
 var editMemberIdx = null;
 var editIdx = null;
-var data = {daily:[], project:[], directive:[], leave:[]};
+var data = {daily:[], project:[], task:[], leave:[]};
 
 function genId(p){ return p+Date.now(); }
 function saveLocal(){ localStorage.setItem('hr_members', JSON.stringify(members)); }
@@ -483,16 +490,16 @@ async function syncAll(){
   try{
     var d=await callScript({tab:'daily'});
     var p=await callScript({tab:'project'});
-    var dir=await callScript({tab:'directive'});
     var lv=await callScript({tab:'leave'});
+    var tk=await callScript({tab:'task'});
     var fd=filterRows(d).map(function(r){return normalizeRow(r,'daily');});
     var fp=filterRows(p).map(function(x){ x=normalizeRow(x,'project'); x.progress=parseInt(x.progress)||0; return x; });
-    var fdir=filterRows(dir).map(function(r){return normalizeRow(r,'directive');});
     var flv=filterRows(lv).map(function(r){return normalizeRow(r,'leave');});
+    var ftk=filterRows(tk).map(function(r){return normalizeRow(r,'task');});
     if(fd.length) data.daily=fd;
     if(fp.length) data.project=fp;
-    if(fdir.length) data.directive=fdir;
     if(flv.length) data.leave=flv;
+    if(ftk.length) data.task=ftk;
     setSyncStatus('ok','● 동기화 완료 ('+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+')');
     renderAll();
   }catch(e){ setSyncStatus('err','⚠ 오류'); renderAll(); }
@@ -500,12 +507,12 @@ async function syncAll(){
 
 function updateStats(){
   var all=data.daily.concat(data.directive);
-  document.getElementById('s-total').textContent=data.daily.length+data.project.length+data.directive.length;
+  document.getElementById('s-total').textContent=data.daily.length+data.project.length;
   document.getElementById('s-prog').textContent=data.daily.filter(function(x){return x.status==='진행';}).length;
   document.getElementById('s-due').textContent=data.daily.filter(function(x){return isToday(x.end)&&x.status!=='완료';}).length;
   document.getElementById('s-done').textContent=data.daily.filter(function(x){return x.status==='완료';}).length;
   document.getElementById('badge-daily').textContent=data.daily.filter(function(x){return x.status==='진행';}).length;
-  document.getElementById('badge-dir').textContent=data.directive.filter(function(x){return x.status!=='완료';}).length;
+  
 }
 
 function renderMemberUI(){
@@ -591,7 +598,7 @@ function renderDaily(){
     html+='<td><input type="checkbox" class="row-check" data-id="'+x.id+'" style="cursor:pointer"></td>';
     html+='<td style="font-weight:500;color:'+(over?'#DC2626':due?'#D97706':'inherit')+'">'+x.content+(due?' 🔔':over?' ⚠️':'')+'</td>';
     html+='<td>'+mdot(x.member)+'</td>';
-    html+='<td style="font-size:12px;color:var(--text-muted)">'+(x.created||'')+'</td>';
+    html+='<td style="font-size:12px;color:var(--text-muted)">'+(x.start||x.created||'')+'</td>';
     html+='<td style="font-size:12px;color:'+(over?'#DC2626':due?'#D97706':x.status==='완료'?'var(--text-muted)':'inherit')+'">'+(x.end||'')+'</td>';
     html+='<td>'+badge(x.status)+'</td>';
     html+='<td style="font-size:12px;color:var(--text-muted);white-space:pre-wrap">'+(x.note||'')+'</td>';
@@ -824,6 +831,69 @@ function renderLeaveList(wk){
   document.getElementById('leave-list').innerHTML = html;
 }
 
+var currentProjectId = null;
+
+function showTaskPanel(projectId){
+  currentProjectId = projectId;
+  var proj = data.project.find(function(p){ return p.id===projectId; });
+  document.getElementById('task-modal-title').textContent = '📋 ' + (proj?proj.name:'') + ' 단계 관리';
+  document.getElementById('tk-member').innerHTML = members.map(function(m){return '<option>'+m.name+'</option>';}).join('');
+  document.getElementById('tk-start').value = todayStr;
+  document.getElementById('tk-end').value = todayStr;
+  document.getElementById('tk-content').value = '';
+  document.getElementById('tk-note').value = '';
+  renderTaskList(projectId);
+  document.getElementById('task-overlay').classList.add('open');
+}
+
+function renderTaskList(projectId){
+  var tasks = data.task.filter(function(t){ return t.projectId===projectId; });
+  tasks.sort(function(a,b){ return a.start>b.start?1:-1; });
+  if(!tasks.length){
+    document.getElementById('task-list').innerHTML = '<div class="empty">등록된 단계가 없습니다. 아래에서 추가해주세요.</div>';
+    return;
+  }
+  var html = '';
+  tasks.forEach(function(t, i){
+    html += '<div style="padding:.75rem 1rem;border:.5px solid var(--gray-border);border-radius:var(--radius);background:var(--white)">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">';
+    html += '<span style="font-weight:600;font-size:13px">'+(i+1)+'단계. '+t.content+'</span>';
+    html += badge(t.status);
+    html += '</div>';
+    html += '<div style="font-size:12px;color:var(--text-muted)">'+mdot(t.member)+' · '+t.start+' ~ '+t.end+(t.note?' · '+t.note:'')+'</div>';
+    html += '<button class="del-btn" style="margin-top:6px;font-size:11px" onclick="deleteTask(''+t.id+'')">🗑️ 삭제</button>';
+    html += '</div>';
+  });
+  document.getElementById('task-list').innerHTML = html;
+}
+
+async function saveTask(){
+  var content2 = document.getElementById('tk-content').value.trim();
+  if(!content2){ alert('단계명을 입력해주세요'); return; }
+  var nr = {
+    id: genId('tk'),
+    projectId: currentProjectId,
+    step: String(data.task.filter(function(t){return t.projectId===currentProjectId;}).length + 1),
+    content: content2,
+    member: document.getElementById('tk-member').value,
+    start: document.getElementById('tk-start').value,
+    end: document.getElementById('tk-end').value,
+    status: document.getElementById('tk-status').value,
+    note: document.getElementById('tk-note').value
+  };
+  data.task.push(nr);
+  await saveRow('task', Object.values(nr));
+  document.getElementById('tk-content').value = '';
+  renderTaskList(currentProjectId);
+}
+
+async function deleteTask(id){
+  if(!confirm('이 단계를 삭제할까요?')) return;
+  data.task = data.task.filter(function(t){ return t.id!==id; });
+  await overwriteTab('task');
+  renderTaskList(currentProjectId);
+}
+
 function changeGanttMonth(dir){
   curMonth.m+=dir;
   if(curMonth.m>11){curMonth.m=0;curMonth.y++;}
@@ -925,7 +995,7 @@ async function saveForm(){
   closeOverlay(); renderAll();
 }
 
-function renderAll(){ updateStats(); renderMemberUI(); renderDaily(); renderWeeklySelect(); renderWeekly(); renderProject(); renderCalendar(); renderDirective(); }
+function renderAll(){ updateStats(); renderMemberUI(); renderDaily(); renderWeeklySelect(); renderWeekly(); renderProject(); renderCalendar(); }
 
 loadHeadcount();
 renderAll();
