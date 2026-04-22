@@ -544,26 +544,19 @@ async function saveRow(tab, row){
   }catch(e){ setSyncStatus('err','⚠ 저장 실패'); }
 }
 
-// ── 전체 동기화: getAll 한 번에 ──
+// ── 전체 동기화 ──
 async function syncAll(){
   setSyncStatus('loading','⟳ 동기화 중...');
   try{
-    // getAll로 한 번에 가져오기 시도
-    var result = await callScript({action:'getAll', t:Date.now()});
+    var d=await callScript({tab:'daily'});
+    var p=await callScript({tab:'project'});
+    var lv=await callScript({tab:'leave'});
+    var tk=await callScript({tab:'task'});
 
-    // getAll 미지원 시 개별 호출 fallback
-    if(!result || Array.isArray(result)){
-      var d=await callScript({tab:'daily'});
-      var p=await callScript({tab:'project'});
-      var lv=await callScript({tab:'leave'});
-      var tk=await callScript({tab:'task'});
-      result = {daily:d, project:p, leave:lv, task:tk};
-    }
-
-    var fd=filterRows(result.daily).map(function(r){return normalizeRow(r,'daily');});
-    var fp=filterRows(result.project).map(function(x){ x=normalizeRow(x,'project'); x.progress=parseInt(x.progress)||0; return x; });
-    var flv=filterRows(result.leave).map(function(r){return normalizeRow(r,'leave');});
-    var ftk=filterRows(result.task).map(function(r){return normalizeRow(r,'task');});
+    var fd=filterRows(d).map(function(r){return normalizeRow(r,'daily');});
+    var fp=filterRows(p).map(function(x){ x=normalizeRow(x,'project'); x.progress=parseInt(x.progress)||0; return x; });
+    var flv=filterRows(lv).map(function(r){return normalizeRow(r,'leave');});
+    var ftk=filterRows(tk).map(function(r){return normalizeRow(r,'task');});
 
     // 시트에 데이터 있을 때만 교체 (빈 배열이면 기존 로컬 데이터 유지)
     if(fd.length) data.daily=fd;
@@ -576,7 +569,7 @@ async function syncAll(){
     renderAll();
   }catch(e){
     setSyncStatus('err','⚠ 오류 (로컬 데이터 표시 중)');
-    renderAll(); // 실패해도 로컬 데이터로 렌더링
+    renderAll();
   }
 }
 
