@@ -859,7 +859,7 @@ function renderTaskList(projectId){
     html += badge(t.status);
     html += '</div>';
     html += '<div style="font-size:12px;color:var(--text-muted)">'+mdot(t.member)+' · '+t.start+' ~ '+t.end+(t.note?' · '+t.note:'')+'</div>';
-    html += '<button class="del-btn" style="margin-top:6px;font-size:11px" onclick="deleteTask(''+t.id+'')">🗑️ 삭제</button>';
+    html += '<button class="del-btn" style="margin-top:6px;font-size:11px" onclick="deleteTask(\''+t.id+'\')">🗑️ 삭제</button>';
     html += '</div>';
   });
   document.getElementById('task-list').innerHTML = html;
