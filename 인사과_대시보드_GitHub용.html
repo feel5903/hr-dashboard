@@ -878,10 +878,24 @@ function renderProject(){
       });
     }
 
-    // 단계 추가/수정 인라인 폼
+    // 단계 추가 버튼
+    var addBtn=document.createElement('button');
+    addBtn.className='btn lime';
+    addBtn.style.cssText='font-size:12px;padding:4px 12px;margin-bottom:.5rem';
+    addBtn.textContent='+ 단계 추가';
+    addBtn.onclick=(function(pid){return function(){
+      var f=document.getElementById('task-form-'+pid);
+      var isHidden=f.style.display==='none';
+      f.style.display=isHidden?'block':'none';
+      this.textContent=isHidden?'✕ 닫기':'+ 단계 추가';
+      if(isHidden) document.getElementById('tf-content-'+pid).focus();
+    };})(proj.id);
+    body.appendChild(addBtn);
+
+    // 단계 추가/수정 인라인 폼 (기본 숨김)
     var form=document.createElement('div');
     form.id='task-form-'+proj.id;
-    form.style.cssText='border-top:1px solid var(--gray-border);padding-top:.75rem;margin-top:.25rem';
+    form.style.cssText='display:none;border-top:1px solid var(--gray-border);padding-top:.75rem;margin-top:.25rem';
     form.innerHTML=
       '<div style="font-size:12px;font-weight:600;color:var(--navy);margin-bottom:.5rem" id="tf-title-'+proj.id+'">+ 단계 추가</div>'+
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
@@ -974,6 +988,9 @@ function cancelTaskForm(projId){
   document.getElementById('tf-editid-'+projId).value='';
   document.getElementById('tf-title-'+projId).textContent='+ 단계 추가';
   document.getElementById('tf-cancel-'+projId).style.display='none';
+  // 폼 숨기기 + 버튼 텍스트 복원
+  var f=document.getElementById('task-form-'+projId);
+  if(f) f.style.display='none';
 }
 
 // 진행률 재계산 후 저장
