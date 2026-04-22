@@ -748,7 +748,7 @@ function renderWeekly(){
       html+='<td style="font-size:12px">'+(x.end||'')+'</td>';
       html+='<td>'+badge(x.status)+'</td>';
       html+='<td style="font-size:12px;color:var(--text-muted);white-space:pre-wrap">'+(x.note||'')+'</td>';
-      html+='<td><textarea onblur="saveFeedback(\''+x.id+'\',this.value)" placeholder="피드백 입력" style="width:200px;height:55px;font-size:11px;padding:3px 6px;border:1px solid var(--gray-border);border-radius:4px;font-family:inherit;resize:vertical">'+(x.feedback||'')+'</textarea></td>';
+      html+='<td><textarea onblur="saveFeedback(\''+x.id+'\',this.value)" placeholder="피드백 입력" style="width:280px;height:55px;font-size:11px;padding:3px 6px;border:1px solid var(--gray-border);border-radius:4px;font-family:inherit;resize:vertical">'+(x.feedback||'')+'</textarea></td>';
       html+='</tr>';
     });
   });
@@ -918,6 +918,7 @@ var currentProjectId=null;
 
 function showTaskPanel(projectId){
   currentProjectId=projectId;
+  editingTaskId=null;
   var proj=data.project.find(function(p){return p.id===projectId;});
   document.getElementById('task-modal-title').textContent='📋 '+(proj?proj.name:'')+' 단계 관리';
   document.getElementById('tk-member').innerHTML=members.map(function(m){return '<option>'+m.name+'</option>';}).join('');
@@ -925,36 +926,80 @@ function showTaskPanel(projectId){
   document.getElementById('tk-end').value=todayStr;
   document.getElementById('tk-content').value='';
   document.getElementById('tk-note').value='';
+  document.querySelector('[onclick="saveTask()"]').textContent='단계 저장';
   renderTaskList(projectId);
   document.getElementById('task-overlay').classList.add('open');
 }
 
+var editingTaskId = null;
+
 function renderTaskList(projectId){
   var tasks=data.task.filter(function(t){return t.projectId===projectId;});
-  tasks.sort(function(a,b){return a.start>b.start?1:-1;});
+  tasks.sort(function(a,b){ return parseInt(a.step||0)>parseInt(b.step||0)?1:-1; });
   if(!tasks.length){document.getElementById('task-list').innerHTML='<div class="empty">등록된 단계가 없습니다. 아래에서 추가해주세요.</div>';return;}
   document.getElementById('task-list').innerHTML=tasks.map(function(t,i){
     return '<div style="padding:.75rem 1rem;border:.5px solid var(--gray-border);border-radius:var(--radius);background:var(--white)">'+
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'+
-      '<span style="font-weight:600;font-size:13px">'+(i+1)+'단계. '+t.content+'</span>'+badge(t.status)+'</div>'+
+      '<span style="font-weight:600;font-size:13px">'+(i+1)+'단계. '+t.content+'</span>'+
+      '<div style="display:flex;gap:4px;align-items:center">'+badge(t.status)+
+      '<button class="edit-btn" onclick="editTask(\''+t.id+'\')">✏️ 수정</button>'+
+      '<button class="del-btn" onclick="deleteTask(\''+t.id+'\')">🗑️</button>'+
+      '</div></div>'+
       '<div style="font-size:12px;color:var(--text-muted)">'+mdot(t.member)+' · '+t.start+' ~ '+t.end+(t.note?' · '+t.note:'')+'</div>'+
-      '<button class="del-btn" style="margin-top:6px;font-size:11px" onclick="deleteTask(\''+t.id+'\')">🗑️ 삭제</button></div>';
+      '</div>';
   }).join('');
+}
+
+function editTask(id){
+  var t=data.task.find(function(x){return x.id===id;});
+  if(!t) return;
+  editingTaskId=id;
+  document.getElementById('tk-content').value=t.content;
+  document.getElementById('tk-member').value=t.member;
+  document.getElementById('tk-start').value=t.start;
+  document.getElementById('tk-end').value=t.end;
+  document.getElementById('tk-status').value=t.status;
+  document.getElementById('tk-note').value=t.note||'';
+  // 버튼 텍스트 변경
+  document.querySelector('[onclick="saveTask()"]').textContent='단계 수정 완료';
 }
 
 async function saveTask(){
   var content2=document.getElementById('tk-content').value.trim();
   if(!content2){alert('단계명을 입력해주세요');return;}
-  var nr={id:genId('tk'),projectId:currentProjectId,step:String(data.task.filter(function(t){return t.projectId===currentProjectId;}).length+1),content:content2,member:document.getElementById('tk-member').value,start:document.getElementById('tk-start').value,end:document.getElementById('tk-end').value,status:document.getElementById('tk-status').value,note:document.getElementById('tk-note').value};
-  data.task.push(nr);
-  await saveRow('task',Object.values(nr));
+  var memberVal=document.getElementById('tk-member').value;
+  var startVal=document.getElementById('tk-start').value;
+  var endVal=document.getElementById('tk-end').value;
+  var statusVal=document.getElementById('tk-status').value;
+  var noteVal=document.getElementById('tk-note').value;
+
+  if(editingTaskId){
+    // 수정 모드
+    var t=data.task.find(function(x){return x.id===editingTaskId;});
+    if(t){
+      t.content=content2; t.member=memberVal; t.start=startVal;
+      t.end=endVal; t.status=statusVal; t.note=noteVal;
+    }
+    await overwriteTab('task');
+    editingTaskId=null;
+    document.querySelector('[onclick="saveTask()"]').textContent='단계 저장';
+  } else {
+    // 신규 추가 — step을 현재 최대 step+1로 설정
+    var existingTasks=data.task.filter(function(t){return t.projectId===currentProjectId;});
+    var maxStep=existingTasks.reduce(function(mx,t){return Math.max(mx,parseInt(t.step||0));},0);
+    var nr={id:genId('tk'),projectId:currentProjectId,step:String(maxStep+1),content:content2,member:memberVal,start:startVal,end:endVal,status:statusVal,note:noteVal};
+    data.task.push(nr);
+    await saveRow('task',Object.values(nr));
+  }
   document.getElementById('tk-content').value='';
+  document.getElementById('tk-note').value='';
   renderTaskList(currentProjectId);
 }
 
 async function deleteTask(id){
   if(!confirm('이 단계를 삭제할까요?'))return;
   data.task=data.task.filter(function(t){return t.id!==id;});
+  if(editingTaskId===id){ editingTaskId=null; document.querySelector('[onclick="saveTask()"]').textContent='단계 저장'; }
   await overwriteTab('task');
   renderTaskList(currentProjectId);
 }
