@@ -224,8 +224,7 @@ tbody tr:hover{background:#FAFBFC}
           <button class="btn lime" onclick="openForm('project')">+ 프로젝트 추가</button>
         </div>
       </div>
-      <table><thead><tr><th>프로젝트명</th><th>담당자</th><th>기간</th><th>진행률</th><th>상태</th><th>비고</th><th>관리</th></tr></thead>
-      <tbody id="project-tbody"></tbody></table>
+      <div id="project-list" style="padding:.75rem 1rem;display:flex;flex-direction:column;gap:8px"></div>
     </div>
     <div class="card">
       <div class="card-head">
@@ -303,40 +302,6 @@ tbody tr:hover{background:#FAFBFC}
     <div class="modal-actions">
       <button class="btn" onclick="document.getElementById('leave-overlay').classList.remove('open')">취소</button>
       <button class="btn primary" onclick="saveLeave()">저장</button>
-    </div>
-  </div>
-</div>
-
-<!-- 프로젝트 단계 모달 (체크리스트) -->
-<div class="overlay" id="task-overlay" onclick="if(event.target===this)this.classList.remove('open')">
-  <div class="modal" style="width:640px;max-height:90vh">
-    <h3 id="task-modal-title">📋 단계 관리</h3>
-    <!-- 진행률 바 -->
-    <div style="margin-bottom:1rem">
-      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:4px">
-        <span>전체 진행률</span><span id="tk-prog-label">0%</span>
-      </div>
-      <div class="prog-bar" style="height:8px"><div class="prog-fill" id="tk-prog-fill" style="width:0%"></div></div>
-    </div>
-    <!-- 체크리스트 -->
-    <div id="task-list" style="display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;margin-bottom:1rem"></div>
-    <!-- 단계 추가/수정 폼 -->
-    <div style="border-top:1px solid var(--gray-border);padding-top:1rem">
-      <div style="font-size:12px;font-weight:600;color:var(--navy);margin-bottom:.75rem" id="tk-form-title">+ 단계 추가</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div class="field" style="margin:0;grid-column:1/-1"><label>단계명</label><input type="text" id="tk-content" placeholder="예: 협조공지 발송"></div>
-        <div class="field" style="margin:0"><label>담당자</label><select id="tk-member"></select></div>
-        <div class="field" style="margin:0"><label>비고</label><input type="text" id="tk-note" placeholder="비고"></div>
-        <div class="field" style="margin:0"><label>시작일</label><input type="date" id="tk-start"></div>
-        <div class="field" style="margin:0"><label>마감일</label><input type="date" id="tk-end"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.75rem">
-        <button class="btn" id="tk-cancel-edit" style="display:none" onclick="cancelEditTask()">수정 취소</button>
-        <div style="margin-left:auto;display:flex;gap:8px">
-          <button class="btn" onclick="document.getElementById('task-overlay').classList.remove('open')">닫기</button>
-          <button class="btn primary" id="tk-save-btn" onclick="saveTask()">단계 추가</button>
-        </div>
-      </div>
     </div>
   </div>
 </div>
@@ -762,318 +727,311 @@ function renderWeekly(){
 function renderProject(){
   var fm=document.getElementById('filter-proj-member')?document.getElementById('filter-proj-member').value:'';
   var fs=document.getElementById('filter-proj-status')?document.getElementById('filter-proj-status').value:'';
-  var html='';
-  data.project.filter(function(x){return(!fm||x.member===fm)&&(!fs||x.status===fs);}).forEach(function(x){
-    var i=data.project.indexOf(x);
-    html+='<tr><td style="font-weight:600">'+x.name+'</td><td>'+mdot(x.member)+'</td>';
-    html+='<td style="font-size:12px;color:var(--text-muted)">'+(x.start||'')+' ~ '+(x.end||'')+'</td>';
-    html+='<td><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill '+(x.progress===100?'done':'')+'" style="width:'+(x.progress||0)+'%"></div></div><span class="prog-pct">'+(x.progress||0)+'%</span></div></td>';
-    html+='<td>'+badge(x.status)+'</td>';
-    html+='<td style="font-size:12px;color:var(--text-muted);white-space:pre-wrap">'+(x.note||'')+'</td>';
-    html+='<td><div class="action-btns">';
-    html+='<input type="number" min="0" max="100" value="'+(x.progress||0)+'" onchange="updateProgress('+i+',this.value)" style="width:55px;font-size:12px;padding:2px 6px;border:1px solid var(--gray-border);border-radius:4px">';
-    html+='<button class="edit-btn" onclick="showTaskPanel(\''+x.id+'\')">📋단계</button>';
-    html+='<button class="edit-btn" onclick="editItem(\'project\','+i+')">✏️</button>';
-    html+='<button class="del-btn" onclick="deleteItem(\'project\','+i+')">🗑️</button>';
-    html+='</div></td></tr>';
+  var list=document.getElementById('project-list');
+  var filtered=data.project.filter(function(x){return(!fm||x.member===fm)&&(!fs||x.status===fs);});
+
+  if(!filtered.length){
+    list.innerHTML='<div class="empty">프로젝트가 없습니다</div>';
+    renderGantt(); return;
+  }
+
+  list.innerHTML='';
+  filtered.forEach(function(proj){
+    var pi=data.project.indexOf(proj);
+    var tasks=data.task.filter(function(t){return t.projectId===proj.id;});
+    tasks.sort(function(a,b){return parseInt(a.step||0)>parseInt(b.step||0)?1:-1;});
+
+    // 진행률: 체크된 단계 / 전체 단계
+    var total=tasks.length;
+    var doneCnt=tasks.filter(function(t){return t.status==='완료';}).length;
+    var pct=total>0?Math.round(doneCnt/total*100):parseInt(proj.progress)||0;
+    var progClass=pct===100?'done':'';
+
+    var card=document.createElement('div');
+    card.style.cssText='border:.5px solid var(--gray-border);border-radius:var(--radius-lg);overflow:hidden;background:var(--white)';
+
+    // ── 헤더 (클릭시 아코디언 토글) ──
+    var header=document.createElement('div');
+    header.style.cssText='display:flex;align-items:center;gap:10px;padding:.875rem 1.25rem;cursor:pointer;user-select:none;background:var(--white);transition:background .15s';
+    header.onmouseenter=function(){this.style.background='var(--gray-light)';};
+    header.onmouseleave=function(){this.style.background='var(--white)';};
+
+    // 화살표
+    var arrow=document.createElement('span');
+    arrow.style.cssText='font-size:11px;color:var(--text-muted);transition:transform .2s;display:inline-block';
+    arrow.textContent='▶';
+
+    // 프로젝트명
+    var nameEl=document.createElement('span');
+    nameEl.style.cssText='font-weight:700;font-size:14px;color:var(--navy);flex:1';
+    nameEl.textContent=proj.name;
+
+    // 담당자
+    var memberEl=document.createElement('span');
+    memberEl.innerHTML=mdot(proj.member);
+
+    // 기간
+    var dateEl=document.createElement('span');
+    dateEl.style.cssText='font-size:11px;color:var(--text-muted)';
+    dateEl.textContent=(proj.start||'')+' ~ '+(proj.end||'');
+
+    // 상태 뱃지
+    var statusEl=document.createElement('span');
+    statusEl.innerHTML=badge(proj.status);
+
+    // 진행률
+    var progWrap=document.createElement('div');
+    progWrap.style.cssText='display:flex;align-items:center;gap:6px;min-width:120px';
+    progWrap.innerHTML='<div class="prog-bar" style="flex:1"><div class="prog-fill '+progClass+'" style="width:'+pct+'%"></div></div><span class="prog-pct" style="min-width:36px">'+pct+'%</span>';
+
+    // 수정/삭제 버튼
+    var editBtn=document.createElement('button');
+    editBtn.className='edit-btn'; editBtn.textContent='✏️';
+    editBtn.onclick=function(e){e.stopPropagation();editItem('project',pi);};
+    var delBtn=document.createElement('button');
+    delBtn.className='del-btn'; delBtn.textContent='🗑️';
+    delBtn.onclick=function(e){e.stopPropagation();deleteItem('project',pi);};
+
+    header.appendChild(arrow);
+    header.appendChild(nameEl);
+    header.appendChild(memberEl);
+    header.appendChild(dateEl);
+    header.appendChild(statusEl);
+    header.appendChild(progWrap);
+    header.appendChild(editBtn);
+    header.appendChild(delBtn);
+
+    // ── 아코디언 바디 ──
+    var body=document.createElement('div');
+    body.style.cssText='display:none;border-top:1px solid var(--gray-border);padding:.75rem 1.25rem;background:#FAFBFC';
+
+    header.onclick=function(e){
+      if(e.target===editBtn||e.target===delBtn) return;
+      var isOpen=body.style.display!=='none';
+      body.style.display=isOpen?'none':'block';
+      arrow.style.transform=isOpen?'':'rotate(90deg)';
+    };
+
+    // 체크리스트
+    var clWrap=document.createElement('div');
+    clWrap.style.cssText='display:flex;flex-direction:column;gap:5px;margin-bottom:.75rem';
+
+    if(!tasks.length){
+      var emptyMsg=document.createElement('div');
+      emptyMsg.className='empty'; emptyMsg.style.padding='.75rem 0';
+      emptyMsg.textContent='단계를 추가해주세요.';
+      clWrap.appendChild(emptyMsg);
+    } else {
+      tasks.forEach(function(t,i){
+        var isDone=t.status==='완료';
+        var isOver=t.end&&t.end<todayStr&&!isDone;
+        var row=document.createElement('div');
+        row.style.cssText='display:flex;align-items:flex-start;gap:8px;padding:.6rem .75rem;border-radius:var(--radius);border:.5px solid '+(isDone?'var(--lime)':isOver?'#FECACA':'var(--gray-border)')+';background:'+(isDone?'var(--lime-light)':isOver?'#FEF2F2':'var(--white)');
+
+        var cb=document.createElement('input');
+        cb.type='checkbox'; cb.checked=isDone;
+        cb.style.cssText='width:15px;height:15px;accent-color:var(--lime-dark);cursor:pointer;margin-top:2px;flex-shrink:0';
+        cb.addEventListener('change',(function(tid,projId){return function(){toggleTaskDone(this,tid,projId);};})(t.id,proj.id));
+
+        var info=document.createElement('div');
+        info.style.cssText='flex:1;min-width:0';
+        var topRow=document.createElement('div');
+        topRow.style.cssText='display:flex;align-items:center;gap:5px;margin-bottom:2px';
+        var stepNum=document.createElement('span');
+        stepNum.style.cssText='font-size:10px;font-weight:700;color:var(--navy-mid)';
+        stepNum.textContent=(i+1)+'단계';
+        var tTitle=document.createElement('span');
+        tTitle.style.cssText='font-size:13px;font-weight:600;'+(isDone?'text-decoration:line-through;color:var(--text-muted)':isOver?'color:#DC2626':'');
+        tTitle.textContent=t.content;
+        topRow.appendChild(stepNum); topRow.appendChild(tTitle);
+        if(isOver){var w=document.createElement('span');w.style.cssText='font-size:10px;color:#DC2626';w.textContent='⚠️ 지연';topRow.appendChild(w);}
+
+        var metaRow=document.createElement('div');
+        metaRow.style.cssText='font-size:11px;color:var(--text-muted);display:flex;gap:8px;flex-wrap:wrap';
+        metaRow.innerHTML='<span>👤 '+t.member+'</span><span>📅 '+t.start+' ~ '+t.end+'</span>'+(t.note?'<span>📝 '+t.note+'</span>':'');
+
+        info.appendChild(topRow); info.appendChild(metaRow);
+
+        var eBtn=document.createElement('button');
+        eBtn.className='edit-btn'; eBtn.textContent='✏️'; eBtn.title='수정';
+        eBtn.addEventListener('click',(function(tid,projId){return function(){openTaskEditForm(tid,projId);};})(t.id,proj.id));
+        var dBtn=document.createElement('button');
+        dBtn.className='del-btn'; dBtn.textContent='🗑️'; dBtn.title='삭제';
+        dBtn.addEventListener('click',(function(tid,projId){return function(){deleteTask(tid,projId);};})(t.id,proj.id));
+
+        row.appendChild(cb); row.appendChild(info); row.appendChild(eBtn); row.appendChild(dBtn);
+        clWrap.appendChild(row);
+      });
+    }
+
+    // 단계 추가/수정 인라인 폼
+    var form=document.createElement('div');
+    form.id='task-form-'+proj.id;
+    form.style.cssText='border-top:1px solid var(--gray-border);padding-top:.75rem;margin-top:.25rem';
+    form.innerHTML=
+      '<div style="font-size:12px;font-weight:600;color:var(--navy);margin-bottom:.5rem" id="tf-title-'+proj.id+'">+ 단계 추가</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+        '<div class="field" style="margin:0;grid-column:1/-1"><label>단계명</label><input type="text" id="tf-content-'+proj.id+'" placeholder="예: 협조공지 발송" style="width:100%;padding:.4rem .6rem;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:13px;font-family:inherit;outline:none"></div>'+
+        '<div class="field" style="margin:0"><label>담당자</label><select id="tf-member-'+proj.id+'" style="width:100%;padding:.4rem .6rem;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:13px;font-family:inherit">'+members.map(function(m){return'<option>'+m.name+'</option>';}).join('')+'</select></div>'+
+        '<div class="field" style="margin:0"><label>비고</label><input type="text" id="tf-note-'+proj.id+'" placeholder="비고" style="width:100%;padding:.4rem .6rem;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:13px;font-family:inherit;outline:none"></div>'+
+        '<div class="field" style="margin:0"><label>시작일</label><input type="date" id="tf-start-'+proj.id+'" value="'+todayStr+'" style="width:100%;padding:.4rem .6rem;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:13px;font-family:inherit;outline:none"></div>'+
+        '<div class="field" style="margin:0"><label>마감일</label><input type="date" id="tf-end-'+proj.id+'" value="'+todayStr+'" style="width:100%;padding:.4rem .6rem;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:13px;font-family:inherit;outline:none"></div>'+
+      '</div>'+
+      '<input type="hidden" id="tf-editid-'+proj.id+'" value="">'+
+      '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:.6rem">'+
+        '<button class="btn" id="tf-cancel-'+proj.id+'" style="display:none" onclick="cancelTaskForm(\''+proj.id+'\')">취소</button>'+
+        '<button class="btn primary" onclick="saveTaskInline(\''+proj.id+'\')">저장</button>'+
+      '</div>';
+
+    body.appendChild(clWrap);
+    body.appendChild(form);
+    card.appendChild(header);
+    card.appendChild(body);
+    list.appendChild(card);
   });
-  document.getElementById('project-tbody').innerHTML=html||'<tr><td colspan="7" class="empty">프로젝트가 없습니다</td></tr>';
+
   renderGantt();
 }
 
-function updateProgress(i,val){
-  data.project[i].progress=Math.min(100,Math.max(0,parseInt(val)||0));
-  data.project[i].status=data.project[i].progress>=100?'완료':'진행';
-  setTimeout(function(){overwriteTab('project');},500);
-  renderProject(); updateStats();
-}
-
-function renderGantt(){
-  var fm=document.getElementById('filter-proj-member')?document.getElementById('filter-proj-member').value:'';
-  var fs=document.getElementById('filter-proj-status')?document.getElementById('filter-proj-status').value:'';
-  var filteredProjects=data.project.filter(function(x){return(!fm||x.member===fm)&&(!fs||x.status===fs);});
-  var refStart=new Date(curMonth.y,curMonth.m,1); var days=new Date(curMonth.y,curMonth.m+1,0).getDate();
-  var lbl=document.getElementById('gantt-month-label'); if(lbl) lbl.textContent=curMonth.y+'년 '+(curMonth.m+1)+'월';
-  var todayOff=(TODAY-refStart)/86400000; var todayPct=Math.min(100,Math.max(0,todayOff/days*100));
-  var html='<div style="display:flex;padding:.4rem 0;border-bottom:1px solid var(--gray-border);margin-bottom:4px"><div style="min-width:160px;font-size:10px;font-weight:600;color:var(--text-muted)">프로젝트</div><div style="display:flex;flex:1">';
-  for(var d=1;d<=days;d+=3) html+='<div style="flex:3;text-align:center;font-size:9px;color:var(--text-muted)">'+d+'</div>';
-  html+='</div></div>';
-  filteredProjects.forEach(function(p){
-    if(!p.start||!p.end)return;
-    var s=(new Date(p.start)-refStart)/86400000; var e=(new Date(p.end)-refStart)/86400000;
-    var left=Math.max(0,s)/days*100; var width=(Math.min(days,e)-Math.max(0,s))/days*100;
-    var m=getMember(p.member);
-    html+='<div class="gantt-row"><div style="min-width:160px;font-size:12px;padding:.25rem 0">'+p.name+'<br><span style="font-size:10px;color:var(--text-muted)">'+p.member+'</span></div><div style="flex:1;position:relative;height:20px;margin:.6rem 0"><div class="g-today" style="left:'+todayPct.toFixed(1)+'%"></div><div class="g-bar" style="left:'+left.toFixed(1)+'%;width:'+Math.max(width,1).toFixed(1)+'%;background:'+m.color+'"></div></div></div>';
-  });
-  if(filteredProjects.filter(function(p){return p.start&&p.end;}).length===0) html+='<div class="empty" style="padding:1rem">프로젝트가 없습니다</div>';
-  document.getElementById('gantt-area').innerHTML=html;
-}
-
-function renderCalendar(){
-  var y=curMonth.y; var m=curMonth.m;
-  document.getElementById('cal-month-label').textContent=y+'년 '+(m+1)+'월';
-  var first=new Date(y,m,1); var last=new Date(y,m+1,0);
-  var allEvts=data.daily.map(function(x){return{date:x.end,label:x.content.slice(0,14),type:x.status};})
-    .concat(data.leave.map(function(x){return{date:formatDateVal(x.date),label:'[휴가]'+x.member+' '+x.type,type:'휴가'};}));
-  var html='';
-  for(var i=0;i<first.getDay();i++) html+='<div class="cal-day other-month"></div>';
-  for(var dd=1;dd<=last.getDate();dd++){
-    var ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(dd).padStart(2,'0');
-    var evts=allEvts.filter(function(x){return x.date===ds;});
-    var onclk=evts.length?'onclick="showCalModal(\''+ds+'\')" style="cursor:pointer"':'';
-    html+='<div class="cal-day '+(ds===todayStr?'today':'')+'" '+onclk+'>'+
-      '<div class="day-num">'+dd+'</div>'+
-      evts.slice(0,2).map(function(e){return '<div class="cal-evt '+e.type+'">'+e.label+'</div>';}).join('')+
-      (evts.length>2?'<div style="font-size:10px;color:var(--navy);font-weight:600;margin-top:2px">+'+(evts.length-2)+'건 더보기</div>':'')+
-      '</div>';
-  }
-  document.getElementById('cal-grid').innerHTML=html;
-}
-
-function showCalModal(ds){
-  var allEvts=data.daily.map(function(x){return{date:x.end,label:x.content,type:x.status,member:x.member,note:x.note||''};})
-    .concat(data.leave.map(function(x){return{date:formatDateVal(x.date),label:'[휴가] '+x.type,type:'휴가',member:x.member,note:x.note||''};}));
-  var evts=allEvts.filter(function(x){return x.date===ds;});
-  document.getElementById('cal-modal-title').textContent=ds+' 일정 ('+evts.length+'건)';
-  document.getElementById('cal-modal-body').innerHTML=evts.length===0?'<div class="empty">일정이 없습니다</div>':evts.map(function(e){
-    return '<div style="padding:.75rem 1rem;border:.5px solid var(--gray-border);border-radius:var(--radius)"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="font-weight:600;font-size:13px">'+e.label+'</span>'+badge(e.type)+'</div><div style="font-size:12px;color:var(--text-muted)">담당자: '+mdot(e.member)+(e.note?' · '+e.note:'')+'</div></div>';
-  }).join('');
-  document.getElementById('cal-overlay').classList.add('open');
-}
-
-function saveFeedback(id, val){
-  var item=data.daily.find(function(x){return x.id===id;});
-  if(item){ item.feedback=val; clearTimeout(window._feedbackTimer); window._feedbackTimer=setTimeout(function(){overwriteTab('daily');},1000); }
-}
-
-function saveMemo(){
-  var wk=document.getElementById('week-select').value;
-  var val=document.getElementById('meeting-memo').value;
-  localStorage.setItem('memo_'+wk,val);
-  var st=document.getElementById('memo-save-status');
-  st.textContent='✅ 저장됨'; setTimeout(function(){st.textContent='';},2000);
-}
-function loadMemo(){
-  var wk=document.getElementById('week-select').value;
-  var el=document.getElementById('meeting-memo');
-  if(el) el.value=localStorage.getItem('memo_'+wk)||'';
-}
-
-function toggleAllCheck(el){
-  document.querySelectorAll('.row-check').forEach(function(cb){cb.checked=el.checked;});
-}
-
-async function deleteSelected(){
-  var checked=document.querySelectorAll('.row-check:checked');
-  if(!checked.length){alert('삭제할 업무를 선택해주세요');return;}
-  if(!confirm(checked.length+'건을 삭제할까요?'))return;
-  var ids=[];
-  checked.forEach(function(cb){ids.push(cb.getAttribute('data-id'));});
-  data.daily=data.daily.filter(function(x){return ids.indexOf(x.id)<0;});
-  await overwriteTab('daily');
-  renderAll();
-}
-
-function openLeaveForm(){
-  document.getElementById('lv-member').innerHTML=members.map(function(m){return '<option>'+m.name+'</option>';}).join('');
-  document.getElementById('lv-date').value=todayStr;
-  document.getElementById('lv-note').value='';
-  document.getElementById('leave-overlay').classList.add('open');
-}
-
-async function saveLeave(){
-  var member=document.getElementById('lv-member').value;
-  var date=document.getElementById('lv-date').value;
-  var type=document.getElementById('lv-type').value;
-  var note=document.getElementById('lv-note').value;
-  if(!date){alert('날짜를 선택해주세요');return;}
-  var nr={id:genId('lv'),member:member,date:date,type:type,note:note};
-  data.leave.push(nr);
-  await saveRow('leave',Object.values(nr));
-  document.getElementById('leave-overlay').classList.remove('open');
-  renderWeekly(); renderCalendar();
-}
-
-async function deleteLeave(id){
-  if(!confirm('휴가를 삭제할까요?'))return;
-  data.leave=data.leave.filter(function(x){return x.id!==id;});
-  await overwriteTab('leave');
-  renderWeekly(); renderCalendar();
-}
-
-function renderLeaveList(wk){
-  var leaves=data.leave.filter(function(x){return getWeekKey(x.date)===wk;});
-  var bgMap={'연차':'#FEF3DC','오전 반차':'#DBEAFE','오후 반차':'#EDE9FE','시간차':'#D1FAE5'};
-  var colMap={'연차':'#92400E','오전 반차':'#1E40AF','오후 반차':'#5B21B6','시간차':'#065F46'};
-  var el=document.getElementById('leave-list'); if(!el) return;
-  if(!leaves.length){el.innerHTML='<span style="font-size:12px;color:var(--text-muted)">이번 주 휴가 없음</span>';return;}
-  el.innerHTML=leaves.map(function(x){
-    var bg=bgMap[x.type]||'#F3F4F6'; var col=colMap[x.type]||'#6B7280';
-    return '<div style="display:inline-flex;align-items:center;background:'+bg+';color:'+col+';padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;margin:2px">'+
-      x.date+' '+mdot(x.member)+' '+x.type+(x.note?' ('+x.note+')':'')+
-      '<span onclick="deleteLeave(\''+x.id+'\')" style="cursor:pointer;opacity:.6;font-size:10px;margin-left:4px">✕</span></div>';
-  }).join('');
-}
-
-var currentProjectId=null;
-var editingTaskId=null;
-
-function showTaskPanel(projectId){
-  currentProjectId=projectId;
-  editingTaskId=null;
-  var proj=data.project.find(function(p){return p.id===projectId;});
-  document.getElementById('task-modal-title').textContent='📋 '+(proj?proj.name:'')+' 단계 관리';
-  document.getElementById('tk-member').innerHTML=members.map(function(m){return '<option>'+m.name+'</option>';}).join('');
-  resetTaskForm();
-  renderTaskList(projectId);
-  document.getElementById('task-overlay').classList.add('open');
-}
-
-function resetTaskForm(){
-  editingTaskId=null;
-  document.getElementById('tk-content').value='';
-  document.getElementById('tk-note').value='';
-  document.getElementById('tk-start').value=todayStr;
-  document.getElementById('tk-end').value=todayStr;
-  document.getElementById('tk-save-btn').textContent='단계 추가';
-  document.getElementById('tk-form-title').textContent='+ 단계 추가';
-  document.getElementById('tk-cancel-edit').style.display='none';
-}
-
-function cancelEditTask(){
-  resetTaskForm();
-}
-
-function renderTaskList(projectId){
-  var tasks=data.task.filter(function(t){return t.projectId===projectId;});
-  tasks.sort(function(a,b){return parseInt(a.step||0)>parseInt(b.step||0)?1:-1;});
-
-  var total=tasks.length;
-  var done=tasks.filter(function(t){return t.status==='완료';}).length;
-  var pct=total?Math.round(done/total*100):0;
-  document.getElementById('tk-prog-fill').style.width=pct+'%';
-  document.getElementById('tk-prog-label').textContent=done+'/'+total+' 완료 ('+pct+'%)';
-
-  if(!tasks.length){
-    document.getElementById('task-list').innerHTML='<div class="empty">단계를 추가해주세요.</div>';
-    return;
-  }
-
-  var el=document.getElementById('task-list');
-  el.innerHTML='';
-  tasks.forEach(function(t,i){
-    var isDone=t.status==='완료';
-    var isOver=t.end&&t.end<todayStr&&!isDone;
-    var wrap=document.createElement('div');
-    wrap.style.cssText='display:flex;align-items:flex-start;gap:10px;padding:.7rem .9rem;border:.5px solid '+(isDone?'var(--lime)':isOver?'#FECACA':'var(--gray-border)')+';border-radius:var(--radius);background:'+(isDone?'var(--lime-light)':isOver?'#FEF2F2':'var(--white)')+';transition:background .2s;margin-bottom:2px';
-
-    // 체크박스
-    var cb=document.createElement('input');
-    cb.type='checkbox'; cb.checked=isDone;
-    cb.style.cssText='width:16px;height:16px;accent-color:var(--lime-dark);cursor:pointer;margin-top:2px;flex-shrink:0';
-    cb.addEventListener('change', (function(taskId){return function(){toggleTaskDone(this,taskId);};})(t.id));
-    wrap.appendChild(cb);
-
-    // 내용 영역
-    var info=document.createElement('div'); info.style.cssText='flex:1;min-width:0';
-    var top=document.createElement('div'); top.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:3px';
-    var stepBadge=document.createElement('span'); stepBadge.style.cssText='font-size:11px;font-weight:700;color:var(--navy-mid)'; stepBadge.textContent=(i+1)+'단계';
-    var title=document.createElement('span'); title.style.cssText='font-weight:600;font-size:13px;'+(isDone?'text-decoration:line-through;color:var(--text-muted)':isOver?'color:#DC2626':''); title.textContent=t.content;
-    top.appendChild(stepBadge); top.appendChild(title);
-    if(isOver){var warn=document.createElement('span');warn.style.cssText='font-size:10px;color:#DC2626';warn.textContent='⚠️ 지연';top.appendChild(warn);}
-    info.appendChild(top);
-
-    var meta=document.createElement('div'); meta.style.cssText='font-size:11px;color:var(--text-muted);display:flex;gap:10px;flex-wrap:wrap';
-    meta.innerHTML='<span>👤 '+t.member+'</span><span>📅 '+t.start+' ~ '+t.end+'</span>'+(t.note?'<span>📝 '+t.note+'</span>':'');
-    info.appendChild(meta);
-    wrap.appendChild(info);
-
-    // 버튼 영역
-    var btns=document.createElement('div'); btns.style.cssText='display:flex;gap:3px;flex-shrink:0';
-    var editBtn=document.createElement('button'); editBtn.className='edit-btn'; editBtn.textContent='✏️';
-    editBtn.addEventListener('click',(function(taskId){return function(){editTask(taskId);};})(t.id));
-    var delBtn=document.createElement('button'); delBtn.className='del-btn'; delBtn.textContent='🗑️';
-    delBtn.addEventListener('click',(function(taskId){return function(){deleteTask(taskId);};})(t.id));
-    btns.appendChild(editBtn); btns.appendChild(delBtn);
-    wrap.appendChild(btns);
-    el.appendChild(wrap);
-  });
-}
-async function toggleTaskDone(cb, id){
-  var checked=cb.checked;
-  var t=data.task.find(function(x){return x.id===id;});
-  if(!t) return;
-  t.status=checked?'완료':'진행';
-  await overwriteTab('task');
-  var projTasks=data.task.filter(function(x){return x.projectId===t.projectId;});
-  var proj=data.project.find(function(p){return p.id===t.projectId;});
-  if(proj&&projTasks.length){
-    var doneCnt=projTasks.filter(function(x){return x.status==='완료';}).length;
-    proj.progress=Math.round(doneCnt/projTasks.length*100);
-    proj.status=proj.progress===100?'완료':proj.progress>0?'진행':'대기';
-    await overwriteTab('project');
-    updateStats();
-  }
-  renderTaskList(t.projectId);
-}
-
-function editTask(id){
-  var t=data.task.find(function(x){return x.id===id;});
-  if(!t) return;
-  editingTaskId=id;
-  document.getElementById('tk-content').value=t.content;
-  document.getElementById('tk-member').value=t.member;
-  document.getElementById('tk-start').value=t.start;
-  document.getElementById('tk-end').value=t.end;
-  document.getElementById('tk-note').value=t.note||'';
-  document.getElementById('tk-save-btn').textContent='수정 완료';
-  document.getElementById('tk-form-title').textContent='✏️ 단계 수정';
-  document.getElementById('tk-cancel-edit').style.display='';
-  document.getElementById('tk-content').focus();
-}
-
-async function saveTask(){
-  var content2=document.getElementById('tk-content').value.trim();
+// 인라인 폼에서 단계 저장
+async function saveTaskInline(projId){
+  var content2=document.getElementById('tf-content-'+projId).value.trim();
   if(!content2){alert('단계명을 입력해주세요');return;}
-  var memberVal=document.getElementById('tk-member').value;
-  var startVal=document.getElementById('tk-start').value;
-  var endVal=document.getElementById('tk-end').value;
-  var noteVal=document.getElementById('tk-note').value;
+  var memberVal=document.getElementById('tf-member-'+projId).value;
+  var noteVal=document.getElementById('tf-note-'+projId).value;
+  var startVal=document.getElementById('tf-start-'+projId).value;
+  var endVal=document.getElementById('tf-end-'+projId).value;
+  var editId=document.getElementById('tf-editid-'+projId).value;
 
-  if(editingTaskId){
-    var t=data.task.find(function(x){return x.id===editingTaskId;});
-    if(t){ t.content=content2; t.member=memberVal; t.start=startVal; t.end=endVal; t.note=noteVal; }
+  if(editId){
+    // 수정
+    var t=data.task.find(function(x){return x.id===editId;});
+    if(t){t.content=content2;t.member=memberVal;t.note=noteVal;t.start=startVal;t.end=endVal;}
     await overwriteTab('task');
-    resetTaskForm();
   } else {
-    var existingTasks=data.task.filter(function(t){return t.projectId===currentProjectId;});
-    var maxStep=existingTasks.reduce(function(mx,t){return Math.max(mx,parseInt(t.step||0));},0);
-    var nr={id:genId('tk'),projectId:currentProjectId,step:String(maxStep+1),content:content2,member:memberVal,start:startVal,end:endVal,status:'대기',note:noteVal};
+    // 신규
+    var existing=data.task.filter(function(t){return t.projectId===projId;});
+    var maxStep=existing.reduce(function(mx,t){return Math.max(mx,parseInt(t.step||0));},0);
+    var nr={id:genId('tk'),projectId:projId,step:String(maxStep+1),content:content2,member:memberVal,start:startVal,end:endVal,status:'대기',note:noteVal};
     data.task.push(nr);
     await saveRow('task',Object.values(nr));
-    resetTaskForm();
   }
-  renderTaskList(currentProjectId);
+  cancelTaskForm(projId);
+  recalcProgress(projId);
+  renderProject();
+  // 해당 카드 다시 열기
+  setTimeout(function(){
+    var cards=document.querySelectorAll('#project-list > div');
+    var proj=data.project.find(function(p){return p.id===projId;});
+    if(!proj) return;
+    var filtered=data.project.filter(function(x){
+      var fm=document.getElementById('filter-proj-member').value;
+      var fs=document.getElementById('filter-proj-status').value;
+      return(!fm||x.member===fm)&&(!fs||x.status===fs);
+    });
+    var idx=filtered.indexOf(proj);
+    if(idx>=0&&cards[idx]){
+      var body=cards[idx].querySelector('div:nth-child(2)');
+      var arrow=cards[idx].querySelector('span');
+      if(body){body.style.display='block';}
+      if(arrow){arrow.style.transform='rotate(90deg)';}
+    }
+  },50);
 }
 
-async function deleteTask(id){
-  if(!confirm('이 단계를 삭제할까요?'))return;
-  var t=data.task.find(function(x){return x.id===id;});
-  data.task=data.task.filter(function(x){return x.id!==id;});
-  if(editingTaskId===id) resetTaskForm();
-  await overwriteTab('task');
-  if(t){
-    var projTasks=data.task.filter(function(x){return x.projectId===t.projectId;});
-    var proj=data.project.find(function(p){return p.id===t.projectId;});
-    if(proj){
-      proj.progress=projTasks.length?Math.round(projTasks.filter(function(x){return x.status==='완료';}).length/projTasks.length*100):0;
-      proj.status=proj.progress===100?'완료':proj.progress>0?'진행':'대기';
-      await overwriteTab('project');
-      updateStats();
-    }
-  }
-  renderTaskList(currentProjectId);
+function openTaskEditForm(taskId, projId){
+  var t=data.task.find(function(x){return x.id===taskId;});
+  if(!t) return;
+  document.getElementById('tf-content-'+projId).value=t.content;
+  document.getElementById('tf-member-'+projId).value=t.member;
+  document.getElementById('tf-note-'+projId).value=t.note||'';
+  document.getElementById('tf-start-'+projId).value=t.start;
+  document.getElementById('tf-end-'+projId).value=t.end;
+  document.getElementById('tf-editid-'+projId).value=t.id;
+  document.getElementById('tf-title-'+projId).textContent='✏️ 단계 수정';
+  document.getElementById('tf-cancel-'+projId).style.display='';
+  document.getElementById('tf-content-'+projId).focus();
 }
+
+function cancelTaskForm(projId){
+  document.getElementById('tf-content-'+projId).value='';
+  document.getElementById('tf-note-'+projId).value='';
+  document.getElementById('tf-start-'+projId).value=todayStr;
+  document.getElementById('tf-end-'+projId).value=todayStr;
+  document.getElementById('tf-editid-'+projId).value='';
+  document.getElementById('tf-title-'+projId).textContent='+ 단계 추가';
+  document.getElementById('tf-cancel-'+projId).style.display='none';
+}
+
+// 진행률 재계산 후 저장
+async function recalcProgress(projId){
+  var proj=data.project.find(function(p){return p.id===projId;});
+  if(!proj) return;
+  var tasks=data.task.filter(function(t){return t.projectId===projId;});
+  var total=tasks.length;
+  var done=tasks.filter(function(t){return t.status==='완료';}).length;
+  proj.progress=total>0?Math.round(done/total*100):0;
+  proj.status=proj.progress===100?'완료':proj.progress>0?'진행':'대기';
+  await overwriteTab('project');
+  updateStats();
+}
+
+async function toggleTaskDone(cb, taskId, projId){
+  var t=data.task.find(function(x){return x.id===taskId;});
+  if(!t) return;
+  t.status=cb.checked?'완료':'진행';
+  await overwriteTab('task');
+  await recalcProgress(projId);
+  renderProject();
+  // 해당 카드 열린 상태 유지
+  setTimeout(function(){
+    var filtered=data.project.filter(function(x){
+      var fm=document.getElementById('filter-proj-member').value;
+      var fs=document.getElementById('filter-proj-status').value;
+      return(!fm||x.member===fm)&&(!fs||x.status===fs);
+    });
+    var proj=data.project.find(function(p){return p.id===projId;});
+    var idx=filtered.indexOf(proj);
+    var cards=document.querySelectorAll('#project-list > div');
+    if(idx>=0&&cards[idx]){
+      var body=cards[idx].querySelector('div:nth-child(2)');
+      var arrow=cards[idx].querySelector('span');
+      if(body){body.style.display='block';}
+      if(arrow){arrow.style.transform='rotate(90deg)';}
+    }
+  },50);
+}
+
+async function deleteTask(taskId, projId){
+  if(!confirm('이 단계를 삭제할까요?')) return;
+  data.task=data.task.filter(function(t){return t.id!==taskId;});
+  await overwriteTab('task');
+  await recalcProgress(projId);
+  renderProject();
+  setTimeout(function(){
+    var filtered=data.project.filter(function(x){
+      var fm=document.getElementById('filter-proj-member').value;
+      var fs=document.getElementById('filter-proj-status').value;
+      return(!fm||x.member===fm)&&(!fs||x.status===fs);
+    });
+    var proj=data.project.find(function(p){return p.id===projId;});
+    var idx=filtered.indexOf(proj);
+    var cards=document.querySelectorAll('#project-list > div');
+    if(idx>=0&&cards[idx]){
+      var body=cards[idx].querySelector('div:nth-child(2)');
+      var arrow=cards[idx].querySelector('span');
+      if(body){body.style.display='block';}
+      if(arrow){arrow.style.transform='rotate(90deg)';}
+    }
+  },50);
+}
+
+// 구 showTaskPanel — 더 이상 사용 안 함 (하위 호환용 빈 함수)
+function showTaskPanel(){}
+function resetTaskForm(){}
+function cancelEditTask(){}
+function renderTaskList(){}
+
 
 function changeGanttMonth(dir){
   curMonth.m+=dir;
