@@ -709,7 +709,6 @@ function renderCalendar(){
   document.getElementById('cal-month-label').textContent=y+'년 '+(m+1)+'월';
   var first=new Date(y,m,1); var last=new Date(y,m+1,0);
   var allEvts=data.daily.map(function(x){return{date:x.end,label:x.content.slice(0,14),type:x.status};})
-    .concat(data.directive.map(function(x){return{date:x.end,label:'[지시]'+x.content.slice(0,8),type:'지시'};}))
     .concat(data.leave.map(function(x){return{date:formatDateVal(x.date),label:'[휴가]'+x.member+' '+x.type,type:'휴가'};}));
   var html='';
   for(var i=0;i<first.getDay();i++) html+='<div class="cal-day other-month"></div>';
@@ -734,7 +733,7 @@ function renderCalendar(){
 function showCalModal(ds, evts){
   if(!evts){
     var allEvts=data.daily.map(function(x){return{date:x.end,label:x.content,type:x.status,member:x.member,note:x.note||''};})
-      .concat(data.directive.map(function(x){return{date:x.end,label:'[지시] '+x.content,type:'지시',member:x.member,note:x.director||''};}));
+  ;
     evts=allEvts.filter(function(x){return x.date===ds;});
   }
   document.getElementById('cal-modal-title').textContent=ds+' 업무 목록 ('+evts.length+'건)';
