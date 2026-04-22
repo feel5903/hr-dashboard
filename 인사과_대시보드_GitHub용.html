@@ -225,18 +225,7 @@ tbody tr:hover{background:#FAFBFC}
         </div>
       </div>
       <div id="project-list" style="padding:.75rem 1rem;display:flex;flex-direction:column;gap:8px"></div>
-    </div>
-    <div class="card">
-      <div class="card-head">
-        <span class="card-title">간트 차트</span>
-        <div class="card-actions">
-          <button class="btn" onclick="changeGanttMonth(-1)">◀ 이전달</button>
-          <span id="gantt-month-label" style="font-size:12px;color:var(--navy);font-weight:600"></span>
-          <button class="btn" onclick="changeGanttMonth(1)">다음달 ▶</button>
-        </div>
-      </div>
-      <div class="gantt-wrap" id="gantt-area"></div>
-    </div>
+    </div></div>
   </div>
 
   <!-- 캘린더 -->
@@ -680,17 +669,16 @@ function renderWeekly(){
 
   // 일일업무 자동집계
   var dailyRows=data.daily.filter(function(x){
-    return getWeekKey(x.start||x.created||x.end)===wk&&(!fm||x.member===fm);
+    return getWeekKey(x.start||x.created)===wk&&(!fm||x.member===fm);
   });
 
-  // 프로젝트 단계(task) 집계
+  // 프로젝트 단계: 시작일 기준으로 해당 주차에 포함
   var taskRows=(data.task||[]).filter(function(x){
     return getWeekKey(x.start)===wk&&(!fm||x.member===fm);
   }).map(function(t){
     var proj=(data.project||[]).find(function(p){return p.id===t.projectId;})||{name:'프로젝트'};
-    return {id:t.id,content:'['+proj.name+'] '+t.content,member:t.member,start:t.start,end:t.end,status:t.status,note:t.note||''};
+    return {id:t.id,content:'['+proj.name+'] '+t.content,member:t.member,start:t.start,end:t.end,status:t.status,note:t.note||'',feedback:''};
   });
-
   var rows=dailyRows.concat(taskRows);
   var total=rows.length;
   var done=rows.filter(function(x){return x.status==='완료';}).length;
@@ -779,7 +767,7 @@ function renderProject(){
 
     // 프로젝트명
     var nameEl=document.createElement('span');
-    nameEl.style.cssText='font-weight:700;font-size:14px;color:var(--navy);flex:1';
+    nameEl.style.cssText='font-weight:700;font-size:14px;color:var(--navy);flex:1;white-space:pre-wrap';
     nameEl.textContent=proj.name;
 
     // 담당자
@@ -821,6 +809,14 @@ function renderProject(){
     var body=document.createElement('div');
     body.style.cssText='display:none;border-top:1px solid var(--gray-border);padding:.75rem 1.25rem;background:#FAFBFC';
 
+    // 바디 상단 진행률 요약
+    var progSummary=document.createElement('div');
+    progSummary.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:.75rem;padding:.5rem .75rem;background:var(--navy-light);border-radius:var(--radius)';
+    progSummary.innerHTML='<span style="font-size:12px;font-weight:600;color:var(--navy)">전체 진행률</span>'+
+      '<div class="prog-bar" style="flex:1"><div class="prog-fill '+progClass+'" style="width:'+pct+'%"></div></div>'+
+      '<span style="font-size:12px;font-weight:700;color:var(--navy);min-width:60px;text-align:right">'+doneCnt+'/'+total+'단계 ('+pct+'%)</span>';
+    body.appendChild(progSummary);
+
     header.onclick=function(e){
       if(e.target===editBtn||e.target===delBtn) return;
       var isOpen=body.style.display!=='none';
@@ -857,9 +853,11 @@ function renderProject(){
         stepNum.style.cssText='font-size:10px;font-weight:700;color:var(--navy-mid)';
         stepNum.textContent=(i+1)+'단계';
         var tTitle=document.createElement('span');
-        tTitle.style.cssText='font-size:13px;font-weight:600;'+(isDone?'text-decoration:line-through;color:var(--text-muted)':isOver?'color:#DC2626':'');
+        tTitle.style.cssText='font-size:13px;font-weight:600;white-space:pre-wrap;'+(isDone?'text-decoration:line-through;color:var(--text-muted)':isOver?'color:#DC2626':'');
         tTitle.textContent=t.content;
-        topRow.appendChild(stepNum); topRow.appendChild(tTitle);
+        var sBadge=document.createElement('span');
+        sBadge.innerHTML=badge(t.status);
+        topRow.appendChild(stepNum); topRow.appendChild(tTitle); topRow.appendChild(sBadge);
         if(isOver){var w=document.createElement('span');w.style.cssText='font-size:10px;color:#DC2626';w.textContent='⚠️ 지연';topRow.appendChild(w);}
 
         var metaRow=document.createElement('div');
@@ -906,7 +904,6 @@ function renderProject(){
     list.appendChild(card);
   });
 
-  renderGantt();
 }
 
 // 인라인 폼에서 단계 저장
@@ -1049,18 +1046,18 @@ function cancelEditTask(){}
 function renderTaskList(){}
 
 
+// removed changeGanttMonth
 function changeGanttMonth(dir){
   curMonth.m+=dir;
   if(curMonth.m>11){curMonth.m=0;curMonth.y++;}
   if(curMonth.m<0){curMonth.m=11;curMonth.y--;}
-  renderGantt();
 }
 
 function changeMonth(dir){
   curMonth.m+=dir;
   if(curMonth.m>11){curMonth.m=0;curMonth.y++;}
   if(curMonth.m<0){curMonth.m=11;curMonth.y--;}
-  renderCalendar(); renderGantt();
+  renderCalendar();
 }
 
 function changeStatus(type,idx,val){
