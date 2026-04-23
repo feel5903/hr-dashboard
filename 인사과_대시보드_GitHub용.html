@@ -865,6 +865,39 @@ function printReport(){
   // 이번주
   win.document.write(buildWeekSection(thisWk, "■ 이번주 업무현황 ("+getWeekLabel(thisRange.mon)+")"));
 
+  // 채용현황 섹션
+  var recruitHtml="<div class='rs-section'>";
+  recruitHtml+="<div class='rs-title'>■ 채용현황</div>";
+
+  // 채용 진행
+  var hiring=(data.recruit||[]).filter(function(x){return x.type==='채용';});
+  recruitHtml+="<div class='rs-sub'>채용 진행</div>";
+  if(!hiring.length){
+    recruitHtml+="<p style='font-size:12px;color:#888;margin:4px 0'>진행 중인 채용 없음</p>";
+  } else {
+    recruitHtml+="<table class='rs-table'><thead><tr><th>담당자</th><th>팀</th><th>대체자</th><th>사유</th><th>상태</th><th>비고</th></tr></thead><tbody>";
+    hiring.forEach(function(x){
+      recruitHtml+="<tr><td>"+(x.manager||"")+"</td><td>"+(x.team||"")+"</td><td>"+(x.replaceName||"")+"</td><td>"+(x.reason||"")+"</td><td>"+(x.status||"")+"</td><td>"+(x.note||"")+"</td></tr>";
+    });
+    recruitHtml+="</tbody></table>";
+  }
+
+  // 입사 예정
+  var hires=(data.recruit||[]).filter(function(x){return x.type==='입사예정';});
+  hires.sort(function(a,b){return a.date>b.date?1:-1;});
+  recruitHtml+="<div class='rs-sub'>입사 예정</div>";
+  if(!hires.length){
+    recruitHtml+="<p style='font-size:12px;color:#888;margin:4px 0'>입사 예정자 없음</p>";
+  } else {
+    recruitHtml+="<table class='rs-table'><thead><tr><th>담당자</th><th>입사일</th><th>이름</th><th>직무</th><th>대체자</th><th>사유</th><th>OT시간</th><th>비고</th></tr></thead><tbody>";
+    hires.forEach(function(x){
+      recruitHtml+="<tr><td>"+(x.manager||"")+"</td><td>"+(x.date||"")+"</td><td>"+(x.name||"")+"</td><td>"+(x.job||"")+"</td><td>"+(x.replaceName||"")+"</td><td>"+(x.reason||"")+"</td><td>"+(x.otTime||"")+"</td><td>"+(x.note||"")+"</td></tr>";
+    });
+    recruitHtml+="</tbody></table>";
+  }
+  recruitHtml+="</div>";
+  win.document.write(recruitHtml);
+
   win.document.write("<div style='text-align:center;margin-top:20px'><button onclick='window.print()' style='background:#44546E;color:#fff;border:none;padding:8px 24px;border-radius:6px;font-size:13px;cursor:pointer'>🖨️ PDF 저장 / 인쇄</button></div>");
   win.document.write("</body></html>");
   win.document.close();
