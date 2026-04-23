@@ -304,7 +304,7 @@ tbody tr:hover{background:#FAFBFC}
     <div class="modal-actions"><button class="btn" onclick="document.getElementById('leave-overlay').classList.remove('open')">취소</button><button class="btn primary" onclick="saveLeave()">저장</button></div>
   </div>
 </div>
-<div class="overlay" id="recruit-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+<div class="overlay" id="recruit-overlay">
   <div class="modal" style="width:460px">
     <h3 id="recruit-modal-title">채용 추가</h3>
     <div style="display:none"><input autocomplete="false"></div>
@@ -986,6 +986,7 @@ function openRecruitForm(type){
   document.getElementById('r-manager').innerHTML=mgrOpts;
   document.getElementById('r-hire-manager').innerHTML=mgrOpts;
   document.getElementById('r-team').value='';
+  document.getElementById('r-schedule').value='';
   document.getElementById('r-replace').value='';
   document.getElementById('r-note').value='';
   document.getElementById('r-name').value='';
