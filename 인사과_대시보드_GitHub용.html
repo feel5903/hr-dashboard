@@ -193,7 +193,7 @@ tbody tr:hover{background:#FAFBFC}
   </div>
   <div id="pane-weekly" class="pane">
     <div class="card">
-      <div class="card-head"><span class="card-title">주간 업무 보고</span>
+      <div class="card-head"><span class="card-title">주간 업무 보고</span><button class="btn primary" onclick="printReport()" style="font-size:12px;padding:5px 14px">📄 회의록 PDF</button>
         <div class="card-actions">
           <select id="week-select" onchange="renderWeekly()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"></select>
           <select id="filter-weekly-member" onchange="renderWeekly()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 담당자</option></select>
@@ -650,6 +650,116 @@ function closeOverlayOutside(e){if(e.target===document.getElementById("overlay")
 async function saveForm(){var btn=document.getElementById("save-btn");if(btn.disabled)return;btn.disabled=true;btn.textContent="저장 중...";var member=document.getElementById("f-member").value;var content=document.getElementById("f-content").value.trim();var end=document.getElementById("f-end").value;var status=document.getElementById("f-status").value;var note=document.getElementById("f-note").value;if(!content){alert("내용을 입력해주세요");btn.disabled=false;btn.textContent="저장";return;}if(editIdx!==null){var x=data[curForm][editIdx];if(curForm==="daily"){x.member=member;x.content=content;x.start=document.getElementById("f-created").value||todayStr;x.created=x.start;x.end=end;x.status=status;x.note=note;}else if(curForm==="project"){x.member=member;x.name=content;x.start=document.getElementById("f-start").value;x.end=end;x.status=status;x.progress=parseInt(document.getElementById("f-progress").value)||0;x.note=note;}await overwriteTab(curForm);closeOverlay();renderAll();return;}if(curForm==="daily"){var sv=document.getElementById("f-created").value||todayStr;var nr={id:genId("d"),member:member,content:content,created:sv,start:sv,end:end,status:status,note:note,feedback:""};data.daily.push(nr);await saveRow("daily",[nr.id,nr.member,nr.content,nr.created,nr.end,nr.status,nr.note,nr.feedback]);}else if(curForm==="project"){var nr={id:genId("p"),name:content,member:member,start:document.getElementById("f-start").value,end:end,progress:parseInt(document.getElementById("f-progress").value)||0,status:status,note:note};data.project.push(nr);await saveRow("project",Object.values(nr));}closeOverlay();renderAll();}
 function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").forEach(function(n){n.classList.remove("active");});if(el)el.classList.add("active");document.querySelectorAll(".pane").forEach(function(p){p.classList.remove("active");});document.getElementById("pane-"+name).classList.add("active");if(name==="settings")renderMemberGrid();if(name==="calendar")renderCalendar();if(name==="project")renderProject();if(name==="weekly"){renderWeeklySelect();renderWeekly();}}
 function filterByMember(name,el){document.getElementById("filter-member").value=name;document.querySelectorAll(".nav-item,.member-nav").forEach(function(n){n.classList.remove("active");});if(el)el.classList.add("active");document.querySelectorAll(".pane").forEach(function(p){p.classList.remove("active");});document.getElementById("pane-daily").classList.add("active");renderDaily();}
+
+function getWeekRange(wk){
+  // 주차 키에서 날짜 범위 계산
+  if(!wk) return {mon:"",sun:""};
+  var yr=parseInt(wk.split("-W")[0]);
+  var wn=parseInt(wk.split("-W")[1]);
+  var jan1=new Date(yr,0,1);
+  var days=(wn-1)*7-jan1.getDay()+1;
+  var mon=new Date(yr,0,1+days);
+  var sun=new Date(mon);sun.setDate(mon.getDate()+6);
+  var fmt=function(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
+  return{mon:fmt(mon),sun:fmt(sun),label:getWeekLabel(mon.toISOString().slice(0,10))};
+}
+
+function getPrevWeekKey(wk){
+  if(!wk) return "";
+  var yr=parseInt(wk.split("-W")[0]);
+  var wn=parseInt(wk.split("-W")[1]);
+  wn--;
+  if(wn<1){yr--;wn=52;}
+  return yr+"-W"+String(wn).padStart(2,"0");
+}
+
+function buildWeekSection(wk, title){
+  var range=getWeekRange(wk);
+  var rows=data.daily.filter(function(x){var d=x.start||x.created;return d&&getWeekKey(d)===wk;});
+  var taskRows=data.task.filter(function(x){return x.start&&getWeekKey(x.start)===wk;}).map(function(t){
+    var proj=(data.project||[]).find(function(p){return p.id===t.projectId;})||{name:"프로젝트"};
+    return{content:"["+proj.name+"] "+t.content,member:t.member,start:t.start,end:t.end,status:t.status,note:t.note||"",feedback:""};
+  });
+  var allRows=rows.concat(taskRows);
+  var leaves=data.leave.filter(function(x){return getWeekKey(x.date)===wk;});
+  var memo=localStorage.getItem("memo_"+wk)||"";
+
+  var html="<div class='rs-section'>";
+  html+="<div class='rs-title'>"+title+" ("+range.mon+" ~ "+range.sun+")</div>";
+
+  // 업무 테이블
+  html+="<table class='rs-table'><thead><tr><th>담당자</th><th>업무내용</th><th>시작일</th><th>마감일</th><th>상태</th><th>비고</th><th>피드백</th></tr></thead><tbody>";
+  if(!allRows.length){
+    html+="<tr><td colspan='7' style='text-align:center;color:#888;padding:8px'>업무 없음</td></tr>";
+  } else {
+    allRows.forEach(function(x){
+      html+="<tr><td>"+x.member+"</td><td>"+x.content+"</td><td>"+(x.start||"")+"</td><td>"+(x.end||"")+"</td><td>"+x.status+"</td><td>"+(x.note||"")+"</td><td>"+(x.feedback||"")+"</td></tr>";
+    });
+  }
+  html+="</tbody></table>";
+
+  // 휴가
+  html+="<div class='rs-sub'>휴가 현황</div>";
+  if(!leaves.length){
+    html+="<p style='color:#888;font-size:12px;margin:4px 0'>휴가 없음</p>";
+  } else {
+    html+="<ul style='margin:4px 0 0 16px;font-size:12px'>";
+    leaves.forEach(function(x){html+="<li>"+x.date+" "+x.member+" "+x.type+(x.note?" ("+x.note+")":"")+"</li>";});
+    html+="</ul>";
+  }
+
+  // 회의메모
+  html+="<div class='rs-sub'>회의 메모</div>";
+  html+="<div class='rs-memo'>"+(memo||"(없음)")+"</div>";
+  html+="</div>";
+  return html;
+}
+
+function printReport(){
+  var today=new Date();
+  var todayFmt=today.getFullYear()+"-"+String(today.getMonth()+1).padStart(2,"0")+"-"+String(today.getDate()).padStart(2,"0");
+  // 이번주 날짜 범위
+  var thisWk=getWeekKey(todayStr);
+  var prevWk=getPrevWeekKey(thisWk);
+  var thisRange=getWeekRange(thisWk);
+  var headcount=localStorage.getItem("hr_headcount")||"266";
+
+  var win=window.open("","_blank");
+  win.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>인사과 주간업무 회의록</title><style>");
+  win.document.write("body{font-family:'Noto Sans KR',sans-serif;font-size:13px;color:#1F2937;margin:0;padding:20px 30px}");
+  win.document.write(".report-header{text-align:center;border-bottom:2px solid #44546E;padding-bottom:12px;margin-bottom:20px}");
+  win.document.write(".report-header h1{font-size:18px;font-weight:700;color:#44546E;margin:0 0 8px}");
+  win.document.write(".report-meta{display:flex;justify-content:center;gap:30px;font-size:12px;color:#6B7280}");
+  win.document.write(".rs-section{margin-bottom:24px}");
+  win.document.write(".rs-title{font-size:14px;font-weight:700;color:#fff;background:#44546E;padding:6px 12px;margin-bottom:8px;border-radius:4px}");
+  win.document.write(".rs-sub{font-size:12px;font-weight:700;color:#44546E;margin:10px 0 4px;border-left:3px solid #A5D861;padding-left:8px}");
+  win.document.write(".rs-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px}");
+  win.document.write(".rs-table th{background:#E8ECF0;padding:6px 8px;text-align:left;border:1px solid #ddd;font-weight:600;color:#44546E}");
+  win.document.write(".rs-table td{padding:5px 8px;border:1px solid #ddd;vertical-align:top;word-break:break-word}");
+  win.document.write(".rs-table tr:nth-child(even) td{background:#FAFBFC}");
+  win.document.write(".rs-memo{background:#F9F9F9;border:1px solid #ddd;border-radius:4px;padding:8px 12px;font-size:12px;white-space:pre-wrap;min-height:40px;color:#374151}");
+  win.document.write("@media print{body{padding:10px 20px}button{display:none!important}}");
+  win.document.write("</style></head><body>");
+
+  // 헤더
+  win.document.write("<div class='report-header'>");
+  win.document.write("<h1>서울재활병원 인사과 주간업무 회의록</h1>");
+  win.document.write("<div class='report-meta'>");
+  win.document.write("<span>회의날짜: "+todayFmt+"</span>");
+  win.document.write("<span>재직인원: "+headcount+"명</span>");
+  win.document.write("<span>기간: "+thisRange.mon+" ~ "+thisRange.sun+"</span>");
+  win.document.write("</div></div>");
+
+  // 전주
+  win.document.write(buildWeekSection(prevWk, "■ 전주 업무현황 ("+getWeekLabel(getWeekRange(prevWk).mon)+")"));
+  // 이번주
+  win.document.write(buildWeekSection(thisWk, "■ 이번주 업무현황 ("+getWeekLabel(thisRange.mon)+")"));
+
+  win.document.write("<div style='text-align:center;margin-top:20px'><button onclick='window.print()' style='background:#44546E;color:#fff;border:none;padding:8px 24px;border-radius:6px;font-size:13px;cursor:pointer'>🖨️ PDF 저장 / 인쇄</button></div>");
+  win.document.write("</body></html>");
+  win.document.close();
+}
+
 function renderAll(){updateStats();renderMemberUI();renderDaily();renderWeeklySelect();renderWeekly();renderProject();renderCalendar();}
 loadHeadcount();renderAll();syncAll();setInterval(syncAll,60000);
 </script>
