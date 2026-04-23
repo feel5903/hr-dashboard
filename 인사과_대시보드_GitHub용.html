@@ -904,6 +904,7 @@ function renderProject(){
         '<div class="field" style="margin:0"><label>비고</label><input type="text" id="tf-note-'+proj.id+'" placeholder="비고" style="width:100%;padding:.4rem .6rem;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:13px;font-family:inherit;outline:none"></div>'+
         '<div class="field" style="margin:0"><label>시작일</label><input type="date" id="tf-start-'+proj.id+'" value="'+todayStr+'" style="width:100%;padding:.4rem .6rem;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:13px;font-family:inherit;outline:none"></div>'+
         '<div class="field" style="margin:0"><label>마감일</label><input type="date" id="tf-end-'+proj.id+'" value="'+todayStr+'" style="width:100%;padding:.4rem .6rem;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:13px;font-family:inherit;outline:none"></div>'+
+        '<div class="field" style="margin:0"><label>상태</label><select id="tf-status-'+proj.id+'" style="width:100%;padding:.4rem .6rem;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:13px;font-family:inherit"><option value="대기">대기</option><option value="진행">진행</option><option value="완료">완료</option></select></div>'+
       '</div>'+
       '<input type="hidden" id="tf-editid-'+proj.id+'" value="">'+
       '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:.6rem">'+
@@ -934,41 +935,42 @@ async function saveTaskInline(projId){
   var startVal=document.getElementById('tf-start-'+projId).value;
   var endVal=document.getElementById('tf-end-'+projId).value;
   var editId=document.getElementById('tf-editid-'+projId).value;
+  var statusEl=document.getElementById('tf-status-'+projId);
+  var statusVal=statusEl?statusEl.value:'대기';
 
   if(editId){
     // 수정
     var t=data.task.find(function(x){return x.id===editId;});
-    if(t){t.content=content2;t.member=memberVal;t.note=noteVal;t.start=startVal;t.end=endVal;}
+    if(t){t.content=content2;t.member=memberVal;t.note=noteVal;t.start=startVal;t.end=endVal;t.status=statusVal;}
     await overwriteTab('task');
   } else {
     // 신규
     var existing=data.task.filter(function(t){return t.projectId===projId;});
     var maxStep=existing.reduce(function(mx,t){return Math.max(mx,parseInt(t.step||0));},0);
-    var nr={id:genId('tk'),projectId:projId,step:String(maxStep+1),content:content2,member:memberVal,start:startVal,end:endVal,status:'대기',note:noteVal};
+    var nr={id:genId('tk'),projectId:projId,step:String(maxStep+1),content:content2,member:memberVal,start:startVal,end:endVal,status:statusVal,note:noteVal};
     data.task.push(nr);
     await saveRow('task',Object.values(nr));
   }
   cancelTaskForm(projId);
-  recalcProgress(projId);
+  await recalcProgress(projId);
+  // renderProject 후 해당 카드 다시 열기 + 폼 표시 유지
   renderProject();
-  // 해당 카드 다시 열기
   setTimeout(function(){
-    var cards=document.querySelectorAll('#project-list > div');
-    var proj=data.project.find(function(p){return p.id===projId;});
-    if(!proj) return;
     var filtered=data.project.filter(function(x){
       var fm=document.getElementById('filter-proj-member').value;
       var fs=document.getElementById('filter-proj-status').value;
       return(!fm||x.member===fm)&&(!fs||x.status===fs);
     });
+    var proj=data.project.find(function(p){return p.id===projId;});
     var idx=filtered.indexOf(proj);
+    var cards=document.querySelectorAll('#project-list > div');
     if(idx>=0&&cards[idx]){
-      var body=cards[idx].querySelector('div:nth-child(2)');
+      var body=cards[idx].children[1];
       var arrow=cards[idx].querySelector('span');
       if(body){body.style.display='block';}
       if(arrow){arrow.style.transform='rotate(90deg)';}
     }
-  },50);
+  },100);
 }
 
 function openTaskEditForm(taskId, projId){
@@ -983,11 +985,10 @@ function openTaskEditForm(taskId, projId){
   document.getElementById('tf-start-'+projId).value=t.start;
   document.getElementById('tf-end-'+projId).value=t.end;
   document.getElementById('tf-editid-'+projId).value=t.id;
+  var statusEl2=document.getElementById('tf-status-'+projId);
+  if(statusEl2) statusEl2.value=t.status||'대기';
   document.getElementById('tf-title-'+projId).textContent='✏️ 단계 수정';
   document.getElementById('tf-cancel-'+projId).style.display='';
-  // 단계추가 버튼 텍스트도 변경
-  var addBtnEl=form.previousElementSibling;
-  if(addBtnEl&&addBtnEl.tagName==='DIV') addBtnEl=addBtnEl.querySelector('button');
   document.getElementById('tf-content-'+projId).focus();
   document.getElementById('tf-content-'+projId).scrollIntoView({behavior:'smooth',block:'nearest'});
 }
