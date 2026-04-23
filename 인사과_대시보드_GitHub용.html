@@ -193,8 +193,8 @@ tbody tr:hover{background:#FAFBFC}
   </div>
   <div id="pane-weekly" class="pane">
     <div class="card">
-      <div class="card-head"><span class="card-title">주간 업무 보고</span><button class="btn primary" onclick="printReport()" style="font-size:12px;padding:5px 14px">📄 회의록 PDF</button>
-        <div class="card-actions">
+      <div class="card-head"><span class="card-title">주간 업무 보고</span>
+        <div class="card-actions"><button class="btn primary" onclick="printReport()" style="font-size:12px;padding:5px 14px">📄 회의록 PDF</button>
           <select id="week-select" onchange="renderWeekly()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"></select>
           <select id="filter-weekly-member" onchange="renderWeekly()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 담당자</option></select>
         </div>
