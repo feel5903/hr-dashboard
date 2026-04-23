@@ -390,7 +390,7 @@ async function saveRow(tab,row){saveLocalBackup();try{await fetch(SHEET_URL,{met
 async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동기화 대기)");return;}setSyncStatus("loading","⟳ 동기화 중...");try{var d=await callScript({tab:"daily"});var p=await callScript({tab:"project"});var lv=await callScript({tab:"leave"});var tk=await callScript({tab:"task"});
     var rc=await callScript({tab:"recruit"});var fd=filterRows(d).map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p).map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv).map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk).map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
     var frc=filterRows(rc).map(function(r){return normalizeRow(r,"recruit");});
-    if(frc.length)data.recruit=frc;saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
+    data.recruit=frc; // 빈 배열도 교체 (시트가 정답)saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
 function updateStats(){document.getElementById("s-total").textContent=data.daily.length+data.project.length;document.getElementById("s-prog").textContent=data.daily.filter(function(x){return x.status==="진행";}).length;document.getElementById("s-due").textContent=data.daily.filter(function(x){return isToday(x.end)&&x.status!=="완료";}).length;document.getElementById("s-done").textContent=data.daily.filter(function(x){return x.status==="완료";}).length;document.getElementById("badge-daily").textContent=data.daily.filter(function(x){return x.status==="진행";}).length;}
 function renderMemberUI(){document.getElementById("topbar-staff").innerHTML=members.map(function(m){return"<div class='t-avatar' style='background:"+m.color+"' title='"+m.name+"'>"+m.name[0]+"</div>";}).join("");var navHtml="";members.forEach(function(m){navHtml+="<div class=\"member-nav\" onclick=\"filterByMember('"+m.name+"',this)\"><span class=\"mdot-c\" style=\"background:"+m.color+";width:20px;height:20px;font-size:10px\">"+m.name[0]+"</span>"+m.name+"</div>";});document.getElementById("member-nav-list").innerHTML=navHtml;var mo="<option value=''>전체 담당자</option>"+members.map(function(m){return"<option>"+m.name+"</option>";}).join("");["filter-member","filter-weekly-member","filter-proj-member"].forEach(function(id){var el=document.getElementById(id);if(!el)return;var cur=el.value;el.innerHTML=mo;if(cur)el.value=cur;});}
 function renderMemberGrid(){document.getElementById("member-grid").innerHTML=members.map(function(m,i){return"<div class='member-card'><div class='member-big-av' style='background:"+m.color+"'>"+m.name[0]+"</div><div style='flex:1'><div style='font-size:14px;font-weight:600'>"+m.name+"</div><div style='font-size:11px;color:var(--text-muted)'>"+(m.role||"")+"</div><div style='display:flex;gap:4px;margin-top:6px'><button class='sm-btn' onclick='openEditMember("+i+")'>✏️ 수정</button>"+(members.length>1?"<button class='sm-btn del' onclick='deleteMember("+i+")'>삭제</button>":"")+"</div></div></div>";}).join("")+"<div class='add-member-card' onclick='openAddMember()'><span style='font-size:20px'>+</span><span>팀원 추가</span></div>";}
@@ -872,11 +872,8 @@ function printReport(){
 // ── 채용현황 ──
 function renderRecruit(){
   var recruits=data.recruit||[];
-  var fm2=document.getElementById('filter-weekly-member')?document.getElementById('filter-weekly-member').value:'';
-  // 전체 담당자 선택 시 채용현황 숨김, 특정 담당자 선택 시만 표시
-  if(!fm2){var sec2=document.getElementById('weekly-recruit-section');if(sec2)sec2.style.display='none';return;}
-  var hiring=recruits.filter(function(x){return x.type==='채용'&&(!fm2||x.manager===fm2);});
-  var hires=recruits.filter(function(x){return x.type==='입사예정'&&(!fm2||x.manager===fm2);});
+  var hiring=recruits.filter(function(x){return x.type==='채용';});
+  var hires=recruits.filter(function(x){return x.type==='입사예정';});
   hires.sort(function(a,b){return a.date>b.date?1:-1;});
 
   // 채용 진행
@@ -1015,15 +1012,20 @@ async function saveRecruit(){
   }
   if(!data.recruit) data.recruit=[];
   if(eid){
+    // 수정
     var idx=data.recruit.findIndex(function(x){return x.id===eid;});
     if(idx>=0) data.recruit[idx]=nr;
+    saveLocalBackup();
+    setTimeout(function(){overwriteTab('recruit');},100);
   } else {
+    // 신규 - append만 사용 (빠르고 안전)
     data.recruit.push(nr);
+    saveLocalBackup();
+    await saveRow('recruit', Object.values(nr));
   }
-  saveLocalBackup();
-  await overwriteTab('recruit');
   document.getElementById('recruit-overlay').classList.remove('open');
   renderRecruit();
+  renderWeeklyRecruit();
 }
 
 async function deleteRecruit(i){
