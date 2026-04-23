@@ -239,14 +239,14 @@ tbody tr:hover{background:#FAFBFC}
       <div class="card-head"><span class="card-title">📋 채용 진행 현황</span>
         <div class="card-actions"><button class="btn lime" onclick="openRecruitForm('채용')">+ 채용 추가</button></div>
       </div>
-      <table><thead><tr><th>팀</th><th>대체자</th><th>사유</th><th>상태</th><th>비고</th><th>관리</th></tr></thead>
+      <table><thead><tr><th>담당자</th><th>팀</th><th>대체자</th><th>사유</th><th>상태</th><th>비고</th><th>관리</th></tr></thead>
       <tbody id="recruit-tbody"></tbody></table>
     </div>
     <div class="card">
       <div class="card-head"><span class="card-title">🗓️ 입사 예정</span>
         <div class="card-actions"><button class="btn lime" onclick="openRecruitForm('입사예정')">+ 입사예정 추가</button></div>
       </div>
-      <table><thead><tr><th>입사일</th><th>이름</th><th>직무</th><th>대체자</th><th>사유</th><th>OT시간</th><th>비고</th><th>관리</th></tr></thead>
+      <table><thead><tr><th>담당자</th><th>입사일</th><th>이름</th><th>직무</th><th>대체자</th><th>사유</th><th>OT시간</th><th>비고</th><th>관리</th></tr></thead>
       <tbody id="recruit-hire-tbody"></tbody></table>
     </div>
   </div>
@@ -307,6 +307,7 @@ tbody tr:hover{background:#FAFBFC}
     <input type="hidden" id="recruit-id">
     <input type="hidden" id="recruit-type-hidden">
     <div id="recruit-fields-채용">
+      <div class="field"><label>담당자</label><select id="r-manager"></select></div>
       <div class="field"><label>팀명</label><input type="text" id="r-team" placeholder=""></div>
       <div class="field"><label>대체자</label><input type="text" id="r-replace" placeholder=""></div>
       <div class="field"><label>사유</label><select id="r-reason"><option>퇴사대체</option><option>육휴대체</option><option>출산대체</option><option>증원</option><option>기타</option></select></div>
@@ -314,6 +315,7 @@ tbody tr:hover{background:#FAFBFC}
       <div class="field"><label>비고</label><input type="text" id="r-note" placeholder="비고"></div>
     </div>
     <div id="recruit-fields-입사예정" style="display:none">
+      <div class="field"><label>담당자</label><select id="r-hire-manager"></select></div>
       <div class="field"><label>입사일</label><input type="date" id="r-date"></div>
       <div class="field"><label>이름</label><input type="text" id="r-name" placeholder="이름"></div>
       <div class="field"><label>직무</label><input type="text" id="r-job" placeholder=""></div>
@@ -493,13 +495,17 @@ function renderWeekly(){
 
 function renderWeeklyRecruit(){
   var recruits=data.recruit||[];
-  var hiring=recruits.filter(function(x){return x.type==='채용';});
-  var hires=recruits.filter(function(x){return x.type==='입사예정';});
+  var fm2=document.getElementById('filter-weekly-member')?document.getElementById('filter-weekly-member').value:'';
+  // 전체 담당자 선택 시 채용현황 숨김, 특정 담당자 선택 시만 표시
+  if(!fm2){var sec2=document.getElementById('weekly-recruit-section');if(sec2)sec2.style.display='none';return;}
+  var hiring=recruits.filter(function(x){return x.type==='채용'&&(!fm2||x.manager===fm2);});
+  var hires=recruits.filter(function(x){return x.type==='입사예정'&&(!fm2||x.manager===fm2);});
   hires.sort(function(a,b){return a.date>b.date?1:-1;});
 
   var pane=document.getElementById('pane-weekly');
   if(!pane) return;
   var sec=document.getElementById('weekly-recruit-section');
+  if(sec) sec.style.display='';
   if(!sec){
     sec=document.createElement('div');
     sec.id='weekly-recruit-section';
@@ -513,10 +519,10 @@ function renderWeeklyRecruit(){
   if(!hiring.length){
     html2+='<div style="padding:.25rem 1.25rem .75rem;font-size:13px;color:var(--text-muted)">진행 중인 채용 없음</div>';
   } else {
-    html2+='<table><thead><tr><th>팀</th><th>대체자</th><th>사유</th><th>상태</th><th>비고</th></tr></thead><tbody>';
+    html2+='<table><thead><tr><th>담당자</th><th>팀</th><th>대체자</th><th>사유</th><th>상태</th><th>비고</th></tr></thead><tbody>';
     hiring.forEach(function(x){
       var bg=statusColors[x.status]||'#F3F4F6';
-      html2+='<tr><td style="font-weight:500">'+(x.team||'')+'</td><td>'+(x.replaceName||'')+'</td>'+
+      html2+='<tr><td style="font-size:12px">'+(x.manager||'')+'</td><td style="font-weight:500">'+(x.team||'')+'</td><td>'+(x.replaceName||'')+'</td>'+
         '<td style="font-size:12px;color:var(--text-muted)">'+(x.reason||'')+'</td>'+
         '<td><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:'+bg+'">'+(x.status||'')+'</span></td>'+
         '<td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td></tr>';
@@ -527,7 +533,7 @@ function renderWeeklyRecruit(){
   if(!hires.length){
     html2+='<div style="padding:.25rem 1.25rem .75rem;font-size:13px;color:var(--text-muted)">입사 예정자 없음</div>';
   } else {
-    html2+='<table><thead><tr><th>입사일</th><th>이름</th><th>직무</th><th>대체자</th><th>사유</th><th>OT시간</th><th>비고</th></tr></thead><tbody>';
+    html2+='<table><thead><tr><th>담당자</th><th>입사일</th><th>이름</th><th>직무</th><th>대체자</th><th>사유</th><th>OT시간</th><th>비고</th></tr></thead><tbody>';
     hires.forEach(function(x){
       var isNear=x.date&&x.date>=todayStr;
       html2+='<tr style="background:'+(isNear?'var(--lime-light)':'')+'">'+
@@ -870,8 +876,11 @@ function printReport(){
 // ── 채용현황 ──
 function renderRecruit(){
   var recruits=data.recruit||[];
-  var hiring=recruits.filter(function(x){return x.type==='채용';});
-  var hires=recruits.filter(function(x){return x.type==='입사예정';});
+  var fm2=document.getElementById('filter-weekly-member')?document.getElementById('filter-weekly-member').value:'';
+  // 전체 담당자 선택 시 채용현황 숨김, 특정 담당자 선택 시만 표시
+  if(!fm2){var sec2=document.getElementById('weekly-recruit-section');if(sec2)sec2.style.display='none';return;}
+  var hiring=recruits.filter(function(x){return x.type==='채용'&&(!fm2||x.manager===fm2);});
+  var hires=recruits.filter(function(x){return x.type==='입사예정'&&(!fm2||x.manager===fm2);});
   hires.sort(function(a,b){return a.date>b.date?1:-1;});
 
   // 채용 진행
@@ -886,7 +895,7 @@ function renderRecruit(){
         var tr=document.createElement('tr');
         var statusColors={'공고중':'#DBEAFE','서류마감':'#FEF3DC','서류검토':'#EDE9FE','면접':'#DCFCE7','면접결과보고':'#FCE7F3'};
         var bg=statusColors[x.status]||'#F3F4F6';
-        tr.innerHTML='<td style="font-weight:500">'+(x.team||'')+'</td>'+
+        tr.innerHTML='<td style="font-size:12px">'+(x.manager||'')+'</td><td style="font-weight:500">'+(x.team||'')+'</td>'+
           '<td>'+(x.replaceName||'')+'</td>'+
           '<td><span style="font-size:11px;color:var(--text-muted)">'+(x.reason||'')+'</span></td>'+
           '<td><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:'+bg+'">'+(x.status||'')+'</span></td>'+
@@ -912,7 +921,7 @@ function renderRecruit(){
         var isThisWeek2=isThisWeekDate(x.date);
         var tr=document.createElement('tr');
         tr.style.background=isThisWeek2?'var(--lime-light)':'';
-        tr.innerHTML='<td style="font-weight:600;color:var(--navy)">'+(x.date||'')+(isThisWeek2?' 🔔':'')+'</td>'+
+        tr.innerHTML='<td style="font-size:12px">'+(x.manager||'')+'</td><td style="font-weight:600;color:var(--navy)">'+(x.date||'')+(isThisWeek2?' 🔔':'')+'</td>'+
           '<td style="font-weight:500">'+(x.name||'')+'</td>'+
           '<td style="font-size:12px">'+(x.job||'')+'</td>'+
           '<td>'+(x.replaceName||'')+'</td>'+
@@ -944,6 +953,9 @@ function openRecruitForm(type){
   document.getElementById('recruit-modal-title').textContent=type==='채용'?'채용 추가':'입사예정 추가';
   document.getElementById('recruit-fields-채용').style.display=type==='채용'?'':'none';
   document.getElementById('recruit-fields-입사예정').style.display=type==='입사예정'?'':'none';
+  var mgrOpts=members.map(function(m){return'<option>'+m.name+'</option>';}).join('');
+  document.getElementById('r-manager').innerHTML=mgrOpts;
+  document.getElementById('r-hire-manager').innerHTML=mgrOpts;
   document.getElementById('r-team').value='';
   document.getElementById('r-replace').value='';
   document.getElementById('r-note').value='';
@@ -964,13 +976,18 @@ function editRecruit(i){
   document.getElementById('recruit-modal-title').textContent=x.type==='채용'?'채용 수정':'입사예정 수정';
   document.getElementById('recruit-fields-채용').style.display=x.type==='채용'?'':'none';
   document.getElementById('recruit-fields-입사예정').style.display=x.type==='입사예정'?'':'none';
+  var mgrOpts2=members.map(function(m){return'<option>'+m.name+'</option>';}).join('');
+  document.getElementById('r-manager').innerHTML=mgrOpts2;
+  document.getElementById('r-hire-manager').innerHTML=mgrOpts2;
   if(x.type==='채용'){
+    document.getElementById('r-manager').value=x.manager||'';
     document.getElementById('r-team').value=x.team||'';
     document.getElementById('r-replace').value=x.replaceName||'';
     document.getElementById('r-reason').value=x.reason||'퇴사대체';
     document.getElementById('r-status').value=x.status||'공고중';
     document.getElementById('r-note').value=x.note||'';
   } else {
+    document.getElementById('r-hire-manager').value=x.manager||'';
     document.getElementById('r-date').value=x.date||todayStr;
     document.getElementById('r-name').value=x.name||'';
     document.getElementById('r-job').value=x.job||'';
@@ -989,13 +1006,13 @@ async function saveRecruit(){
   if(type==='채용'){
     var team=document.getElementById('r-team').value.trim();
     if(!team){alert('팀명을 입력해주세요');return;}
-    nr={id:eid||genId('rc'),type:'채용',team:team,replaceName:document.getElementById('r-replace').value,
+    nr={id:eid||genId('rc'),type:'채용',manager:document.getElementById('r-manager').value,team:team,replaceName:document.getElementById('r-replace').value,
       reason:document.getElementById('r-reason').value,status:document.getElementById('r-status').value,
       name:'',job:'',date:'',otTime:'',note:document.getElementById('r-note').value};
   } else {
     var name=document.getElementById('r-name').value.trim();
     if(!name){alert('이름을 입력해주세요');return;}
-    nr={id:eid||genId('rh'),type:'입사예정',team:'',replaceName:document.getElementById('r-hire-replace').value,
+    nr={id:eid||genId('rh'),type:'입사예정',manager:document.getElementById('r-hire-manager').value,team:'',replaceName:document.getElementById('r-hire-replace').value,
       reason:document.getElementById('r-hire-reason').value,status:'',name:name,
       job:document.getElementById('r-job').value,date:document.getElementById('r-date').value,
       otTime:document.getElementById('r-ottime').value,note:document.getElementById('r-hire-note').value};
