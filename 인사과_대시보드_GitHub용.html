@@ -195,9 +195,9 @@ tbody tr:hover{background:#FAFBFC}
   <div id="pane-weekly" class="pane">
     <div class="card">
       <div class="card-head"><span class="card-title">주간 업무 보고</span>
-        <div class="card-actions"><button class="btn primary" onclick="printReport()" style="font-size:12px;padding:5px 14px">📄 회의록 PDF</button>
-          <select id="week-select" onchange="renderWeekly()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"></select>
+        <div class="card-actions"><select id="week-select" onchange="renderWeekly()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"></select>
           <select id="filter-weekly-member" onchange="renderWeekly()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 담당자</option></select>
+          <button class="btn primary" onclick="printReport()" style="font-size:12px;padding:5px 14px">📄 회의록 PDF</button>
         </div>
       </div>
       <div class="week-meta"><span>📌 재직인원: <strong id="headcount-display">266</strong>명</span><span>💡 일일업무+프로젝트단계 자동 집계</span></div>
@@ -307,8 +307,8 @@ tbody tr:hover{background:#FAFBFC}
     <input type="hidden" id="recruit-id">
     <input type="hidden" id="recruit-type-hidden">
     <div id="recruit-fields-채용">
-      <div class="field"><label>팀명</label><input type="text" id="r-team" placeholder="예: 소아작업치료팀"></div>
-      <div class="field"><label>대체자</label><input type="text" id="r-replace" placeholder="예: 곽보경"></div>
+      <div class="field"><label>팀명</label><input type="text" id="r-team" placeholder=""></div>
+      <div class="field"><label>대체자</label><input type="text" id="r-replace" placeholder=""></div>
       <div class="field"><label>사유</label><select id="r-reason"><option>퇴사대체</option><option>육휴대체</option><option>출산대체</option><option>증원</option><option>기타</option></select></div>
       <div class="field"><label>상태</label><select id="r-status"><option>공고중</option><option>서류마감</option><option>서류검토</option><option>면접</option><option>면접결과보고</option></select></div>
       <div class="field"><label>비고</label><input type="text" id="r-note" placeholder="비고"></div>
@@ -316,10 +316,10 @@ tbody tr:hover{background:#FAFBFC}
     <div id="recruit-fields-입사예정" style="display:none">
       <div class="field"><label>입사일</label><input type="date" id="r-date"></div>
       <div class="field"><label>이름</label><input type="text" id="r-name" placeholder="이름"></div>
-      <div class="field"><label>직무</label><input type="text" id="r-job" placeholder="예: 조리사"></div>
-      <div class="field"><label>대체자</label><input type="text" id="r-hire-replace" placeholder="예: 유현동"></div>
+      <div class="field"><label>직무</label><input type="text" id="r-job" placeholder=""></div>
+      <div class="field"><label>대체자</label><input type="text" id="r-hire-replace" placeholder=""></div>
       <div class="field"><label>사유</label><select id="r-hire-reason"><option>퇴사대체</option><option>육휴대체</option><option>출산대체</option><option>증원</option><option>기타</option></select></div>
-      <div class="field"><label>OT 시간</label><input type="text" id="r-ottime" placeholder="예: 13:00"></div>
+      <div class="field"><label>OT 시간</label><input type="text" id="r-ottime" placeholder=""></div>
       <div class="field"><label>비고</label><input type="text" id="r-hire-note" placeholder="비고"></div>
     </div>
     <div class="modal-actions">
