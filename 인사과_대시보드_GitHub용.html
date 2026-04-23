@@ -17,7 +17,11 @@
   --radius:8px;--radius-lg:12px;
 }
 body{font-family:"Noto Sans KR",sans-serif;font-size:14px;color:var(--text);background:#F0F2F5;min-height:100vh}
-.app{display:grid;grid-template-columns:220px 1fr;grid-template-rows:60px 1fr;min-height:100vh}
+.app{display:grid;grid-template-columns:220px 1fr;grid-template-rows:60px 1fr;min-height:100vh;transition:grid-template-columns .25s ease}
+.app.sidebar-hidden{grid-template-columns:0px 1fr}
+.sidebar{transition:width .25s ease,opacity .25s ease;overflow:hidden}
+.app.sidebar-hidden .sidebar{width:0;opacity:0;border:none;padding:0}
+@media(max-width:768px){.app{grid-template-columns:0px 1fr}.app.sidebar-open{grid-template-columns:220px 1fr}}
 .topbar{grid-column:1/-1;background:var(--navy);display:flex;align-items:center;padding:0 1.5rem;gap:1rem}
 .topbar-logo{color:var(--lime);font-size:16px;font-weight:700}
 .topbar-sub{color:var(--navy-mid);font-size:12px}
@@ -132,6 +136,7 @@ tbody tr:hover{background:#FAFBFC}
 <body>
 <div class="app">
 <div class="topbar">
+  <button onclick="toggleSidebar()" style="background:none;border:none;color:var(--lime);font-size:20px;cursor:pointer;padding:4px 8px;line-height:1;flex-shrink:0" title="메뉴">☰</button>
   <div><div class="topbar-logo">서울재활병원 인사과</div><div class="topbar-sub">업무 통합 관리 시스템</div></div>
   <div class="topbar-right">
     <div class="topbar-staff" id="topbar-staff"></div>
@@ -292,6 +297,15 @@ var curForm="daily",editMemberIdx=null,editIdx=null;
 var data={daily:[],project:[],task:[],leave:[]};
 var isEditing=false; // 입력 중 동기화 방지 플래그
 (function(){try{var b=localStorage.getItem("hr_data_backup");if(b){var p=JSON.parse(b);if(p.daily)data.daily=p.daily;if(p.project)data.project=p.project;if(p.task)data.task=p.task;if(p.leave)data.leave=p.leave;}}catch(e){}})();
+function toggleSidebar(){
+  var app=document.querySelector(".app");
+  app.classList.toggle("sidebar-hidden");
+  // 모바일
+  if(window.innerWidth<=768){
+    app.classList.toggle("sidebar-open");
+    app.classList.remove("sidebar-hidden");
+  }
+}
 function saveLocalBackup(){try{localStorage.setItem("hr_data_backup",JSON.stringify(data));}catch(e){}}
 function genId(p){return p+Date.now();}
 function saveLocal(){localStorage.setItem("hr_members",JSON.stringify(members));}
