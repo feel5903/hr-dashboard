@@ -242,7 +242,7 @@ tbody tr:hover{background:#FAFBFC}
       <div class="card-head"><span class="card-title">📋 채용 진행 현황</span>
         <div class="card-actions"><button class="btn lime" onclick="openRecruitForm('채용')">+ 채용 추가</button></div>
       </div>
-      <table><thead><tr><th>담당자</th><th>팀</th><th>대체자</th><th>사유</th><th>상태</th><th>비고</th><th>관리</th></tr></thead>
+      <table><thead><tr><th>담당자</th><th>팀</th><th>대체자</th><th>사유</th><th>상태</th><th>일정</th><th>비고</th><th>관리</th></tr></thead>
       <tbody id="recruit-tbody"></tbody></table>
     </div>
     <div class="card">
@@ -316,6 +316,7 @@ tbody tr:hover{background:#FAFBFC}
       <div class="field"><label>대체자</label><input type="text" id="r-replace" autocomplete="off" placeholder=""></div>
       <div class="field"><label>사유</label><select id="r-reason"><option>퇴사대체</option><option>육휴대체</option><option>출산대체</option><option>증원</option><option>기타</option></select></div>
       <div class="field"><label>상태</label><select id="r-status"><option>공고중</option><option>서류마감</option><option>서류검토</option><option>면접</option><option>면접결과보고</option></select></div>
+      <div class="field"><label>일정</label><input type="text" id="r-schedule" autocomplete="off" placeholder="예: ~4/29, 4/27 면접"></div>
       <div class="field"><label>비고</label><input type="text" id="r-note" autocomplete="off" placeholder="비고"></div>
     </div>
     <div id="recruit-fields-입사예정" style="display:none">
@@ -927,6 +928,7 @@ function renderRecruit(){
           '<td>'+(x.replaceName||'')+'</td>'+
           '<td><span style="font-size:11px;color:var(--text-muted)">'+(x.reason||'')+'</span></td>'+
           '<td><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:'+bg+'">'+(x.status||'')+'</span></td>'+
+          '<td style="font-size:12px;color:var(--navy)">'+(x.schedule||'')+'</td>'+
           '<td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td>'+
           '<td><div class="action-btns">'+
           '<button class="edit-btn" onclick="editRecruit('+i+')">✏️</button>'+
@@ -1014,6 +1016,7 @@ function editRecruit(i){
     document.getElementById('r-reason').value=x.reason||'퇴사대체';
     document.getElementById('r-status').value=x.status||'공고중';
     document.getElementById('r-note').value=x.note||'';
+    document.getElementById('r-schedule').value=x.schedule||'';
   } else {
     document.getElementById('r-hire-manager').value=x.manager||'';
     document.getElementById('r-date').value=x.date||todayStr;
@@ -1036,7 +1039,7 @@ async function saveRecruit(){
     if(!team){alert('팀명을 입력해주세요');return;}
     nr={id:eid||genId('rc'),type:'채용',manager:document.getElementById('r-manager').value,team:team,replaceName:document.getElementById('r-replace').value,
       reason:document.getElementById('r-reason').value,status:document.getElementById('r-status').value,
-      name:'',job:'',date:'',otTime:'',note:document.getElementById('r-note').value};
+      name:'',job:'',date:'',otTime:'',note:document.getElementById('r-note').value,schedule:document.getElementById('r-schedule').value};
   } else {
     var name=document.getElementById('r-name').value.trim();
     if(!name){alert('이름을 입력해주세요');return;}
