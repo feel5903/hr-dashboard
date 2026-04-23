@@ -557,7 +557,13 @@ async function toggleTaskDone(cb,taskId,pid){
   renderProjectKeepOpen(pid); // 화면 먼저 갱신
   await overwriteTab("task"); // 시트는 백그라운드
 }
-async function deleteTask(taskId,pid){if(!confirm("이 단계를 삭제할까요?"))return;data.task=data.task.filter(function(t){return t.id!==taskId;});await overwriteTab("task");await recalcProgress(pid);renderProjectKeepOpen(pid);}
+async function deleteTask(taskId,pid){
+  if(!confirm("이 단계를 삭제할까요?"))return;
+  data.task=data.task.filter(function(t){return t.id!==taskId;});
+  recalcProgressLocal(pid);   // 로컬 즉시 반영
+  renderProjectKeepOpen(pid); // 화면 먼저 갱신
+  setTimeout(function(){overwriteTab("task");},50); // 시트는 백그라운드
+}
 function recalcProgressLocal(pid){
   var proj=data.project.find(function(p){return p.id===pid;});if(!proj)return;
   var tasks=data.task.filter(function(t){return t.projectId===pid;});
