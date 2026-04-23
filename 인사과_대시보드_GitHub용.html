@@ -162,6 +162,7 @@ tbody tr:hover{background:#FAFBFC}
   <div class="nav-item" onclick="switchNav('weekly',this)"><span class="nav-icon">📊</span>주간 보고</div>
   <div class="nav-item" onclick="switchNav('project',this)"><span class="nav-icon">🗂️</span>프로젝트</div>
   <div class="nav-item" onclick="switchNav('calendar',this)"><span class="nav-icon">📅</span>캘린더</div>
+  <div class="nav-item" onclick="switchNav('recruit',this)"><span class="nav-icon">👥</span>채용현황</div>
   <div class="nav-divider"></div>
   <div class="nav-item" onclick="switchNav('settings',this)"><span class="nav-icon">⚙️</span>설정</div>
   <div class="nav-divider"></div>
@@ -232,6 +233,24 @@ tbody tr:hover{background:#FAFBFC}
       <div id="project-list" style="padding:.75rem 1rem"></div>
     </div>
   </div>
+  <!-- 채용현황 -->
+  <div id="pane-recruit" class="pane">
+    <div class="card">
+      <div class="card-head"><span class="card-title">📋 채용 진행 현황</span>
+        <div class="card-actions"><button class="btn lime" onclick="openRecruitForm('채용')">+ 채용 추가</button></div>
+      </div>
+      <table><thead><tr><th>팀</th><th>대체자</th><th>사유</th><th>상태</th><th>비고</th><th>관리</th></tr></thead>
+      <tbody id="recruit-tbody"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">🗓️ 입사 예정</span>
+        <div class="card-actions"><button class="btn lime" onclick="openRecruitForm('입사예정')">+ 입사예정 추가</button></div>
+      </div>
+      <table><thead><tr><th>입사일</th><th>이름</th><th>직무</th><th>대체자</th><th>사유</th><th>OT시간</th><th>비고</th><th>관리</th></tr></thead>
+      <tbody id="recruit-hire-tbody"></tbody></table>
+    </div>
+  </div>
+
   <div id="pane-calendar" class="pane">
     <div class="card">
       <div class="card-head"><span class="card-title" id="cal-month-label"></span>
@@ -282,6 +301,34 @@ tbody tr:hover{background:#FAFBFC}
     <div class="modal-actions"><button class="btn" onclick="document.getElementById('leave-overlay').classList.remove('open')">취소</button><button class="btn primary" onclick="saveLeave()">저장</button></div>
   </div>
 </div>
+<div class="overlay" id="recruit-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="width:460px">
+    <h3 id="recruit-modal-title">채용 추가</h3>
+    <input type="hidden" id="recruit-id">
+    <input type="hidden" id="recruit-type-hidden">
+    <div id="recruit-fields-채용">
+      <div class="field"><label>팀명</label><input type="text" id="r-team" placeholder="예: 소아작업치료팀"></div>
+      <div class="field"><label>대체자</label><input type="text" id="r-replace" placeholder="예: 곽보경"></div>
+      <div class="field"><label>사유</label><select id="r-reason"><option>퇴사대체</option><option>육휴대체</option><option>출산대체</option><option>증원</option><option>기타</option></select></div>
+      <div class="field"><label>상태</label><select id="r-status"><option>공고중</option><option>서류마감</option><option>서류검토</option><option>면접</option><option>면접결과보고</option></select></div>
+      <div class="field"><label>비고</label><input type="text" id="r-note" placeholder="비고"></div>
+    </div>
+    <div id="recruit-fields-입사예정" style="display:none">
+      <div class="field"><label>입사일</label><input type="date" id="r-date"></div>
+      <div class="field"><label>이름</label><input type="text" id="r-name" placeholder="이름"></div>
+      <div class="field"><label>직무</label><input type="text" id="r-job" placeholder="예: 조리사"></div>
+      <div class="field"><label>대체자</label><input type="text" id="r-hire-replace" placeholder="예: 유현동"></div>
+      <div class="field"><label>사유</label><select id="r-hire-reason"><option>퇴사대체</option><option>육휴대체</option><option>출산대체</option><option>증원</option><option>기타</option></select></div>
+      <div class="field"><label>OT 시간</label><input type="text" id="r-ottime" placeholder="예: 13:00"></div>
+      <div class="field"><label>비고</label><input type="text" id="r-hire-note" placeholder="비고"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('recruit-overlay').classList.remove('open')">취소</button>
+      <button class="btn primary" onclick="saveRecruit()">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="cal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal" style="width:500px">
     <h3 id="cal-modal-title"></h3>
@@ -306,9 +353,9 @@ var PALETTE=["#44546E","#2563EB","#5C8A1E","#7C3AED","#D97706","#DC2626","#0891B
 var members=JSON.parse(localStorage.getItem("hr_members")||"null")||[{name:"김재용",role:"인사과장",color:"#44546E"},{name:"배지은",role:"인사담당",color:"#2563EB"},{name:"공지현",role:"인사담당",color:"#5C8A1E"},{name:"최필상",role:"인사담당",color:"#7C3AED"}];
 var curMonth={y:TODAY.getFullYear(),m:TODAY.getMonth()};
 var curForm="daily",editMemberIdx=null,editIdx=null;
-var data={daily:[],project:[],task:[],leave:[]};
+var data={daily:[],project:[],task:[],leave:[],recruit:[]};
 var isEditing=false; // 입력 중 동기화 방지 플래그
-(function(){try{var b=localStorage.getItem("hr_data_backup");if(b){var p=JSON.parse(b);if(p.daily)data.daily=p.daily;if(p.project)data.project=p.project;if(p.task)data.task=p.task;if(p.leave)data.leave=p.leave;}}catch(e){}})();
+(function(){try{var b=localStorage.getItem("hr_data_backup");if(b){var p=JSON.parse(b);if(p.daily)data.daily=p.daily;if(p.project)data.project=p.project;if(p.task)data.task=p.task;if(p.leave)data.leave=p.leave;if(p.recruit)data.recruit=p.recruit;}}catch(e){}})();
 function toggleSidebar(){
   var app=document.querySelector(".app");
   app.classList.toggle("sidebar-hidden");
@@ -335,7 +382,10 @@ function setSyncStatus(t,txt){var b=document.getElementById("sync-btn");b.style.
 async function callScript(params){try{var url=SHEET_URL+"?";Object.keys(params).forEach(function(k){url+=k+"="+encodeURIComponent(typeof params[k]==="object"?JSON.stringify(params[k]):params[k])+"&";});url+="t="+Date.now();var r=await fetch(url,{redirect:"follow",mode:"cors"});if(!r.ok)return null;var txt=await r.text();try{return JSON.parse(txt);}catch(e){return null;}}catch(e){return null;}}
 async function overwriteTab(tab){var rows=data[tab]||[];var seen={};rows=rows.filter(function(r){if(!r.id||seen[r.id])return false;seen[r.id]=true;return true;});var df=["end","start","created","date"];rows=rows.map(function(r){var out={};Object.keys(r).forEach(function(k){out[k]=df.indexOf(k)>=0?formatDateVal(r[k]):r[k];});return out;});data[tab]=rows;saveLocalBackup();if(rows.length){var headers=Object.keys(rows[0]);var dataRows=rows.map(function(r){return headers.map(function(h){return r[h]||"";});});try{await fetch(SHEET_URL,{method:"POST",mode:"cors",redirect:"follow",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"overwrite",tab:tab,rows:dataRows})});}catch(e){try{await callScript({action:"overwrite",tab:tab,rows:dataRows});}catch(e2){}}}else{try{var url2=SHEET_URL+"?action=overwrite&tab="+tab+"&rows="+encodeURIComponent("[]")+"&t="+Date.now();await fetch(url2,{redirect:"follow",mode:"cors"});}catch(e){}}setSyncStatus("ok","● 저장됨");}
 async function saveRow(tab,row){saveLocalBackup();try{await fetch(SHEET_URL,{method:"POST",mode:"cors",redirect:"follow",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"append",tab:tab,row:row})});}catch(e){try{await callScript({action:"append",tab:tab,row:row});}catch(e2){}}setSyncStatus("ok","● 저장됨");}
-async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동기화 대기)");return;}setSyncStatus("loading","⟳ 동기화 중...");try{var d=await callScript({tab:"daily"});var p=await callScript({tab:"project"});var lv=await callScript({tab:"leave"});var tk=await callScript({tab:"task"});var fd=filterRows(d).map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p).map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv).map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk).map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
+async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동기화 대기)");return;}setSyncStatus("loading","⟳ 동기화 중...");try{var d=await callScript({tab:"daily"});var p=await callScript({tab:"project"});var lv=await callScript({tab:"leave"});var tk=await callScript({tab:"task"});
+    var rc=await callScript({tab:"recruit"});var fd=filterRows(d).map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p).map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv).map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk).map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
+    var frc=filterRows(rc).map(function(r){return normalizeRow(r,"recruit");});
+    if(frc.length)data.recruit=frc;saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
 function updateStats(){document.getElementById("s-total").textContent=data.daily.length+data.project.length;document.getElementById("s-prog").textContent=data.daily.filter(function(x){return x.status==="진행";}).length;document.getElementById("s-due").textContent=data.daily.filter(function(x){return isToday(x.end)&&x.status!=="완료";}).length;document.getElementById("s-done").textContent=data.daily.filter(function(x){return x.status==="완료";}).length;document.getElementById("badge-daily").textContent=data.daily.filter(function(x){return x.status==="진행";}).length;}
 function renderMemberUI(){document.getElementById("topbar-staff").innerHTML=members.map(function(m){return"<div class='t-avatar' style='background:"+m.color+"' title='"+m.name+"'>"+m.name[0]+"</div>";}).join("");var navHtml="";members.forEach(function(m){navHtml+="<div class=\"member-nav\" onclick=\"filterByMember('"+m.name+"',this)\"><span class=\"mdot-c\" style=\"background:"+m.color+";width:20px;height:20px;font-size:10px\">"+m.name[0]+"</span>"+m.name+"</div>";});document.getElementById("member-nav-list").innerHTML=navHtml;var mo="<option value=''>전체 담당자</option>"+members.map(function(m){return"<option>"+m.name+"</option>";}).join("");["filter-member","filter-weekly-member","filter-proj-member"].forEach(function(id){var el=document.getElementById(id);if(!el)return;var cur=el.value;el.innerHTML=mo;if(cur)el.value=cur;});}
 function renderMemberGrid(){document.getElementById("member-grid").innerHTML=members.map(function(m,i){return"<div class='member-card'><div class='member-big-av' style='background:"+m.color+"'>"+m.name[0]+"</div><div style='flex:1'><div style='font-size:14px;font-weight:600'>"+m.name+"</div><div style='font-size:11px;color:var(--text-muted)'>"+(m.role||"")+"</div><div style='display:flex;gap:4px;margin-top:6px'><button class='sm-btn' onclick='openEditMember("+i+")'>✏️ 수정</button>"+(members.length>1?"<button class='sm-btn del' onclick='deleteMember("+i+")'>삭제</button>":"")+"</div></div></div>";}).join("")+"<div class='add-member-card' onclick='openAddMember()'><span style='font-size:20px'>+</span><span>팀원 추가</span></div>";}
@@ -648,7 +698,8 @@ function openForm(type){curForm=type;editIdx=null;document.getElementById("modal
 function closeOverlay(){document.getElementById("overlay").classList.remove("open");editIdx=null;document.getElementById("save-btn").textContent="저장";document.getElementById("save-btn").disabled=false;}
 function closeOverlayOutside(e){if(e.target===document.getElementById("overlay"))closeOverlay();}
 async function saveForm(){var btn=document.getElementById("save-btn");if(btn.disabled)return;btn.disabled=true;btn.textContent="저장 중...";var member=document.getElementById("f-member").value;var content=document.getElementById("f-content").value.trim();var end=document.getElementById("f-end").value;var status=document.getElementById("f-status").value;var note=document.getElementById("f-note").value;if(!content){alert("내용을 입력해주세요");btn.disabled=false;btn.textContent="저장";return;}if(editIdx!==null){var x=data[curForm][editIdx];if(curForm==="daily"){x.member=member;x.content=content;x.start=document.getElementById("f-created").value||todayStr;x.created=x.start;x.end=end;x.status=status;x.note=note;}else if(curForm==="project"){x.member=member;x.name=content;x.start=document.getElementById("f-start").value;x.end=end;x.status=status;x.progress=parseInt(document.getElementById("f-progress").value)||0;x.note=note;}await overwriteTab(curForm);closeOverlay();renderAll();return;}if(curForm==="daily"){var sv=document.getElementById("f-created").value||todayStr;var nr={id:genId("d"),member:member,content:content,created:sv,start:sv,end:end,status:status,note:note,feedback:""};data.daily.push(nr);await saveRow("daily",[nr.id,nr.member,nr.content,nr.created,nr.end,nr.status,nr.note,nr.feedback]);}else if(curForm==="project"){var nr={id:genId("p"),name:content,member:member,start:document.getElementById("f-start").value,end:end,progress:parseInt(document.getElementById("f-progress").value)||0,status:status,note:note};data.project.push(nr);await saveRow("project",Object.values(nr));}closeOverlay();renderAll();}
-function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").forEach(function(n){n.classList.remove("active");});if(el)el.classList.add("active");document.querySelectorAll(".pane").forEach(function(p){p.classList.remove("active");});document.getElementById("pane-"+name).classList.add("active");if(name==="settings")renderMemberGrid();if(name==="calendar")renderCalendar();if(name==="project")renderProject();if(name==="weekly"){renderWeeklySelect();renderWeekly();}}
+function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").forEach(function(n){n.classList.remove("active");});if(el)el.classList.add("active");document.querySelectorAll(".pane").forEach(function(p){p.classList.remove("active");});document.getElementById("pane-"+name).classList.add("active");if(name==="settings")renderMemberGrid();if(name==="calendar")renderCalendar();
+  if(name==="recruit")renderRecruit();if(name==="project")renderProject();if(name==="weekly"){renderWeeklySelect();renderWeekly();}}
 function filterByMember(name,el){document.getElementById("filter-member").value=name;document.querySelectorAll(".nav-item,.member-nav").forEach(function(n){n.classList.remove("active");});if(el)el.classList.add("active");document.querySelectorAll(".pane").forEach(function(p){p.classList.remove("active");});document.getElementById("pane-daily").classList.add("active");renderDaily();}
 
 function getWeekRange(wk){
@@ -760,7 +811,164 @@ function printReport(){
   win.document.close();
 }
 
-function renderAll(){updateStats();renderMemberUI();renderDaily();renderWeeklySelect();renderWeekly();renderProject();renderCalendar();}
+// ── 채용현황 ──
+function renderRecruit(){
+  var recruits=data.recruit||[];
+  var hiring=recruits.filter(function(x){return x.type==='채용';});
+  var hires=recruits.filter(function(x){return x.type==='입사예정';});
+  hires.sort(function(a,b){return a.date>b.date?1:-1;});
+
+  // 채용 진행
+  var tbody=document.getElementById('recruit-tbody');
+  if(tbody){
+    if(!hiring.length){
+      tbody.innerHTML='<tr><td colspan="6" class="empty">채용 진행 중인 건이 없습니다</td></tr>';
+    } else {
+      tbody.innerHTML='';
+      hiring.forEach(function(x){
+        var i=recruits.indexOf(x);
+        var tr=document.createElement('tr');
+        var statusColors={'공고중':'#DBEAFE','서류마감':'#FEF3DC','서류검토':'#EDE9FE','면접':'#DCFCE7','면접결과보고':'#FCE7F3'};
+        var bg=statusColors[x.status]||'#F3F4F6';
+        tr.innerHTML='<td style="font-weight:500">'+(x.team||'')+'</td>'+
+          '<td>'+(x.replaceName||'')+'</td>'+
+          '<td><span style="font-size:11px;color:var(--text-muted)">'+(x.reason||'')+'</span></td>'+
+          '<td><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:'+bg+'">'+(x.status||'')+'</span></td>'+
+          '<td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td>'+
+          '<td><div class="action-btns">'+
+          '<button class="edit-btn" onclick="editRecruit('+i+')">✏️</button>'+
+          '<button class="del-btn" onclick="deleteRecruit('+i+')">🗑️</button>'+
+          '</div></td>';
+        tbody.appendChild(tr);
+      });
+    }
+  }
+
+  // 입사 예정
+  var tbody2=document.getElementById('recruit-hire-tbody');
+  if(tbody2){
+    if(!hires.length){
+      tbody2.innerHTML='<tr><td colspan="8" class="empty">입사 예정자가 없습니다</td></tr>';
+    } else {
+      tbody2.innerHTML='';
+      hires.forEach(function(x){
+        var i=recruits.indexOf(x);
+        var isThisWeek2=isThisWeekDate(x.date);
+        var tr=document.createElement('tr');
+        tr.style.background=isThisWeek2?'var(--lime-light)':'';
+        tr.innerHTML='<td style="font-weight:600;color:var(--navy)">'+(x.date||'')+(isThisWeek2?' 🔔':'')+'</td>'+
+          '<td style="font-weight:500">'+(x.name||'')+'</td>'+
+          '<td style="font-size:12px">'+(x.job||'')+'</td>'+
+          '<td>'+(x.replaceName||'')+'</td>'+
+          '<td><span style="font-size:11px;color:var(--text-muted)">'+(x.reason||'')+'</span></td>'+
+          '<td style="font-size:12px">'+(x.otTime||'')+'</td>'+
+          '<td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td>'+
+          '<td><div class="action-btns">'+
+          '<button class="edit-btn" onclick="editRecruit('+i+')">✏️</button>'+
+          '<button class="del-btn" onclick="deleteRecruit('+i+')">🗑️</button>'+
+          '</div></td>';
+        tbody2.appendChild(tr);
+      });
+    }
+  }
+}
+
+function isThisWeekDate(dateStr){
+  if(!dateStr) return false;
+  var d=new Date(dateStr);
+  var now=new Date();
+  var mon=new Date(now); mon.setDate(now.getDate()-now.getDay()+1); mon.setHours(0,0,0,0);
+  var sun=new Date(mon); sun.setDate(mon.getDate()+6); sun.setHours(23,59,59,999);
+  return d>=mon&&d<=sun;
+}
+
+function openRecruitForm(type){
+  document.getElementById('recruit-id').value='';
+  document.getElementById('recruit-type-hidden').value=type;
+  document.getElementById('recruit-modal-title').textContent=type==='채용'?'채용 추가':'입사예정 추가';
+  document.getElementById('recruit-fields-채용').style.display=type==='채용'?'':'none';
+  document.getElementById('recruit-fields-입사예정').style.display=type==='입사예정'?'':'none';
+  document.getElementById('r-team').value='';
+  document.getElementById('r-replace').value='';
+  document.getElementById('r-note').value='';
+  document.getElementById('r-name').value='';
+  document.getElementById('r-job').value='';
+  document.getElementById('r-hire-replace').value='';
+  document.getElementById('r-ottime').value='';
+  document.getElementById('r-hire-note').value='';
+  document.getElementById('r-date').value=todayStr;
+  document.getElementById('recruit-overlay').classList.add('open');
+}
+
+function editRecruit(i){
+  var x=(data.recruit||[])[i];
+  if(!x) return;
+  document.getElementById('recruit-id').value=x.id;
+  document.getElementById('recruit-type-hidden').value=x.type;
+  document.getElementById('recruit-modal-title').textContent=x.type==='채용'?'채용 수정':'입사예정 수정';
+  document.getElementById('recruit-fields-채용').style.display=x.type==='채용'?'':'none';
+  document.getElementById('recruit-fields-입사예정').style.display=x.type==='입사예정'?'':'none';
+  if(x.type==='채용'){
+    document.getElementById('r-team').value=x.team||'';
+    document.getElementById('r-replace').value=x.replaceName||'';
+    document.getElementById('r-reason').value=x.reason||'퇴사대체';
+    document.getElementById('r-status').value=x.status||'공고중';
+    document.getElementById('r-note').value=x.note||'';
+  } else {
+    document.getElementById('r-date').value=x.date||todayStr;
+    document.getElementById('r-name').value=x.name||'';
+    document.getElementById('r-job').value=x.job||'';
+    document.getElementById('r-hire-replace').value=x.replaceName||'';
+    document.getElementById('r-hire-reason').value=x.reason||'퇴사대체';
+    document.getElementById('r-ottime').value=x.otTime||'';
+    document.getElementById('r-hire-note').value=x.note||'';
+  }
+  document.getElementById('recruit-overlay').classList.add('open');
+}
+
+async function saveRecruit(){
+  var type=document.getElementById('recruit-type-hidden').value;
+  var eid=document.getElementById('recruit-id').value;
+  var nr;
+  if(type==='채용'){
+    var team=document.getElementById('r-team').value.trim();
+    if(!team){alert('팀명을 입력해주세요');return;}
+    nr={id:eid||genId('rc'),type:'채용',team:team,replaceName:document.getElementById('r-replace').value,
+      reason:document.getElementById('r-reason').value,status:document.getElementById('r-status').value,
+      note:document.getElementById('r-note').value,date:'',name:'',job:'',otTime:''};
+  } else {
+    var name=document.getElementById('r-name').value.trim();
+    if(!name){alert('이름을 입력해주세요');return;}
+    nr={id:eid||genId('rh'),type:'입사예정',date:document.getElementById('r-date').value,
+      name:name,job:document.getElementById('r-job').value,
+      replaceName:document.getElementById('r-hire-replace').value,
+      reason:document.getElementById('r-hire-reason').value,
+      otTime:document.getElementById('r-ottime').value,
+      note:document.getElementById('r-hire-note').value,team:'',status:''};
+  }
+  if(!data.recruit) data.recruit=[];
+  if(eid){
+    var idx=data.recruit.findIndex(function(x){return x.id===eid;});
+    if(idx>=0) data.recruit[idx]=nr;
+  } else {
+    data.recruit.push(nr);
+    await saveRow('recruit',Object.values(nr));
+  }
+  if(eid) setTimeout(function(){overwriteTab('recruit');},50);
+  saveLocalBackup();
+  document.getElementById('recruit-overlay').classList.remove('open');
+  renderRecruit();
+}
+
+async function deleteRecruit(i){
+  if(!confirm('삭제할까요?')) return;
+  data.recruit.splice(i,1);
+  setTimeout(function(){overwriteTab('recruit');},50);
+  saveLocalBackup();
+  renderRecruit();
+}
+
+function renderAll(){updateStats();renderMemberUI();renderDaily();renderWeeklySelect();renderWeekly();renderProject();renderCalendar();renderRecruit();}
 loadHeadcount();renderAll();syncAll();setInterval(syncAll,60000);
 </script>
 </body>
