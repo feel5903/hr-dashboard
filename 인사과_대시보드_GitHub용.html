@@ -21,7 +21,19 @@ body{font-family:"Noto Sans KR",sans-serif;font-size:14px;color:var(--text);back
 .app.sidebar-hidden{grid-template-columns:0px 1fr}
 .sidebar{transition:width .25s ease,opacity .25s ease;overflow:hidden}
 .app.sidebar-hidden .sidebar{width:0;opacity:0;border:none;padding:0}
-@media(max-width:768px){.app{grid-template-columns:0px 1fr}.app.sidebar-open{grid-template-columns:220px 1fr}}
+@media(max-width:768px){
+  .app{grid-template-columns:0px 1fr}
+  .app.sidebar-open{grid-template-columns:220px 1fr}
+  .proj-header{flex-wrap:nowrap;gap:6px;padding:.75rem 1rem}
+  .proj-date-el,.proj-status-el,.proj-prog-el{display:none}
+  .proj-name-el{font-size:13px}
+  .main{padding:.75rem}
+  .stats-row{grid-template-columns:repeat(2,1fr);gap:8px}
+  .stat-val{font-size:18px}
+  table{font-size:12px}
+  thead th,tbody td{padding:.5rem .6rem}
+  .card-head{flex-wrap:wrap;gap:6px;padding:.75rem 1rem}
+}
 .topbar{grid-column:1/-1;background:var(--navy);display:flex;align-items:center;padding:0 1.5rem;gap:1rem}
 .topbar-logo{color:var(--lime);font-size:16px;font-weight:700}
 .topbar-sub{color:var(--navy-mid);font-size:12px}
@@ -460,11 +472,11 @@ var pct=total>0?Math.round(doneCnt/total*100):(parseInt(proj.progress)||0);
 var card=document.createElement("div");card.className="proj-card";
 var hdr=document.createElement("div");hdr.className="proj-header";
 var arrow=document.createElement("span");arrow.textContent="▶";arrow.style.cssText="font-size:11px;color:var(--text-muted);transition:transform .2s;flex-shrink:0";
-var nameEl=document.createElement("span");nameEl.style.cssText="font-weight:700;font-size:14px;color:var(--navy);flex:1;white-space:pre-wrap";nameEl.textContent=proj.name;
+var nameEl=document.createElement("span");nameEl.className="proj-name-el";nameEl.style.cssText="font-weight:700;font-size:14px;color:var(--navy);flex:1;white-space:pre-wrap;word-break:break-word";nameEl.textContent=proj.name;
 var memEl=document.createElement("span");memEl.innerHTML=mdot(proj.member);
-var dateEl=document.createElement("span");dateEl.style.cssText="font-size:11px;color:var(--text-muted)";dateEl.textContent=(proj.start||"")+" ~ "+(proj.end||"");
+var dateEl=document.createElement("span");dateEl.className="proj-date-el";dateEl.style.cssText="font-size:11px;color:var(--text-muted)";dateEl.textContent=(proj.start||"")+" ~ "+(proj.end||"");
 var stEl=document.createElement("span");stEl.innerHTML=badge(proj.status);
-var pw=document.createElement("div");pw.style.cssText="display:flex;align-items:center;gap:6px;min-width:130px";
+var pw=document.createElement("div");pw.className="proj-prog-el";pw.style.cssText="display:flex;align-items:center;gap:6px;min-width:130px";
 pw.innerHTML="<div class='prog-bar' style='flex:1'><div class='prog-fill"+(pct===100?" done":"")+"' style='width:"+pct+"%'></div></div><span class='prog-pct'>"+pct+"%</span>";
 var eBtn=document.createElement("button");eBtn.className="edit-btn";eBtn.textContent="✏️";eBtn.onclick=function(e){e.stopPropagation();editItem("project",pi);};
 var dBtn=document.createElement("button");dBtn.className="del-btn";dBtn.textContent="🗑️";dBtn.onclick=function(e){e.stopPropagation();deleteItem("project",pi);};
