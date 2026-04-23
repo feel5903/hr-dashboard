@@ -249,7 +249,7 @@ tbody tr:hover{background:#FAFBFC}
       <div class="card-head"><span class="card-title">🗓️ 입사 예정</span>
         <div class="card-actions"><button class="btn lime" onclick="openRecruitForm('입사예정')">+ 입사예정 추가</button></div>
       </div>
-      <table><thead><tr><th>담당자</th><th>입사일</th><th>이름</th><th>직무</th><th>대체자</th><th>사유</th><th>OT시간</th><th>비고</th><th>관리</th></tr></thead>
+      <table><thead><tr><th>담당자</th><th>입사일</th><th>이름</th><th>직무</th><th>대체자</th><th>사유</th><th>비고</th><th>관리</th></tr></thead>
       <tbody id="recruit-hire-tbody"></tbody></table>
     </div>
   </div>
@@ -326,7 +326,6 @@ tbody tr:hover{background:#FAFBFC}
       <div class="field"><label>직무</label><input type="text" id="r-job" autocomplete="off" placeholder=""></div>
       <div class="field"><label>대체자</label><input type="text" id="r-hire-replace" autocomplete="off" placeholder=""></div>
       <div class="field"><label>사유</label><select id="r-hire-reason"><option>퇴사대체</option><option>육휴대체</option><option>출산대체</option><option>증원</option><option>기타</option></select></div>
-      <div class="field"><label>OT 시간</label><input type="text" id="r-ottime" autocomplete="off" placeholder=""></div>
       <div class="field"><label>비고</label><input type="text" id="r-hire-note" autocomplete="off" placeholder="비고"></div>
     </div>
     <div class="modal-actions">
@@ -532,7 +531,7 @@ function renderWeeklyRecruit(){
   if(!hires.length){
     html2+='<div style="padding:.25rem 1.25rem .75rem;font-size:13px;color:var(--text-muted)">입사 예정자 없음</div>';
   } else {
-    html2+='<table><thead><tr><th>담당자</th><th>입사일</th><th>이름</th><th>직무</th><th>대체자</th><th>사유</th><th>OT시간</th><th>비고</th></tr></thead><tbody>';
+    html2+='<table><thead><tr><th>담당자</th><th>입사일</th><th>이름</th><th>직무</th><th>대체자</th><th>사유</th><th>비고</th></tr></thead><tbody>';
     hires.forEach(function(x){
       var isNear=x.date&&x.date>=todayStr;
       html2+='<tr style="background:'+(isNear?'var(--lime-light)':'')+'">'+
@@ -541,7 +540,7 @@ function renderWeeklyRecruit(){
         '<td style="font-size:12px">'+(x.job||'')+'</td>'+
         '<td>'+(x.replaceName||'')+'</td>'+
         '<td style="font-size:12px;color:var(--text-muted)">'+(x.reason||'')+'</td>'+
-        '<td style="font-size:12px">'+(x.otTime||'')+'</td>'+
+        
         '<td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td></tr>';
     });
     html2+='</tbody></table>';
@@ -891,7 +890,7 @@ function printReport(){
   if(!hires.length){
     recruitHtml+="<p style='font-size:12px;color:#888;margin:4px 0'>입사 예정자 없음</p>";
   } else {
-    recruitHtml+="<table class='rs-table'><thead><tr><th>담당자</th><th>입사일</th><th>이름</th><th>직무</th><th>대체자</th><th>사유</th><th>OT시간</th><th>비고</th></tr></thead><tbody>";
+    recruitHtml+="<table class='rs-table'><thead><tr><th>담당자</th><th>입사일</th><th>이름</th><th>직무</th><th>대체자</th><th>사유</th><th>비고</th></tr></thead><tbody>";
     hires.forEach(function(x){
       recruitHtml+="<tr><td>"+(x.manager||"")+"</td><td>"+(x.date||"")+"</td><td>"+(x.name||"")+"</td><td>"+(x.job||"")+"</td><td>"+(x.replaceName||"")+"</td><td>"+(x.reason||"")+"</td><td>"+(x.otTime||"")+"</td><td>"+(x.note||"")+"</td></tr>";
     });
@@ -956,7 +955,7 @@ function renderRecruit(){
           '<td style="font-size:12px">'+(x.job||'')+'</td>'+
           '<td>'+(x.replaceName||'')+'</td>'+
           '<td><span style="font-size:11px;color:var(--text-muted)">'+(x.reason||'')+'</span></td>'+
-          '<td style="font-size:12px">'+(x.otTime||'')+'</td>'+
+          
           '<td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td>'+
           '<td><div class="action-btns">'+
           '<button class="edit-btn" onclick="editRecruit('+i+')">✏️</button>'+
@@ -1024,7 +1023,6 @@ function editRecruit(i){
     document.getElementById('r-job').value=x.job||'';
     document.getElementById('r-hire-replace').value=x.replaceName||'';
     document.getElementById('r-hire-reason').value=x.reason||'퇴사대체';
-    document.getElementById('r-ottime').value=x.otTime||'';
     document.getElementById('r-hire-note').value=x.note||'';
   }
   document.getElementById('recruit-overlay').classList.add('open');
@@ -1046,7 +1044,7 @@ async function saveRecruit(){
     nr={id:eid||genId('rh'),type:'입사예정',manager:document.getElementById('r-hire-manager').value,team:'',replaceName:document.getElementById('r-hire-replace').value,
       reason:document.getElementById('r-hire-reason').value,status:'',name:name,
       job:document.getElementById('r-job').value,date:document.getElementById('r-date').value,
-      otTime:document.getElementById('r-ottime').value,note:document.getElementById('r-hire-note').value};
+      otTime:'',note:document.getElementById('r-hire-note').value};
   }
   if(!data.recruit) data.recruit=[];
   if(eid){
