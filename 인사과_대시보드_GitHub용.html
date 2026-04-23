@@ -307,25 +307,26 @@ tbody tr:hover{background:#FAFBFC}
 <div class="overlay" id="recruit-overlay" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal" style="width:460px">
     <h3 id="recruit-modal-title">채용 추가</h3>
+    <div style="display:none"><input autocomplete="false"></div>
     <input type="hidden" id="recruit-id">
     <input type="hidden" id="recruit-type-hidden">
     <div id="recruit-fields-채용">
       <div class="field"><label>담당자</label><select id="r-manager"></select></div>
-      <div class="field"><label>팀명</label><input type="text" id="r-team" placeholder=""></div>
-      <div class="field"><label>대체자</label><input type="text" id="r-replace" placeholder=""></div>
+      <div class="field"><label>팀명</label><input type="text" id="r-team" autocomplete="off" placeholder=""></div>
+      <div class="field"><label>대체자</label><input type="text" id="r-replace" autocomplete="off" placeholder=""></div>
       <div class="field"><label>사유</label><select id="r-reason"><option>퇴사대체</option><option>육휴대체</option><option>출산대체</option><option>증원</option><option>기타</option></select></div>
       <div class="field"><label>상태</label><select id="r-status"><option>공고중</option><option>서류마감</option><option>서류검토</option><option>면접</option><option>면접결과보고</option></select></div>
-      <div class="field"><label>비고</label><input type="text" id="r-note" placeholder="비고"></div>
+      <div class="field"><label>비고</label><input type="text" id="r-note" autocomplete="off" placeholder="비고"></div>
     </div>
     <div id="recruit-fields-입사예정" style="display:none">
       <div class="field"><label>담당자</label><select id="r-hire-manager"></select></div>
       <div class="field"><label>입사일</label><input type="date" id="r-date"></div>
-      <div class="field"><label>이름</label><input type="text" id="r-name" placeholder="이름"></div>
-      <div class="field"><label>직무</label><input type="text" id="r-job" placeholder=""></div>
-      <div class="field"><label>대체자</label><input type="text" id="r-hire-replace" placeholder=""></div>
+      <div class="field"><label>이름</label><input type="text" id="r-name" autocomplete="off" placeholder="이름"></div>
+      <div class="field"><label>직무</label><input type="text" id="r-job" autocomplete="off" placeholder=""></div>
+      <div class="field"><label>대체자</label><input type="text" id="r-hire-replace" autocomplete="off" placeholder=""></div>
       <div class="field"><label>사유</label><select id="r-hire-reason"><option>퇴사대체</option><option>육휴대체</option><option>출산대체</option><option>증원</option><option>기타</option></select></div>
-      <div class="field"><label>OT 시간</label><input type="text" id="r-ottime" placeholder=""></div>
-      <div class="field"><label>비고</label><input type="text" id="r-hire-note" placeholder="비고"></div>
+      <div class="field"><label>OT 시간</label><input type="text" id="r-ottime" autocomplete="off" placeholder=""></div>
+      <div class="field"><label>비고</label><input type="text" id="r-hire-note" autocomplete="off" placeholder="비고"></div>
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="document.getElementById('recruit-overlay').classList.remove('open')">취소</button>
