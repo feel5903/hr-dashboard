@@ -79,8 +79,8 @@ tbody tr:hover{background:#FAFBFC}
 .del-btn{font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #FECACA;background:#FEE2E2;cursor:pointer;color:#991B1B}
 .cal-header-days{display:grid;grid-template-columns:repeat(7,1fr);padding:.5rem 1rem 0;gap:4px}
 .cal-header-days span{text-align:center;font-size:11px;font-weight:600;color:var(--text-muted);padding:.25rem 0}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:.75rem 1rem}
-.cal-day{min-height:70px;border:.5px solid var(--gray-border);border-radius:var(--radius);padding:4px 6px;background:var(--white);cursor:pointer}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:1rem 1.25rem}
+.cal-day{min-height:100px;border:.5px solid var(--gray-border);border-radius:var(--radius);padding:4px 6px;background:var(--white);cursor:pointer}
 .cal-day:hover{background:var(--gray-light)}
 .cal-day.other-month{background:var(--gray-light);opacity:.5}
 .cal-day.today{border:1.5px solid var(--navy);background:var(--navy-light)}
@@ -355,7 +355,6 @@ function renderDaily(){
     var wrap=document.createElement("div");wrap.className="action-btns";
     var sel=document.createElement("select");sel.style.cssText="font-size:11px;padding:2px 4px;border:1px solid var(--gray-border);border-radius:4px";
     ["진행","완료","대기","피드백","보류"].forEach(function(s){var op=document.createElement("option");op.textContent=s;if(x.status===s)op.selected=true;sel.appendChild(op);});
-    sel.addEventListener("change",(function(t,i){return function(){changeStatus(t,i,this.value);};})(type,di));
     sel.onchange=(function(i){return function(){changeStatus("daily",i,this.value);};})(di);
     var eb=document.createElement("button");eb.className="edit-btn";eb.textContent="✏️";eb.onclick=(function(i){return function(){editItem("daily",i);};})(di);
     var db=document.createElement("button");db.className="del-btn";db.textContent="🗑️";db.onclick=(function(i){return function(){deleteItem("daily",i);};})(di);
