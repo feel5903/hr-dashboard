@@ -214,6 +214,9 @@ tbody tr:hover{background:#FAFBFC}
       <table><thead><tr><th>담당자</th><th>업무 내용</th><th>시작일</th><th>마감일</th><th>상태</th><th>비고</th><th>피드백</th></tr></thead>
       <tbody id="weekly-tbody"></tbody></table>
     </div>
+    <div class="card" id="weekly-recruit-section" style="display:none">
+      <!-- 채용현황 동적 렌더링 -->
+    </div>
     <div class="card">
       <div class="card-head"><span class="card-title">📝 회의 메모</span>
         <div class="card-actions"><span style="font-size:11px;color:var(--text-muted)" id="memo-save-status"></span><button class="btn primary" onclick="saveMemo()">저장</button></div>
@@ -502,16 +505,9 @@ function renderWeeklyRecruit(){
   var hires=recruits.filter(function(x){return x.type==='입사예정'&&(!fm2||x.manager===fm2);});
   hires.sort(function(a,b){return a.date>b.date?1:-1;});
 
-  var pane=document.getElementById('pane-weekly');
-  if(!pane) return;
   var sec=document.getElementById('weekly-recruit-section');
-  if(sec) sec.style.display='';
-  if(!sec){
-    sec=document.createElement('div');
-    sec.id='weekly-recruit-section';
-    sec.className='card';
-    pane.appendChild(sec);
-  }
+  if(!sec) return;
+  sec.style.display='';
 
   var statusColors={'공고중':'#DBEAFE','서류마감':'#FEF3DC','서류검토':'#EDE9FE','면접':'#DCFCE7','면접결과보고':'#FCE7F3'};
   var html2='<div class="card-head"><span class="card-title">👥 채용현황</span></div>';
@@ -1023,10 +1019,9 @@ async function saveRecruit(){
     if(idx>=0) data.recruit[idx]=nr;
   } else {
     data.recruit.push(nr);
-    await saveRow('recruit',Object.values(nr));
   }
-  setTimeout(function(){overwriteTab('recruit');},50);
   saveLocalBackup();
+  await overwriteTab('recruit');
   document.getElementById('recruit-overlay').classList.remove('open');
   renderRecruit();
 }
