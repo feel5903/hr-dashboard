@@ -312,21 +312,21 @@ tbody tr:hover{background:#FAFBFC}
     <input type="hidden" id="recruit-type-hidden">
     <div id="recruit-fields-채용">
       <div class="field"><label>담당자</label><select id="r-manager"></select></div>
-      <div class="field"><label>팀명</label><input type="text" id="r-team" autocomplete="off" placeholder=""></div>
-      <div class="field"><label>대체자</label><input type="text" id="r-replace" autocomplete="off" placeholder=""></div>
+      <div class="field"><label>팀명</label><input type="text" id="r-team" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" placeholder=""></div>
+      <div class="field"><label>대체자</label><input type="text" id="r-replace" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" placeholder=""></div>
       <div class="field"><label>사유</label><select id="r-reason"><option>퇴사대체</option><option>육휴대체</option><option>출산대체</option><option>증원</option><option>기타</option></select></div>
       <div class="field"><label>상태</label><select id="r-status"><option>공고중</option><option>서류마감</option><option>서류검토</option><option>면접</option><option>면접결과보고</option></select></div>
-      <div class="field"><label>일정</label><input type="text" id="r-schedule" autocomplete="off" placeholder="예: ~4/29, 4/27 면접"></div>
-      <div class="field"><label>비고</label><input type="text" id="r-note" autocomplete="off" placeholder="비고"></div>
+      <div class="field"><label>일정</label><input type="text" id="r-schedule" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" placeholder="예: ~4/29, 4/27 면접"></div>
+      <div class="field"><label>비고</label><input type="text" id="r-note" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" placeholder="비고"></div>
     </div>
     <div id="recruit-fields-입사예정" style="display:none">
       <div class="field"><label>담당자</label><select id="r-hire-manager"></select></div>
       <div class="field"><label>입사일</label><input type="date" id="r-date"></div>
-      <div class="field"><label>이름</label><input type="text" id="r-name" autocomplete="off" placeholder="이름"></div>
-      <div class="field"><label>직무</label><input type="text" id="r-job" autocomplete="off" placeholder=""></div>
-      <div class="field"><label>대체자</label><input type="text" id="r-hire-replace" autocomplete="off" placeholder=""></div>
+      <div class="field"><label>이름</label><input type="text" id="r-name" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" placeholder="이름"></div>
+      <div class="field"><label>직무</label><input type="text" id="r-job" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" placeholder=""></div>
+      <div class="field"><label>대체자</label><input type="text" id="r-hire-replace" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" placeholder=""></div>
       <div class="field"><label>사유</label><select id="r-hire-reason"><option>퇴사대체</option><option>육휴대체</option><option>출산대체</option><option>증원</option><option>기타</option></select></div>
-      <div class="field"><label>비고</label><input type="text" id="r-hire-note" autocomplete="off" placeholder="비고"></div>
+      <div class="field"><label>비고</label><input type="text" id="r-hire-note" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" placeholder="비고"></div>
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="document.getElementById('recruit-overlay').classList.remove('open')">취소</button>
