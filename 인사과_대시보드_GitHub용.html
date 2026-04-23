@@ -509,11 +509,70 @@ list.appendChild(card);
 function toggleInlineForm(pid){var f=document.getElementById("iform-"+pid);if(!f)return;var isOpen=f.style.display==="block";if(isOpen){closeInlineForm(pid);}else{f.style.display="block";document.getElementById("if-content-"+pid).focus();}}
 function openInlineEdit(taskId,projId){var t=data.task.find(function(x){return x.id===taskId;});if(!t)return;var f=document.getElementById("iform-"+projId);if(f)f.style.display="block";document.getElementById("if-content-"+projId).value=t.content;document.getElementById("if-member-"+projId).value=t.member;document.getElementById("if-status-"+projId).value=t.status||"대기";document.getElementById("if-start-"+projId).value=t.start||todayStr;document.getElementById("if-end-"+projId).value=t.end||todayStr;document.getElementById("if-note-"+projId).value=t.note||"";document.getElementById("if-editid-"+projId).value=t.id;document.getElementById("iform-title-"+projId).textContent="✏️ 단계 수정";document.getElementById("if-cancel-"+projId).style.display="";document.getElementById("if-savebtn-"+projId).textContent="수정 완료";document.getElementById("if-content-"+projId).focus();}
 function closeInlineForm(pid){var f=document.getElementById("iform-"+pid);if(f)f.style.display="none";document.getElementById("if-content-"+pid).value="";document.getElementById("if-note-"+pid).value="";document.getElementById("if-start-"+pid).value=todayStr;document.getElementById("if-end-"+pid).value=todayStr;document.getElementById("if-editid-"+pid).value="";document.getElementById("iform-title-"+pid).textContent="+ 단계 추가";document.getElementById("if-cancel-"+pid).style.display="none";document.getElementById("if-savebtn-"+pid).textContent="저장";}
-async function saveTaskInline(pid){var c2=document.getElementById("if-content-"+pid).value.trim();if(!c2){alert("단계명을 입력해주세요");return;}var mv=document.getElementById("if-member-"+pid).value;var sv=document.getElementById("if-status-"+pid).value;var stv=document.getElementById("if-start-"+pid).value;var ev=document.getElementById("if-end-"+pid).value;var nv=document.getElementById("if-note-"+pid).value;var eid=document.getElementById("if-editid-"+pid).value;if(eid){var t=data.task.find(function(x){return x.id===eid;});if(t){t.content=c2;t.member=mv;t.status=sv;t.start=stv;t.end=ev;t.note=nv;}await overwriteTab("task");}else{var ex=data.task.filter(function(t){return t.projectId===pid;});var ms=ex.reduce(function(mx,t){return Math.max(mx,parseInt(t.step||0));},0);var nr={id:genId("tk"),projectId:pid,step:String(ms+1),content:c2,member:mv,start:stv,end:ev,status:sv,note:nv};data.task.push(nr);await saveRow("task",Object.values(nr));}await recalcProgress(pid);renderProjectKeepOpen(pid);}
-async function toggleTaskDone(cb,taskId,pid){var t=data.task.find(function(x){return x.id===taskId;});if(!t)return;t.status=cb.checked?"완료":"진행";await overwriteTab("task");await recalcProgress(pid);renderProjectKeepOpen(pid);}
+async function saveTaskInline(pid){
+  // 중복 저장 방지
+  var sbtn=document.getElementById("if-savebtn-"+pid);
+  if(sbtn&&sbtn.disabled)return;
+  if(sbtn){sbtn.disabled=true;sbtn.textContent="저장 중...";}
+  var c2=document.getElementById("if-content-"+pid).value.trim();
+  if(!c2){alert("단계명을 입력해주세요");if(sbtn){sbtn.disabled=false;sbtn.textContent="저장";}return;}
+  var mv=document.getElementById("if-member-"+pid).value;
+  var sv=document.getElementById("if-status-"+pid).value;
+  var stv=document.getElementById("if-start-"+pid).value;
+  var ev=document.getElementById("if-end-"+pid).value;
+  var nv=document.getElementById("if-note-"+pid).value;
+  var eid=document.getElementById("if-editid-"+pid).value;
+  try{
+    if(eid){
+      // 수정: overwrite (전체 덮어쓰기)
+      var t=data.task.find(function(x){return x.id===eid;});
+      if(t){t.content=c2;t.member=mv;t.status=sv;t.start=stv;t.end=ev;t.note=nv;}
+      await overwriteTab("task");
+    }else{
+      // 신규: append (빠름) - 이중저장 방지
+      var already=data.task.find(function(t){return t.projectId===pid&&t.content===c2&&t.start===stv;});
+      if(already){if(sbtn){sbtn.disabled=false;sbtn.textContent="저장";}return;}
+      var ex=data.task.filter(function(t){return t.projectId===pid;});
+      var ms=ex.reduce(function(mx,t){return Math.max(mx,parseInt(t.step||0));},0);
+      var nr={id:genId("tk"),projectId:pid,step:String(ms+1),content:c2,member:mv,start:stv,end:ev,status:sv,note:nv};
+      data.task.push(nr);
+      // append로 빠르게 저장 (overwrite 대신)
+      await saveRow("task",Object.values(nr));
+    }
+    // 진행률은 로컬에서 바로 계산 (시트 호출 없이)
+    recalcProgressLocal(pid);
+    renderProjectKeepOpen(pid);
+  }catch(e){
+    if(sbtn){sbtn.disabled=false;sbtn.textContent=eid?"수정 완료":"저장";}
+  }
+}
+async function toggleTaskDone(cb,taskId,pid){
+  var t=data.task.find(function(x){return x.id===taskId;});if(!t)return;
+  t.status=cb.checked?"완료":"대기";
+  recalcProgressLocal(pid); // 즉시 UI 업데이트
+  renderProjectKeepOpen(pid); // 화면 먼저 갱신
+  await overwriteTab("task"); // 시트는 백그라운드
+}
 async function deleteTask(taskId,pid){if(!confirm("이 단계를 삭제할까요?"))return;data.task=data.task.filter(function(t){return t.id!==taskId;});await overwriteTab("task");await recalcProgress(pid);renderProjectKeepOpen(pid);}
-async function recalcProgress(pid){var proj=data.project.find(function(p){return p.id===pid;});if(!proj)return;var tasks=data.task.filter(function(t){return t.projectId===pid;});var total=tasks.length,done=tasks.filter(function(t){return t.status==="완료";}).length;proj.progress=total>0?Math.round(done/total*100):0;proj.status=proj.progress===100?"완료":proj.progress>0?"진행":"대기";await overwriteTab("project");updateStats();}
-function renderProjectKeepOpen(pid){var openIds={};document.querySelectorAll(".proj-card").forEach(function(card){var body=card.querySelector(".proj-body");if(body&&body.style.display==="block"){var nm=card.querySelector(".proj-header span:nth-child(2)");if(nm){var pj=data.project.find(function(p){return p.name===nm.textContent;});if(pj)openIds[pj.id]=true;}}});openIds[pid]=true;renderProject();setTimeout(function(){var cards=document.querySelectorAll(".proj-card");var fm=document.getElementById("filter-proj-member").value;var fs=document.getElementById("filter-proj-status").value;var filtered=data.project.filter(function(x){return(!fm||x.member===fm)&&(!fs||x.status===fs);});filtered.forEach(function(pj,i){if(openIds[pj.id]&&cards[i]){var body=cards[i].querySelector(".proj-body");var ar=cards[i].querySelector(".proj-header span");if(body)body.style.display="block";if(ar)ar.style.transform="rotate(90deg)";}});},60);}
+function recalcProgressLocal(pid){
+  var proj=data.project.find(function(p){return p.id===pid;});if(!proj)return;
+  var tasks=data.task.filter(function(t){return t.projectId===pid;});
+  var total=tasks.length,done=tasks.filter(function(t){return t.status==="완료";}).length;
+  proj.progress=total>0?Math.round(done/total*100):0;
+  proj.status=proj.progress===100?"완료":proj.progress>0?"진행":"대기";
+  updateStats();
+  // 시트 저장은 백그라운드로 (UI 블로킹 없이)
+  setTimeout(function(){overwriteTab("project");},100);
+}
+async function recalcProgress(pid){
+  var proj=data.project.find(function(p){return p.id===pid;});if(!proj)return;
+  var tasks=data.task.filter(function(t){return t.projectId===pid;});
+  var total=tasks.length,done=tasks.filter(function(t){return t.status==="완료";}).length;
+  proj.progress=total>0?Math.round(done/total*100):0;
+  proj.status=proj.progress===100?"완료":proj.progress>0?"진행":"대기";
+  await overwriteTab("project");updateStats();
+}
+function renderProjectKeepOpen(pid){var openIds={};document.querySelectorAll(".proj-card").forEach(function(card){var body=card.querySelector(".proj-body");if(body&&body.style.display==="block"){var nm=card.querySelector(".proj-header span:nth-child(2)");if(nm){var pj=data.project.find(function(p){return p.name===nm.textContent;});if(pj)openIds[pj.id]=true;}}});openIds[pid]=true;renderProject();setTimeout(function(){var cards=document.querySelectorAll(".proj-card");var fm=document.getElementById("filter-proj-member").value;var fs=document.getElementById("filter-proj-status").value;var filtered=data.project.filter(function(x){return(!fm||x.member===fm)&&(!fs||x.status===fs);});filtered.forEach(function(pj,i){if(openIds[pj.id]&&cards[i]){var body=cards[i].querySelector(".proj-body");var ar=cards[i].querySelector(".proj-header span");if(body)body.style.display="block";if(ar)ar.style.transform="rotate(90deg)";}});},200);}
 function renderCalendar(){var y=curMonth.y;var m=curMonth.m;document.getElementById("cal-month-label").textContent=y+"년 "+(m+1)+"월";var first=new Date(y,m,1);var last=new Date(y,m+1,0);var allEvts=data.daily.map(function(x){return{date:x.end,label:x.content.slice(0,14),type:x.status};}).concat(data.task.map(function(x){var proj=(data.project||[]).find(function(p){return p.id===x.projectId;})||{name:"프로젝트"};return{date:x.end,label:"["+proj.name+"] "+x.content.slice(0,10),type:x.status};})).concat(data.leave.map(function(x){return{date:formatDateVal(x.date),label:"[휴가]"+x.member+" "+x.type,type:"휴가"};}));var html="";for(var i=0;i<first.getDay();i++)html+="<div class='cal-day other-month'></div>";for(var dd=1;dd<=last.getDate();dd++){var ds=y+"-"+String(m+1).padStart(2,"0")+"-"+String(dd).padStart(2,"0");var evts=allEvts.filter(function(x){return x.date===ds;});html+="<div class='cal-day"+(ds===todayStr?" today":"")+"' data-ds='"+ds+"'><div class='day-num'>"+dd+"</div>"+evts.slice(0,2).map(function(e){return"<div class='cal-evt "+e.type+"'>"+e.label+"</div>";}).join("")+(evts.length>2?"<div style='font-size:10px;color:var(--navy);font-weight:600;margin-top:2px'>+"+(evts.length-2)+"건 더보기</div>":"")+"</div>";}document.getElementById("cal-grid").innerHTML=html;document.querySelectorAll(".cal-day[data-ds]").forEach(function(el){el.addEventListener("click",function(){showCalModal(this.getAttribute("data-ds"));});});}
 function showCalModal(ds){var allEvts=data.daily.map(function(x){return{date:x.end,label:x.content,type:x.status,member:x.member,note:x.note||""};}).concat(data.task.map(function(x){var proj=(data.project||[]).find(function(p){return p.id===x.projectId;})||{name:"프로젝트"};return{date:x.end,label:"["+proj.name+"] "+x.content,type:x.status,member:x.member,note:x.note||""};}).concat(data.leave.map(function(x){return{date:formatDateVal(x.date),label:"[휴가] "+x.type,type:"휴가",member:x.member,note:x.note||""};})));var evts=allEvts.filter(function(x){return x.date===ds;});document.getElementById("cal-modal-title").textContent=ds+" 일정 ("+evts.length+"건)";document.getElementById("cal-modal-body").innerHTML=!evts.length?"<div class='empty'>일정이 없습니다</div>":evts.map(function(e){return"<div style='padding:.75rem 1rem;border:.5px solid var(--gray-border);border-radius:var(--radius)'><div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:4px'><span style='font-weight:600;font-size:13px'>"+e.label+"</span>"+badge(e.type)+"</div><div style='font-size:12px;color:var(--text-muted)'>담당자: "+mdot(e.member)+(e.note?" · "+e.note:"")+"</div></div>";}).join("");document.getElementById("cal-overlay").classList.add("open");}
 function changeMonth(dir){curMonth.m+=dir;if(curMonth.m>11){curMonth.m=0;curMonth.y++;}if(curMonth.m<0){curMonth.m=11;curMonth.y--;}renderCalendar();}
