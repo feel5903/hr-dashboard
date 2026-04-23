@@ -524,10 +524,10 @@ async function saveTaskInline(pid){
   var eid=document.getElementById("if-editid-"+pid).value;
   try{
     if(eid){
-      // 수정: overwrite (전체 덮어쓰기)
+      // 수정: 로컬 먼저 반영, 시트는 백그라운드
       var t=data.task.find(function(x){return x.id===eid;});
       if(t){t.content=c2;t.member=mv;t.status=sv;t.start=stv;t.end=ev;t.note=nv;}
-      await overwriteTab("task");
+      setTimeout(function(){overwriteTab("task");},50);
     }else{
       // 신규: append (빠름) - 이중저장 방지
       var already=data.task.find(function(t){return t.projectId===pid&&t.content===c2&&t.start===stv;});
@@ -541,8 +541,11 @@ async function saveTaskInline(pid){
     }
     // 진행률은 로컬에서 바로 계산 (시트 호출 없이)
     recalcProgressLocal(pid);
+    closeInlineForm(pid);
     renderProjectKeepOpen(pid);
   }catch(e){
+    if(sbtn){sbtn.disabled=false;sbtn.textContent=eid?"수정 완료":"저장";}
+  }finally{
     if(sbtn){sbtn.disabled=false;sbtn.textContent=eid?"수정 완료":"저장";}
   }
 }
@@ -572,7 +575,36 @@ async function recalcProgress(pid){
   proj.status=proj.progress===100?"완료":proj.progress>0?"진행":"대기";
   await overwriteTab("project");updateStats();
 }
-function renderProjectKeepOpen(pid){var openIds={};document.querySelectorAll(".proj-card").forEach(function(card){var body=card.querySelector(".proj-body");if(body&&body.style.display==="block"){var nm=card.querySelector(".proj-header span:nth-child(2)");if(nm){var pj=data.project.find(function(p){return p.name===nm.textContent;});if(pj)openIds[pj.id]=true;}}});openIds[pid]=true;renderProject();setTimeout(function(){var cards=document.querySelectorAll(".proj-card");var fm=document.getElementById("filter-proj-member").value;var fs=document.getElementById("filter-proj-status").value;var filtered=data.project.filter(function(x){return(!fm||x.member===fm)&&(!fs||x.status===fs);});filtered.forEach(function(pj,i){if(openIds[pj.id]&&cards[i]){var body=cards[i].querySelector(".proj-body");var ar=cards[i].querySelector(".proj-header span");if(body)body.style.display="block";if(ar)ar.style.transform="rotate(90deg)";}});},200);}
+function renderProjectKeepOpen(pid){
+  // 열린 카드 목록 기억
+  var openIds={};
+  document.querySelectorAll(".proj-card").forEach(function(card){
+    var body=card.querySelector(".proj-body");
+    if(body&&body.style.display==="block"){
+      var nm=card.querySelector(".proj-header span:nth-child(2)");
+      if(nm){var pj=data.project.find(function(p){return p.name===nm.textContent;});if(pj)openIds[pj.id]=true;}
+    }
+  });
+  openIds[pid]=true;
+  renderProject();
+  // 렌더 완료 후 열렸던 카드 복원
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      var cards=document.querySelectorAll(".proj-card");
+      var fm=document.getElementById("filter-proj-member").value;
+      var fs=document.getElementById("filter-proj-status").value;
+      var filtered=data.project.filter(function(x){return(!fm||x.member===fm)&&(!fs||x.status===fs);});
+      filtered.forEach(function(pj,i){
+        if(openIds[pj.id]&&cards[i]){
+          var body=cards[i].querySelector(".proj-body");
+          var ar=cards[i].querySelector(".proj-header span");
+          if(body)body.style.display="block";
+          if(ar)ar.style.transform="rotate(90deg)";
+        }
+      });
+    });
+  });
+}
 function renderCalendar(){var y=curMonth.y;var m=curMonth.m;document.getElementById("cal-month-label").textContent=y+"년 "+(m+1)+"월";var first=new Date(y,m,1);var last=new Date(y,m+1,0);var allEvts=data.daily.map(function(x){return{date:x.end,label:x.content.slice(0,14),type:x.status};}).concat(data.task.map(function(x){var proj=(data.project||[]).find(function(p){return p.id===x.projectId;})||{name:"프로젝트"};return{date:x.end,label:"["+proj.name+"] "+x.content.slice(0,10),type:x.status};})).concat(data.leave.map(function(x){return{date:formatDateVal(x.date),label:"[휴가]"+x.member+" "+x.type,type:"휴가"};}));var html="";for(var i=0;i<first.getDay();i++)html+="<div class='cal-day other-month'></div>";for(var dd=1;dd<=last.getDate();dd++){var ds=y+"-"+String(m+1).padStart(2,"0")+"-"+String(dd).padStart(2,"0");var evts=allEvts.filter(function(x){return x.date===ds;});html+="<div class='cal-day"+(ds===todayStr?" today":"")+"' data-ds='"+ds+"'><div class='day-num'>"+dd+"</div>"+evts.slice(0,2).map(function(e){return"<div class='cal-evt "+e.type+"'>"+e.label+"</div>";}).join("")+(evts.length>2?"<div style='font-size:10px;color:var(--navy);font-weight:600;margin-top:2px'>+"+(evts.length-2)+"건 더보기</div>":"")+"</div>";}document.getElementById("cal-grid").innerHTML=html;document.querySelectorAll(".cal-day[data-ds]").forEach(function(el){el.addEventListener("click",function(){showCalModal(this.getAttribute("data-ds"));});});}
 function showCalModal(ds){var allEvts=data.daily.map(function(x){return{date:x.end,label:x.content,type:x.status,member:x.member,note:x.note||""};}).concat(data.task.map(function(x){var proj=(data.project||[]).find(function(p){return p.id===x.projectId;})||{name:"프로젝트"};return{date:x.end,label:"["+proj.name+"] "+x.content,type:x.status,member:x.member,note:x.note||""};}).concat(data.leave.map(function(x){return{date:formatDateVal(x.date),label:"[휴가] "+x.type,type:"휴가",member:x.member,note:x.note||""};})));var evts=allEvts.filter(function(x){return x.date===ds;});document.getElementById("cal-modal-title").textContent=ds+" 일정 ("+evts.length+"건)";document.getElementById("cal-modal-body").innerHTML=!evts.length?"<div class='empty'>일정이 없습니다</div>":evts.map(function(e){return"<div style='padding:.75rem 1rem;border:.5px solid var(--gray-border);border-radius:var(--radius)'><div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:4px'><span style='font-weight:600;font-size:13px'>"+e.label+"</span>"+badge(e.type)+"</div><div style='font-size:12px;color:var(--text-muted)'>담당자: "+mdot(e.member)+(e.note?" · "+e.note:"")+"</div></div>";}).join("");document.getElementById("cal-overlay").classList.add("open");}
 function changeMonth(dir){curMonth.m+=dir;if(curMonth.m>11){curMonth.m=0;curMonth.y++;}if(curMonth.m<0){curMonth.m=11;curMonth.y--;}renderCalendar();}
