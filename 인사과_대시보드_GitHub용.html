@@ -435,7 +435,7 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
     var frc=filterRows(rc).map(function(r){return normalizeRow(r,"recruit");});
     data.recruit=frc;
     var fdm=filterRows(dm).map(function(r){return normalizeRow(r,"dormitory");});
-    data.dormitory=fdm;
+    if(fdm.length) data.dormitory=fdm;
     saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
 function updateStats(){document.getElementById("s-total").textContent=data.daily.length+data.project.length;document.getElementById("s-prog").textContent=data.daily.filter(function(x){return x.status==="진행";}).length;document.getElementById("s-due").textContent=data.daily.filter(function(x){return isToday(x.end)&&x.status!=="완료";}).length;document.getElementById("s-done").textContent=data.daily.filter(function(x){return x.status==="완료";}).length;document.getElementById("badge-daily").textContent=data.daily.filter(function(x){return x.status==="진행";}).length;}
 function renderMemberUI(){document.getElementById("topbar-staff").innerHTML=members.map(function(m){return"<div class='t-avatar' style='background:"+m.color+"' title='"+m.name+"'>"+m.name[0]+"</div>";}).join("");var navHtml="";members.forEach(function(m){navHtml+="<div class=\"member-nav\" onclick=\"filterByMember('"+m.name+"',this)\"><span class=\"mdot-c\" style=\"background:"+m.color+";width:20px;height:20px;font-size:10px\">"+m.name[0]+"</span>"+m.name+"</div>";});document.getElementById("member-nav-list").innerHTML=navHtml;var mo="<option value=''>전체 담당자</option>"+members.map(function(m){return"<option>"+m.name+"</option>";}).join("");["filter-member","filter-weekly-member","filter-proj-member"].forEach(function(id){var el=document.getElementById(id);if(!el)return;var cur=el.value;el.innerHTML=mo;if(cur)el.value=cur;});}
@@ -1134,6 +1134,7 @@ function renderDormitory(){
 
   ROOMS.forEach(function(room){
     var roomResidents=residents.filter(function(x){return x.room===room.key;});
+    roomResidents.sort(function(a,b){return a.moveInDate>b.moveInDate?1:-1;});
     var occupied=roomResidents.length;
     var empty=room.capacity-occupied;
     var pct=Math.round(occupied/room.capacity*100);
@@ -1143,12 +1144,15 @@ function renderDormitory(){
 
     // 호실 헤더
     var header=document.createElement('div');
-    header.style.cssText='display:flex;align-items:center;gap:10px;padding:.6rem .75rem;background:var(--navy-light);border-radius:var(--radius);margin-bottom:.5rem';
+    var roomColors=['#44546E','#2563EB','#5C8A1E','#7C3AED','#D97706'];
+    var roomIdx=ROOMS.indexOf(room);
+    var roomColor=roomColors[roomIdx]||'#44546E';
+    header.style.cssText='display:flex;align-items:center;gap:10px;padding:.6rem .75rem;background:'+roomColor+';border-radius:var(--radius);margin-bottom:.5rem';
     header.innerHTML=
-      '<span style="font-size:14px;font-weight:700;color:var(--navy);flex:1">'+room.label+'</span>'+
-      '<span style="font-size:12px;color:var(--text-muted)">정원 '+room.capacity+'명</span>'+
-      '<span style="font-size:12px;font-weight:600;color:'+(empty>0?'var(--lime-dark)':'var(--coral)')+'">입주 '+occupied+'/'+room.capacity+'</span>'+
-      (empty>0?'<span style="font-size:11px;background:var(--lime-light);color:var(--lime-dark);padding:2px 8px;border-radius:12px;font-weight:600">빈자리 '+empty+'</span>':'<span style="font-size:11px;background:var(--coral-light);color:var(--coral);padding:2px 8px;border-radius:12px;font-weight:600">만실</span>');
+      '<span style="font-size:14px;font-weight:700;color:#fff;flex:1">'+room.label+'</span>'+
+      '<span style="font-size:12px;color:rgba(255,255,255,.7)">정원 '+room.capacity+'명</span>'+
+      '<span style="font-size:12px;font-weight:600;color:#fff">입주 '+occupied+'/'+room.capacity+'</span>'+
+      (empty>0?'<span style="font-size:11px;background:rgba(255,255,255,.25);color:#fff;padding:2px 8px;border-radius:12px;font-weight:600">빈자리 '+empty+'</span>':'<span style="font-size:11px;background:rgba(255,255,255,.25);color:#fff;padding:2px 8px;border-radius:12px;font-weight:600">만실</span>');
     section.appendChild(header);
 
     // 입주자 테이블
@@ -1167,7 +1171,7 @@ function renderDormitory(){
       roomResidents.forEach(function(x){
         var i=(data.dormitory||[]).indexOf(x);
         var tr=document.createElement('tr');
-        if(x.isLeader==='Y') tr.style.background='var(--lime-light)';
+        // 방장 배경색 없음
         tr.innerHTML=
           '<td>'+(x.team||'')+'</td>'+
           '<td style="font-weight:600">'+(x.isLeader==='Y'?'👑 ':'')+( x.name||'')+'</td>'+
