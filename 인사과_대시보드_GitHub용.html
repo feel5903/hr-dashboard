@@ -164,6 +164,7 @@ tbody tr:hover{background:#FAFBFC}
   <div class="nav-item" onclick="switchNav('recruit',this)"><span class="nav-icon">👥</span>채용현황</div>
   <div class="nav-item" onclick="switchNav('calendar',this)"><span class="nav-icon">📅</span>캘린더</div>
   <div class="nav-divider"></div>
+  <div class="nav-item" onclick="switchNav('dormitory',this)"><span class="nav-icon">🏠</span>기숙사 현황</div>
   <div class="nav-item" onclick="switchNav('settings',this)"><span class="nav-icon">⚙️</span>설정</div>
   <div class="nav-divider"></div>
   <div class="nav-section">담당자별</div>
@@ -263,6 +264,19 @@ tbody tr:hover{background:#FAFBFC}
       <div class="cal-grid" id="cal-grid"></div>
     </div>
   </div>
+  <!-- 기숙사 현황 -->
+  <div id="pane-dormitory" class="pane">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">🏠 기숙사 현황</span>
+        <div class="card-actions">
+          <button class="btn lime" onclick="openDormForm()">+ 입주자 추가</button>
+        </div>
+      </div>
+      <div id="dorm-container" style="padding:.75rem 1rem"></div>
+    </div>
+  </div>
+
   <div id="pane-settings" class="pane">
     <div class="card" style="margin-bottom:12px">
       <div class="card-head"><span class="card-title">기본 설정</span></div>
@@ -334,6 +348,34 @@ tbody tr:hover{background:#FAFBFC}
   </div>
 </div>
 
+<!-- 기숙사 모달 -->
+<div class="overlay" id="dorm-overlay">
+  <div class="modal" style="width:420px">
+    <h3 id="dorm-modal-title">입주자 추가</h3>
+    <input type="hidden" id="dorm-id">
+    <div class="field"><label>호실</label>
+      <select id="dorm-room">
+        <option value="신하우스 504호">신하우스 504호 (3인실)</option>
+        <option value="신하우스 503호">신하우스 503호 (3인실)</option>
+        <option value="402-2호">402-2호 (2인실)</option>
+        <option value="402-1호">402-1호 (3인실)</option>
+        <option value="502호">502호 (4인실)</option>
+      </select>
+    </div>
+    <div class="field"><label>팀명</label><input type="text" id="dorm-team" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')"></div>
+    <div class="field"><label>성명</label><input type="text" id="dorm-name" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')"></div>
+    <div class="field"><label>입주일</label><input type="date" id="dorm-date"></div>
+    <div class="field"><label>비고</label><input type="text" id="dorm-note" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')"></div>
+    <div class="field"><label>방장 여부</label>
+      <select id="dorm-leader"><option value="">-</option><option value="Y">방장</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeDormModal()">취소</button>
+      <button class="btn primary" onclick="saveDorm()">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="cal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal" style="width:500px">
     <h3 id="cal-modal-title"></h3>
@@ -358,9 +400,9 @@ var PALETTE=["#44546E","#2563EB","#5C8A1E","#7C3AED","#D97706","#DC2626","#0891B
 var members=JSON.parse(localStorage.getItem("hr_members")||"null")||[{name:"김재용",role:"인사과장",color:"#44546E"},{name:"배지은",role:"인사담당",color:"#2563EB"},{name:"공지현",role:"인사담당",color:"#5C8A1E"},{name:"최필상",role:"인사담당",color:"#7C3AED"}];
 var curMonth={y:TODAY.getFullYear(),m:TODAY.getMonth()};
 var curForm="daily",editMemberIdx=null,editIdx=null;
-var data={daily:[],project:[],task:[],leave:[],recruit:[]};
+var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[]};
 var isEditing=false; // 입력 중 동기화 방지 플래그
-(function(){try{var b=localStorage.getItem("hr_data_backup");if(b){var p=JSON.parse(b);if(p.daily)data.daily=p.daily;if(p.project)data.project=p.project;if(p.task)data.task=p.task;if(p.leave)data.leave=p.leave;if(p.recruit)data.recruit=p.recruit;}}catch(e){}})();
+(function(){try{var b=localStorage.getItem("hr_data_backup");if(b){var p=JSON.parse(b);if(p.daily)data.daily=p.daily;if(p.project)data.project=p.project;if(p.task)data.task=p.task;if(p.leave)data.leave=p.leave;if(p.recruit)data.recruit=p.recruit;if(p.dormitory)data.dormitory=p.dormitory;}}catch(e){}})();
 function toggleSidebar(){
   var app=document.querySelector(".app");
   app.classList.toggle("sidebar-hidden");
@@ -388,9 +430,12 @@ async function callScript(params){try{var url=SHEET_URL+"?";Object.keys(params).
 async function overwriteTab(tab){var rows=data[tab]||[];var seen={};rows=rows.filter(function(r){if(!r.id||seen[r.id])return false;seen[r.id]=true;return true;});var df=["end","start","created","date"];rows=rows.map(function(r){var out={};Object.keys(r).forEach(function(k){out[k]=df.indexOf(k)>=0?formatDateVal(r[k]):r[k];});return out;});data[tab]=rows;saveLocalBackup();if(rows.length){var headers=Object.keys(rows[0]);var dataRows=rows.map(function(r){return headers.map(function(h){return r[h]||"";});});try{await fetch(SHEET_URL,{method:"POST",mode:"cors",redirect:"follow",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"overwrite",tab:tab,rows:dataRows})});}catch(e){try{await callScript({action:"overwrite",tab:tab,rows:dataRows});}catch(e2){}}}else{try{var url2=SHEET_URL+"?action=overwrite&tab="+tab+"&rows="+encodeURIComponent("[]")+"&t="+Date.now();await fetch(url2,{redirect:"follow",mode:"cors"});}catch(e){}}setSyncStatus("ok","● 저장됨");}
 async function saveRow(tab,row){saveLocalBackup();try{await fetch(SHEET_URL,{method:"POST",mode:"cors",redirect:"follow",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"append",tab:tab,row:row})});}catch(e){try{await callScript({action:"append",tab:tab,row:row});}catch(e2){}}setSyncStatus("ok","● 저장됨");}
 async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동기화 대기)");return;}setSyncStatus("loading","⟳ 동기화 중...");try{var d=await callScript({tab:"daily"});var p=await callScript({tab:"project"});var lv=await callScript({tab:"leave"});var tk=await callScript({tab:"task"});
-    var rc=await callScript({tab:"recruit"});var fd=filterRows(d).map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p).map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv).map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk).map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
+    var rc=await callScript({tab:"recruit"});
+    var dm=await callScript({tab:"dormitory"});var fd=filterRows(d).map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p).map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv).map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk).map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
     var frc=filterRows(rc).map(function(r){return normalizeRow(r,"recruit");});
     data.recruit=frc;
+    var fdm=filterRows(dm).map(function(r){return normalizeRow(r,"dormitory");});
+    data.dormitory=fdm;
     saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
 function updateStats(){document.getElementById("s-total").textContent=data.daily.length+data.project.length;document.getElementById("s-prog").textContent=data.daily.filter(function(x){return x.status==="진행";}).length;document.getElementById("s-due").textContent=data.daily.filter(function(x){return isToday(x.end)&&x.status!=="완료";}).length;document.getElementById("s-done").textContent=data.daily.filter(function(x){return x.status==="완료";}).length;document.getElementById("badge-daily").textContent=data.daily.filter(function(x){return x.status==="진행";}).length;}
 function renderMemberUI(){document.getElementById("topbar-staff").innerHTML=members.map(function(m){return"<div class='t-avatar' style='background:"+m.color+"' title='"+m.name+"'>"+m.name[0]+"</div>";}).join("");var navHtml="";members.forEach(function(m){navHtml+="<div class=\"member-nav\" onclick=\"filterByMember('"+m.name+"',this)\"><span class=\"mdot-c\" style=\"background:"+m.color+";width:20px;height:20px;font-size:10px\">"+m.name[0]+"</span>"+m.name+"</div>";});document.getElementById("member-nav-list").innerHTML=navHtml;var mo="<option value=''>전체 담당자</option>"+members.map(function(m){return"<option>"+m.name+"</option>";}).join("");["filter-member","filter-weekly-member","filter-proj-member"].forEach(function(id){var el=document.getElementById(id);if(!el)return;var cur=el.value;el.innerHTML=mo;if(cur)el.value=cur;});}
@@ -758,7 +803,8 @@ function closeOverlay(){document.getElementById("overlay").classList.remove("ope
 function closeOverlayOutside(e){if(e.target===document.getElementById("overlay"))closeOverlay();}
 async function saveForm(){var btn=document.getElementById("save-btn");if(btn.disabled)return;btn.disabled=true;btn.textContent="저장 중...";var member=document.getElementById("f-member").value;var content=document.getElementById("f-content").value.trim();var end=document.getElementById("f-end").value;var status=document.getElementById("f-status").value;var note=document.getElementById("f-note").value;if(!content){alert("내용을 입력해주세요");btn.disabled=false;btn.textContent="저장";return;}if(editIdx!==null){var x=data[curForm][editIdx];if(curForm==="daily"){x.member=member;x.content=content;x.start=document.getElementById("f-created").value||todayStr;x.created=x.start;x.end=end;x.status=status;x.note=note;}else if(curForm==="project"){x.member=member;x.name=content;x.start=document.getElementById("f-start").value;x.end=end;x.status=status;x.progress=parseInt(document.getElementById("f-progress").value)||0;x.note=note;}await overwriteTab(curForm);closeOverlay();renderAll();return;}if(curForm==="daily"){var sv=document.getElementById("f-created").value||todayStr;var nr={id:genId("d"),member:member,content:content,created:sv,start:sv,end:end,status:status,note:note,feedback:""};data.daily.push(nr);await saveRow("daily",[nr.id,nr.member,nr.content,nr.created,nr.end,nr.status,nr.note,nr.feedback]);}else if(curForm==="project"){var nr={id:genId("p"),name:content,member:member,start:document.getElementById("f-start").value,end:end,progress:parseInt(document.getElementById("f-progress").value)||0,status:status,note:note};data.project.push(nr);await saveRow("project",Object.values(nr));}closeOverlay();renderAll();}
 function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").forEach(function(n){n.classList.remove("active");});if(el)el.classList.add("active");document.querySelectorAll(".pane").forEach(function(p){p.classList.remove("active");});document.getElementById("pane-"+name).classList.add("active");if(name==="settings")renderMemberGrid();if(name==="calendar")renderCalendar();
-  if(name==="recruit")renderRecruit();if(name==="project")renderProject();if(name==="weekly"){renderWeeklySelect();renderWeekly();}}
+  if(name==="recruit")renderRecruit();
+  if(name==="dormitory")renderDormitory();if(name==="project")renderProject();if(name==="weekly"){renderWeeklySelect();renderWeekly();}}
 function filterByMember(name,el){document.getElementById("filter-member").value=name;document.querySelectorAll(".nav-item,.member-nav").forEach(function(n){n.classList.remove("active");});if(el)el.classList.add("active");document.querySelectorAll(".pane").forEach(function(p){p.classList.remove("active");});document.getElementById("pane-daily").classList.add("active");renderDaily();}
 
 function getWeekRange(wk){
@@ -1069,6 +1115,146 @@ async function deleteRecruit(i){
   setTimeout(function(){overwriteTab('recruit');},50);
   saveLocalBackup();
   renderRecruit();
+}
+
+// ── 기숙사 현황 ──
+var ROOMS = [
+  {key:'신하우스 504호', label:'신하우스 504호', capacity:3},
+  {key:'신하우스 503호', label:'신하우스 503호', capacity:3},
+  {key:'402-2호', label:'402-2호', capacity:2},
+  {key:'402-1호', label:'402-1호', capacity:3},
+  {key:'502호', label:'502호', capacity:4}
+];
+
+function renderDormitory(){
+  var residents=data.dormitory||[];
+  var container=document.getElementById('dorm-container');
+  if(!container) return;
+  container.innerHTML='';
+
+  ROOMS.forEach(function(room){
+    var roomResidents=residents.filter(function(x){return x.room===room.key;});
+    var occupied=roomResidents.length;
+    var empty=room.capacity-occupied;
+    var pct=Math.round(occupied/room.capacity*100);
+
+    var section=document.createElement('div');
+    section.style.cssText='margin-bottom:1.25rem';
+
+    // 호실 헤더
+    var header=document.createElement('div');
+    header.style.cssText='display:flex;align-items:center;gap:10px;padding:.6rem .75rem;background:var(--navy-light);border-radius:var(--radius);margin-bottom:.5rem';
+    header.innerHTML=
+      '<span style="font-size:14px;font-weight:700;color:var(--navy);flex:1">'+room.label+'</span>'+
+      '<span style="font-size:12px;color:var(--text-muted)">정원 '+room.capacity+'명</span>'+
+      '<span style="font-size:12px;font-weight:600;color:'+(empty>0?'var(--lime-dark)':'var(--coral)')+'">입주 '+occupied+'/'+room.capacity+'</span>'+
+      (empty>0?'<span style="font-size:11px;background:var(--lime-light);color:var(--lime-dark);padding:2px 8px;border-radius:12px;font-weight:600">빈자리 '+empty+'</span>':'<span style="font-size:11px;background:var(--coral-light);color:var(--coral);padding:2px 8px;border-radius:12px;font-weight:600">만실</span>');
+    section.appendChild(header);
+
+    // 입주자 테이블
+    var table=document.createElement('table');
+    table.style.marginBottom='0';
+    var thead=document.createElement('thead');
+    thead.innerHTML='<tr><th>팀명</th><th>성명</th><th>입주일</th><th>비고</th><th>관리</th></tr>';
+    table.appendChild(thead);
+
+    var tbody=document.createElement('tbody');
+    if(!roomResidents.length){
+      var tr=document.createElement('tr');
+      tr.innerHTML='<td colspan="5" class="empty" style="padding:.75rem">입주자 없음</td>';
+      tbody.appendChild(tr);
+    } else {
+      roomResidents.forEach(function(x){
+        var i=(data.dormitory||[]).indexOf(x);
+        var tr=document.createElement('tr');
+        if(x.isLeader==='Y') tr.style.background='var(--lime-light)';
+        tr.innerHTML=
+          '<td>'+(x.team||'')+'</td>'+
+          '<td style="font-weight:600">'+(x.isLeader==='Y'?'👑 ':'')+( x.name||'')+'</td>'+
+          '<td style="font-size:12px;color:var(--text-muted)">'+(x.moveInDate||'')+'</td>'+
+          '<td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td>'+
+          '<td><div class="action-btns">'+
+          '<button class="edit-btn" onclick="editDorm('+i+')">✏️</button>'+
+          '<button class="del-btn" onclick="deleteDorm('+i+')">🗑️</button>'+
+          '</div></td>';
+        tbody.appendChild(tr);
+      });
+    }
+    // 빈자리 표시
+    for(var e=0;e<empty;e++){
+      var etr=document.createElement('tr');
+      etr.style.cssText='opacity:.4';
+      etr.innerHTML='<td colspan="4" style="font-size:12px;color:var(--text-muted);text-align:center">빈 자리</td><td></td>';
+      tbody.appendChild(etr);
+    }
+    table.appendChild(tbody);
+    section.appendChild(table);
+    container.appendChild(section);
+  });
+}
+
+function openDormForm(){
+  document.getElementById('dorm-id').value='';
+  document.getElementById('dorm-modal-title').textContent='입주자 추가';
+  document.getElementById('dorm-team').value='';
+  document.getElementById('dorm-name').value='';
+  document.getElementById('dorm-date').value=todayStr;
+  document.getElementById('dorm-note').value='';
+  document.getElementById('dorm-leader').value='';
+  document.getElementById('dorm-overlay').classList.add('open');
+}
+
+function editDorm(i){
+  var x=(data.dormitory||[])[i];
+  if(!x) return;
+  document.getElementById('dorm-id').value=x.id;
+  document.getElementById('dorm-modal-title').textContent='입주자 수정';
+  document.getElementById('dorm-room').value=x.room||'신하우스 504호';
+  document.getElementById('dorm-team').value=x.team||'';
+  document.getElementById('dorm-name').value=x.name||'';
+  document.getElementById('dorm-date').value=x.moveInDate||todayStr;
+  document.getElementById('dorm-note').value=x.note||'';
+  document.getElementById('dorm-leader').value=x.isLeader||'';
+  document.getElementById('dorm-overlay').classList.add('open');
+}
+
+function closeDormModal(){
+  document.getElementById('dorm-overlay').classList.remove('open');
+}
+
+async function saveDorm(){
+  var eid=document.getElementById('dorm-id').value;
+  var name=document.getElementById('dorm-name').value.trim();
+  if(!name){alert('성명을 입력해주세요');return;}
+  var nr={
+    id:eid||genId('dm'),
+    room:document.getElementById('dorm-room').value,
+    team:document.getElementById('dorm-team').value,
+    name:name,
+    moveInDate:document.getElementById('dorm-date').value,
+    note:document.getElementById('dorm-note').value,
+    isLeader:document.getElementById('dorm-leader').value
+  };
+  if(!data.dormitory) data.dormitory=[];
+  if(eid){
+    var idx=data.dormitory.findIndex(function(x){return x.id===eid;});
+    if(idx>=0) data.dormitory[idx]=nr;
+    setTimeout(function(){overwriteTab('dormitory');},50);
+  } else {
+    data.dormitory.push(nr);
+    await saveRow('dormitory',Object.values(nr));
+  }
+  saveLocalBackup();
+  closeDormModal();
+  renderDormitory();
+}
+
+async function deleteDorm(i){
+  if(!confirm('삭제할까요?')) return;
+  data.dormitory.splice(i,1);
+  saveLocalBackup();
+  setTimeout(function(){overwriteTab('dormitory');},50);
+  renderDormitory();
 }
 
 function renderAll(){updateStats();renderMemberUI();renderDaily();renderWeeklySelect();renderWeekly();renderProject();renderCalendar();renderRecruit();}
