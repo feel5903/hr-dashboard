@@ -1485,7 +1485,7 @@ function showFullDuties(){
   win.document.write("</style></head><body>");
   win.document.write("<h1>서울재활병원 인사과 업무분장</h1>");
   win.document.write("<div class='subtitle'>"+new Date().toLocaleDateString("ko-KR")+" 기준</div>");
-  win.document.write("<table><thead><tr><th style='width:90px'>구분</th><th>김재용 과장<br><span style='font-weight:400;font-size:11px'>(인사)</span></th><th>배지은 주임<br><span style='font-weight:400;font-size:11px'>(인사/교육/독서경영 외)</span></th><th>공지현 사원<br><span style='font-weight:400;font-size:11px'>(인사/교육/국제협력 외)</span></th><th>최필상 사원<br><span style='font-weight:400;font-size:11px'>(인사/노무 외)</span></th></tr></thead><tbody>");
+  win.document.write("<table><thead><tr><th style='width:8%'>구분</th><th style='width:23%'>김재용 과장<br><span style='font-weight:400;font-size:11px'>(인사)</span></th><th style='width:23%'>배지은 주임<br><span style='font-weight:400;font-size:11px'>(인사/교육/독서경영 외)</span></th><th style='width:23%'>공지현 사원<br><span style='font-weight:400;font-size:11px'>(인사/교육/국제협력 외)</span></th><th style='width:23%'>최필상 사원<br><span style='font-weight:400;font-size:11px'>(인사/노무 외)</span></th></tr></thead><tbody>");
 
   dutyData.forEach(function(cat){
     win.document.write("<tr><td class='cat-th'>"+cat.category+"</td>");
