@@ -1352,7 +1352,7 @@ var DUTY_DATA = [
 ];
 
 var MEMBERS_ORDER = ["김재용","배지은","공지현","최필상"];
-var MEMBER_COLORS = {"김재용":"#44546E","배지은":"#2563EB","공지현":"#5C8A1E","최필상":"#7C3AED"};
+function getMemberColor(name){ var m=members.find(function(x){return x.name===name;}); return m?m.color:"#888"; }
 
 // 로컬에 저장된 수정 내용 불러오기
 function getDutyData(){
@@ -1390,12 +1390,12 @@ function renderDuties(){
       if(!items.length) return;
 
       var mSection = document.createElement("div");
-      mSection.style.cssText = "margin-bottom:.5rem;padding:.5rem .75rem;border-left:3px solid "+(MEMBER_COLORS[mname]||"#888")+";background:#FAFBFC;border-radius:0 var(--radius) var(--radius) 0";
+      mSection.style.cssText = "margin-bottom:.5rem;padding:.5rem .75rem;border-left:3px solid "+(getMemberColor(mname))+";background:#FAFBFC;border-radius:0 var(--radius) var(--radius) 0";
 
       var mHeader = document.createElement("div");
       mHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem";
       var mName = document.createElement("span");
-      mName.innerHTML = "<span style='display:inline-flex;align-items:center;gap:5px'><span style='width:20px;height:20px;border-radius:50%;background:"+(MEMBER_COLORS[mname]||"#888")+";display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff'>"+mname[0]+"</span><span style='font-size:12px;font-weight:600;color:var(--navy)'>"+mname+"</span></span>";
+      mName.innerHTML = "<span style='display:inline-flex;align-items:center;gap:5px'><span style='width:20px;height:20px;border-radius:50%;background:"+(getMemberColor(mname))+";display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff'>"+mname[0]+"</span><span style='font-size:12px;font-weight:600;color:var(--navy)'>"+mname+"</span></span>";
       var editBtn = document.createElement("button");
       editBtn.className = "edit-btn";
       editBtn.textContent = "✏️ 수정";
