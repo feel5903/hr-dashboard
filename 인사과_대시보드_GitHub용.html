@@ -164,6 +164,7 @@ tbody tr:hover{background:#FAFBFC}
   <div class="nav-item" onclick="switchNav('recruit',this)"><span class="nav-icon">👥</span>채용현황</div>
   <div class="nav-item" onclick="switchNav('calendar',this)"><span class="nav-icon">📅</span>캘린더</div>
   <div class="nav-divider"></div>
+  <div class="nav-item" onclick="switchNav('duties',this)"><span class="nav-icon">📋</span>업무분장</div>
   <div class="nav-item" onclick="switchNav('dormitory',this)"><span class="nav-icon">🏠</span>기숙사 현황</div>
   <div class="nav-item" onclick="switchNav('settings',this)"><span class="nav-icon">⚙️</span>설정</div>
 
@@ -262,6 +263,23 @@ tbody tr:hover{background:#FAFBFC}
       <div class="cal-grid" id="cal-grid"></div>
     </div>
   </div>
+  <!-- 업무분장 -->
+  <div id="pane-duties" class="pane">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">📋 업무분장</span>
+        <div class="card-actions">
+          <select id="duty-filter" onchange="renderDuties()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)">
+            <option value="">전체 담당자</option>
+            <option>김재용</option><option>배지은</option><option>공지현</option><option>최필상</option>
+          </select>
+          <button class="btn primary" onclick="showFullDuties()">📄 전체 업무분장</button>
+        </div>
+      </div>
+      <div id="duties-container" style="padding:.75rem 1rem"></div>
+    </div>
+  </div>
+
   <!-- 기숙사 현황 -->
   <div id="pane-dormitory" class="pane">
     <div class="card">
@@ -802,6 +820,7 @@ function closeOverlayOutside(e){if(e.target===document.getElementById("overlay")
 async function saveForm(){var btn=document.getElementById("save-btn");if(btn.disabled)return;btn.disabled=true;btn.textContent="저장 중...";var member=document.getElementById("f-member").value;var content=document.getElementById("f-content").value.trim();var end=document.getElementById("f-end").value;var status=document.getElementById("f-status").value;var note=document.getElementById("f-note").value;if(!content){alert("내용을 입력해주세요");btn.disabled=false;btn.textContent="저장";return;}if(editIdx!==null){var x=data[curForm][editIdx];if(curForm==="daily"){x.member=member;x.content=content;x.start=document.getElementById("f-created").value||todayStr;x.created=x.start;x.end=end;x.status=status;x.note=note;}else if(curForm==="project"){x.member=member;x.name=content;x.start=document.getElementById("f-start").value;x.end=end;x.status=status;x.note=note;}await overwriteTab(curForm);closeOverlay();renderAll();return;}if(curForm==="daily"){var sv=document.getElementById("f-created").value||todayStr;var nr={id:genId("d"),member:member,content:content,created:sv,start:sv,end:end,status:status,note:note,feedback:""};data.daily.push(nr);await saveRow("daily",[nr.id,nr.member,nr.content,nr.created,nr.end,nr.status,nr.note,nr.feedback]);}else if(curForm==="project"){var nr={id:genId("p"),name:content,member:member,start:document.getElementById("f-start").value,end:end,progress:0,status:status,note:note};data.project.push(nr);await saveRow("project",Object.values(nr));}closeOverlay();renderAll();}
 function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").forEach(function(n){n.classList.remove("active");});if(el)el.classList.add("active");document.querySelectorAll(".pane").forEach(function(p){p.classList.remove("active");});document.getElementById("pane-"+name).classList.add("active");if(name==="settings")renderMemberGrid();if(name==="calendar")renderCalendar();
   if(name==="recruit")renderRecruit();
+  if(name==="duties")renderDuties();
   if(name==="dormitory")renderDormitory();if(name==="project")renderProject();if(name==="weekly"){renderWeeklySelect();renderWeekly();}}
 
 
@@ -1266,6 +1285,213 @@ async function deleteDorm(i){
   saveLocalBackup();
   setTimeout(function(){overwriteTab('dormitory');},50);
   renderDormitory();
+}
+
+// ── 업무분장 ──
+var DUTY_DATA = [
+  {category:"인사관리", duties:{
+    "김재용":["인사과 업무 총괄","병원 인력 관리","병원 예산 관리(인건비 등)","운영규정 및 인사규정 관리","병원 조직도 관리","직원채용 및 퇴사 관리","직급승진, 직책임명 관리","상벌사항 관리","인사평가제도 수립","노무 관리(고충,직장내괴롭힘 등)","급여 및 기타수당 관리","퇴직금 관리","원천세 및 연말정산 관리","휴가 및 휴직, 휴업 등 관리","산재업무","보훈관리","직원포상 및 복지제도 관리","공적조서(표창대상) 및 수상자 관리","공공어린이재활병원 행정지원 관리","간호간병통합서비스 위탁용역 관리","은평구청 지원인력 관리(장애인일자리,자활근로,사회복무요원 등)","서울정민학교사업 관리","한국우진학교사업 관리","해외사업 관리","시군구보고 및 관공서 요청자료 처리","지도점검(은평구청, 노동부, 병무청 등) 관리","직원 민원사항 처리","대내외 협력업무","기타 행정 지원"],
+    "배지은":["시군구보고 및 관공서 요청 행정업무","출근부 관리(ERP 등) - 사유서 관리","직원휴가 및 연가보상비 관리","기타 휴가 및 휴직 관리(출산,육아,가족돌봄 등)","질병휴가 관리","원무인력현황신고","간호인력 야간근무 운영현황 모니터링","전직원 면허검증(12월 중)"],
+    "공지현":["시군구보고 및 관공서 요청 행정업무","보훈대상자 관리 및 행정업무","병원이메일 관리","직원만족도 조사","인사과 회의록 작성"],
+    "최필상":["인사정보관리 등록 및 갱신(이카운트,사회복지정보시스템,희망이음,인사서류보관장)","입퇴사자보고(희망이음)","인력현황 관리(직원,부서현황,간호간병통합,간호등급 등)","인력자료 제출요청 업무(노동부,관공서,법인 등)","ERP 업무 - 그룹웨어(전자결재) 관리, 재증명서류 관리","병원 조직도 관리","직원현황판 관리(원장님실,처장님실)","인사과매뉴얼 작업","임명,표창,위촉장 관리","부서관리비 및 팀회의비","규정관리 업무(인증규정10.1,10.3,10.6,병원규정)"]
+  }},
+  {category:"채용/퇴직", duties:{
+    "김재용":["계약만료직원 정규직 전형 관리(정규직/재계약/계약종료)","당직의사 채용 건(정규,일일당직)","법인임용임면보고","신입직원 면허검증"],
+    "배지은":["호봉획정 및 연봉표 작성","입사시 개인인사정보자료 작성","근로계약서 관리"],
+    "공지현":["사직서 관리(면담 및 개인정보서명)","임용,임면서 작성"],
+    "최필상":["채용 관리(신규채용) - 인원충원요청 기안, 채용공고(홈페이지,채용사이트), 서류전형, 면접진행, 합격자(불합격자)통지, 입사전 준비서류 이메일 공지, 입사전 건강검진서류 취합, 입사자 추가서류 취합 및 등록","채용이메일 관리","범죄사실 조회(구청,교육청,보건소 등)","신입직원 범죄사실 조회"]
+  }},
+  {category:"급여", duties:{
+    "김재용":["급여보수기준","급여 및 기타수당 관리(급여명세서 발송)","퇴직금 관리 - 퇴직연금(가입 및 중도인출,이전신청 등), 중도퇴사자 퇴직금 관리","연가보상비 관리(중도퇴사 및 전직원)","원천세 관리 - 소득세,주민세,주민세종업원분 관리, 연말정산 관리, 근로소득간이지급명세서 관리, 임직원 취업후학자금상환금 관리","사회보험 관리 - 취득,상실신고,유예신고, 모성보호관련 계약서 관리, 공단업무처리(휴직확인서 등록 등), 보수총액신고","치료과근무일수통계 및 기타 인센티브 관리","기타 임금관련 법인/관공서 요청사항","의료/비의료 자료작성(재무회계요청)","간호사처우개선비 산출 및 지급"],
+    "배지은":["급여 및 기타수당 관리","퇴직금 관리 - 퇴직연금(가입 및 중도인출 등), 중도퇴사자 퇴직금 관리","연가보상비 관리(중도퇴사 및 전직원)","기타 임금관련 법인/관공서 요청사항"],
+    "공지현":[],
+    "최필상":[]
+  }},
+  {category:"교육", duties:{
+    "김재용":[],
+    "배지은":["직급승진 및 직책임명자 교육","원내 인재양성 지원업무(대학원,외부강의파악)","스텝렉쳐 관리 및 진행","원내 세미나 관리","교육방송국 관리","신입직원OT(웰컴키드 관리) - 법인 신입직원 OT, SRH 문화OT(연2회)","SRALab 관련 교육 지원 업무"],
+    "공지현":["CSO 라운지 및 워크샵","중간관리자 역량강화 교육(팀장,주임)","온라인_위탁교육 관리","원내직원 필수교육 관리","직원 교육비 지원 및 서티수료자 관리(수료증확인,수당반영)","실습생 모집 및 운영관리","전문가연수프로그램"],
+    "최필상":[]
+  }},
+  {category:"승진", duties:{
+    "김재용":[],
+    "배지은":[],
+    "공지현":["직급승진, 직책임명 전형 관리"],
+    "최필상":[]
+  }},
+  {category:"평가", duties:{
+    "김재용":[],
+    "배지은":["직무기술서 관리(변경 직무기술서 관리)","직무능력피드백 관리"],
+    "공지현":[],
+    "최필상":["직무기술서, 피드백 고도화 작업"]
+  }},
+  {category:"포상및복지", duties:{
+    "김재용":[],
+    "배지은":[],
+    "공지현":["장기근속(5,15년) 직원관리","안식휴가(7,20년) 직원관리","직원기숙사 관리"],
+    "최필상":["포상제도 관리 - 임직원 가족 졸업/입학 축하, 친절왕, 감사왕, 분기별 간식, 병동 교대근무 간호사 조기 정착 포상","병원콘도 관리"]
+  }},
+  {category:"노무", duties:{
+    "김재용":[],
+    "배지은":[],
+    "공지현":[],
+    "최필상":["노무 관련 행정지원"]
+  }},
+  {category:"지정사업", duties:{
+    "김재용":["장애인의료재활시설 운영비보조금 대상자 관리(희망이음 등록 및 호봉 등록)","수도권공공어린이재활병원 보조금(인건비) 전년도 실적보고 및 당해년도 사업계획보고","수도권공공어린이재활병원 인력변동 관련 분기별 실적보고","간호간병통합병동 관련업무(바코드 관리,심평원자료 등록 등)"],
+    "배지은":["장애인의료재활시설 운영비보조금(인건비) 관리(신청,집행,정산 등)","수도권공공어린이재활병원 보조금(인건비) 전년도 실적보고 및 당해년도 사업계획보고","수도권공공어린이재활병원 보조금(인건비) 분기별 실적보고","검증보고서 및 회계감사보고서 관리","간호간병통합서비스 위탁용역 관리(용역비)","협력직원 근태 검증","간호간병평가인센티브 및 특별수당","매월 용역비 청구(한국우진학교)","선급금 및 잔금 신청(서울정민학교)","운영비(식대) 비용 정산 처리(서울정민학교)","매월 사회보험 및 급여관련 업무지원(서울시북부지역장애인보건의료센터,구산보건지소)","지도점검 업무지원(구산보건지소)"],
+    "공지현":["장애인의료재활시설 운영비보조금(인건비) 관리(신청,집행,정산 등)","수도권공공어린이재활병원 보조금(인건비) 전년도 실적보고 및 당해년도 사업계획보고","수도권공공어린이재활병원 보조금(인건비) 분기별 실적보고","검증보고서 및 회계감사보고서 관리","규정관리 업무(인증규정_10.4,10.5)","기능연구센터 프로세스개선 업무조율","규정관리 업무(인증규정10.8)","퇴사율 자료 관리(지표관리,병원장 보고용,노동부기준 및 자발적퇴사)"],
+    "최필상":["수도권공공어린이재활병원 보조금(인건비) 전년도 실적보고 및 당해년도 사업계획보고","수도권공공어린이재활병원 보조금 사업 e나라도움 집행 등록 및 이체 관리(집행,정산 등_이나라도움)"]
+  }},
+  {category:"기타사업", duties:{
+    "김재용":[],
+    "배지은":["독서경영 행정업무 - 나비(원내독서모임) 지원(간식비,포인트), 독서경영우수직장인증제 인증, 원내 독서경영 이벤트 지원, 북러닝 홈페이지 도서관 관리 등","장애인일자리사업 관리","자활근로사업 관리"],
+    "공지현":["해외협력 관련 - 해외사업 협력후보 발굴, 의료시스템 수출, 기타해외사업"],
+    "최필상":["사회복무요원 관리"]
+  }}
+];
+
+var MEMBERS_ORDER = ["김재용","배지은","공지현","최필상"];
+var MEMBER_COLORS = {"김재용":"#44546E","배지은":"#2563EB","공지현":"#5C8A1E","최필상":"#7C3AED"};
+
+// 로컬에 저장된 수정 내용 불러오기
+function getDutyData(){
+  var saved = localStorage.getItem("hr_duty_data");
+  if(saved){ try{ return JSON.parse(saved); }catch(e){} }
+  return JSON.parse(JSON.stringify(DUTY_DATA));
+}
+function saveDutyData(d){ localStorage.setItem("hr_duty_data", JSON.stringify(d)); }
+
+function renderDuties(){
+  var fm = document.getElementById("duty-filter").value;
+  var container = document.getElementById("duties-container");
+  if(!container) return;
+  var dutyData = getDutyData();
+  container.innerHTML = "";
+
+  dutyData.forEach(function(cat){
+    // 필터: 해당 담당자 업무가 있는 카테고리만
+    var hasContent = !fm || (cat.duties[fm] && cat.duties[fm].length > 0);
+    if(!hasContent) return;
+
+    var section = document.createElement("div");
+    section.style.cssText = "margin-bottom:1rem";
+
+    // 카테고리 헤더
+    var catHeader = document.createElement("div");
+    catHeader.style.cssText = "font-size:13px;font-weight:700;color:#fff;background:var(--navy);padding:.4rem .75rem;border-radius:var(--radius);margin-bottom:.5rem";
+    catHeader.textContent = cat.category;
+    section.appendChild(catHeader);
+
+    // 담당자별 업무 표시
+    var membersToShow = fm ? [fm] : MEMBERS_ORDER;
+    membersToShow.forEach(function(mname){
+      var items = cat.duties[mname] || [];
+      if(!items.length) return;
+
+      var mSection = document.createElement("div");
+      mSection.style.cssText = "margin-bottom:.5rem;padding:.5rem .75rem;border-left:3px solid "+(MEMBER_COLORS[mname]||"#888")+";background:#FAFBFC;border-radius:0 var(--radius) var(--radius) 0";
+
+      var mHeader = document.createElement("div");
+      mHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem";
+      var mName = document.createElement("span");
+      mName.innerHTML = "<span style='display:inline-flex;align-items:center;gap:5px'><span style='width:20px;height:20px;border-radius:50%;background:"+(MEMBER_COLORS[mname]||"#888")+";display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff'>"+mname[0]+"</span><span style='font-size:12px;font-weight:600;color:var(--navy)'>"+mname+"</span></span>";
+      var editBtn = document.createElement("button");
+      editBtn.className = "edit-btn";
+      editBtn.textContent = "✏️ 수정";
+      editBtn.style.fontSize = "11px";
+      (function(c, m){ editBtn.onclick = function(){ openDutyEdit(c, m); }; })(cat.category, mname);
+      mHeader.appendChild(mName); mHeader.appendChild(editBtn);
+      mSection.appendChild(mHeader);
+
+      var ul = document.createElement("ul");
+      ul.style.cssText = "margin:0 0 0 1rem;padding:0;font-size:12px;color:var(--text);line-height:1.7";
+      items.forEach(function(item){
+        var li = document.createElement("li");
+        li.textContent = item;
+        ul.appendChild(li);
+      });
+      mSection.appendChild(ul);
+      section.appendChild(mSection);
+    });
+    container.appendChild(section);
+  });
+}
+
+// 수정 모달
+function openDutyEdit(category, member){
+  var dutyData = getDutyData();
+  var cat = dutyData.find(function(c){ return c.category === category; });
+  var items = (cat && cat.duties[member]) || [];
+
+  var win = window.open("","_blank","width=700,height=600");
+  win.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>업무분장 수정 - "+member+"("+category+")</title>");
+  win.document.write("<style>body{font-family:'Noto Sans KR',sans-serif;padding:20px;font-size:14px}");
+  win.document.write("h2{color:#44546E;margin-bottom:16px}");
+  win.document.write("textarea{width:100%;height:400px;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;line-height:1.8;resize:vertical;outline:none}");
+  win.document.write("p{font-size:12px;color:#888;margin-bottom:8px}");
+  win.document.write(".btn{padding:8px 20px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-family:inherit}");
+  win.document.write(".save{background:#44546E;color:#fff;margin-right:8px}.cancel{background:#eee;color:#333}");
+  win.document.write("</style></head><body>");
+  win.document.write("<h2>"+member+" - "+category+" 업무 수정</h2>");
+  win.document.write("<p>한 줄에 하나씩 업무를 입력하세요. 빈 줄은 무시됩니다.</p>");
+  win.document.write("<textarea id='duty-text'>"+items.join("\n")+"</textarea><br><br>");
+  win.document.write("<button class='btn save' onclick='saveEdit()'>💾 저장</button>");
+  win.document.write("<button class='btn cancel' onclick='window.close()'>취소</button>");
+  win.document.write("<script>function saveEdit(){");
+  win.document.write("var text=document.getElementById('duty-text').value;");
+  win.document.write("var items=text.split('\\n').map(function(s){return s.trim();}).filter(function(s){return s.length>0;});");
+  win.document.write("window.opener.updateDuty('"+category+"','"+member+"',items);");
+  win.document.write("window.close();}");
+  win.document.write("<\/script></body></html>");
+  win.document.close();
+}
+
+function updateDuty(category, member, items){
+  var dutyData = getDutyData();
+  var cat = dutyData.find(function(c){ return c.category === category; });
+  if(cat){ cat.duties[member] = items; }
+  saveDutyData(dutyData);
+  renderDuties();
+}
+
+function showFullDuties(){
+  var dutyData = getDutyData();
+  var win = window.open("","_blank");
+  win.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>인사과 업무분장</title>");
+  win.document.write("<style>body{font-family:'Noto Sans KR',sans-serif;font-size:12px;padding:20px 30px;color:#1F2937}");
+  win.document.write("h1{text-align:center;font-size:18px;color:#44546E;margin-bottom:4px}");
+  win.document.write(".subtitle{text-align:center;font-size:12px;color:#888;margin-bottom:20px}");
+  win.document.write("table{width:100%;border-collapse:collapse;margin-bottom:12px}");
+  win.document.write("th{background:#44546E;color:#fff;padding:6px 8px;font-size:12px;font-weight:600;text-align:center;border:1px solid #ddd}");
+  win.document.write(".cat-th{background:#E8ECF0;color:#44546E;font-weight:700;font-size:12px;padding:5px 8px;border:1px solid #ddd;width:100px;vertical-align:top}");
+  win.document.write("td{padding:6px 8px;border:1px solid #ddd;vertical-align:top;font-size:12px}");
+  win.document.write("ul{margin:0 0 0 14px;padding:0;line-height:1.7}");
+  win.document.write(".empty{color:#bbb;font-size:11px;text-align:center}");
+  win.document.write("@media print{body{padding:10px 15px}button{display:none}}");
+  win.document.write("</style></head><body>");
+  win.document.write("<h1>서울재활병원 인사과 업무분장</h1>");
+  win.document.write("<div class='subtitle'>"+new Date().toLocaleDateString("ko-KR")+" 기준</div>");
+  win.document.write("<table><thead><tr><th style='width:90px'>구분</th><th>김재용 과장<br><span style='font-weight:400;font-size:11px'>(인사)</span></th><th>배지은 주임<br><span style='font-weight:400;font-size:11px'>(인사/교육/독서경영 외)</span></th><th>공지현 사원<br><span style='font-weight:400;font-size:11px'>(인사/교육/국제협력 외)</span></th><th>최필상 사원<br><span style='font-weight:400;font-size:11px'>(인사/노무 외)</span></th></tr></thead><tbody>");
+
+  dutyData.forEach(function(cat){
+    win.document.write("<tr><td class='cat-th'>"+cat.category+"</td>");
+    MEMBERS_ORDER.forEach(function(m){
+      var items = cat.duties[m] || [];
+      if(!items.length){
+        win.document.write("<td class='empty'>-</td>");
+      } else {
+        win.document.write("<td><ul>");
+        items.forEach(function(item){ win.document.write("<li>"+item+"</li>"); });
+        win.document.write("</ul></td>");
+      }
+    });
+    win.document.write("</tr>");
+  });
+  win.document.write("</tbody></table>");
+  win.document.write("<div style='text-align:center;margin-top:16px'><button onclick='window.print()' style='background:#44546E;color:#fff;border:none;padding:8px 24px;border-radius:6px;font-size:13px;cursor:pointer'>🖨️ PDF 저장 / 인쇄</button></div>");
+  win.document.write("</body></html>");
+  win.document.close();
 }
 
 function renderAll(){updateStats();renderMemberUI();renderDaily();renderWeeklySelect();renderWeekly();renderProject();renderCalendar();renderRecruit();}
