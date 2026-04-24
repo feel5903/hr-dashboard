@@ -72,8 +72,8 @@ body{font-family:"Noto Sans KR",sans-serif;font-size:14px;color:var(--text);back
 .btn.primary{background:var(--navy);color:#fff;border-color:var(--navy)}
 .btn.lime{background:var(--lime);color:var(--lime-dark);border-color:var(--lime);font-weight:600}
 table{width:100%;border-collapse:collapse;font-size:13px}
-thead th{padding:.6rem 1rem;text-align:left;font-size:11px;font-weight:600;color:var(--text-muted);background:var(--gray-light);border-bottom:1px solid var(--gray-border)}
-tbody td{padding:.5rem .75rem;border-bottom:.5px solid var(--gray-border);vertical-align:middle}
+thead th{padding:.35rem .75rem;text-align:left;font-size:11px;font-weight:600;color:var(--text-muted);background:var(--gray-light);border-bottom:1px solid var(--gray-border)}
+tbody td{padding:.35rem .75rem;border-bottom:.5px solid var(--gray-border);vertical-align:middle;font-size:13px}
 tbody tr:last-child td{border-bottom:none}
 tbody tr:hover{background:#FAFBFC}
 .badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px}
@@ -1140,14 +1140,14 @@ function renderDormitory(){
     var pct=Math.round(occupied/room.capacity*100);
 
     var section=document.createElement('div');
-    section.style.cssText='margin-bottom:.75rem';
+    section.style.cssText='margin-bottom:.4rem';
 
     // 호실 헤더
     var header=document.createElement('div');
     var roomColors=['#7B9AB5','#7BA7D4','#85B87A','#A98BD4','#D4A96A'];
     var roomIdx=ROOMS.indexOf(room);
     var roomColor=roomColors[roomIdx]||'#44546E';
-    header.style.cssText='display:flex;align-items:center;gap:10px;padding:.5rem .75rem;background:'+roomColor+';border-radius:var(--radius);margin-bottom:.4rem;max-width:700px';
+    header.style.cssText='display:flex;align-items:center;gap:6px;padding:.35rem .75rem;background:'+roomColor+';border-radius:var(--radius);margin-bottom:0;max-width:700px';
     header.innerHTML=
       '<span style="font-size:14px;font-weight:700;color:#fff;flex:1">'+room.label+'</span>'+
       '<span style="font-size:12px;color:rgba(255,255,255,.7)">정원 '+room.capacity+'명</span>'+
@@ -1161,9 +1161,11 @@ function renderDormitory(){
     table.style.tableLayout='fixed';
     table.style.width='700px';
     table.style.maxWidth='100%';
-    var thead=document.createElement('thead');
-    thead.innerHTML='<tr><th style="width:30px"></th><th style="width:200px">팀명</th><th style="width:100px">성명</th><th style="width:110px">입주일</th><th>비고</th><th style="width:80px">관리</th></tr>';
-    table.appendChild(thead);
+    if(roomIdx===0){
+      var thead=document.createElement('thead');
+      thead.innerHTML='<tr><th style="width:30px"></th><th style="width:200px">팀명</th><th style="width:100px">성명</th><th style="width:110px">입주일</th><th>비고</th><th style="width:80px">관리</th></tr>';
+      table.appendChild(thead);
+    }
 
     var tbody=document.createElement('tbody');
     if(!roomResidents.length){
@@ -1192,7 +1194,7 @@ function renderDormitory(){
     for(var e=0;e<empty;e++){
       var etr=document.createElement('tr');
       etr.style.cssText='opacity:.4';
-      etr.innerHTML='<td></td><td colspan="4" style="font-size:12px;color:var(--text-muted);text-align:center">빈 자리</td><td></td>';
+      etr.innerHTML='<td></td><td colspan="4" style="font-size:11px;color:var(--text-muted);text-align:center;padding:.25rem">빈 자리</td><td></td>';
       tbody.appendChild(etr);
     }
     table.appendChild(tbody);
