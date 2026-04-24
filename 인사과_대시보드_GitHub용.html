@@ -1144,7 +1144,7 @@ function renderDormitory(){
 
     // 호실 헤더
     var header=document.createElement('div');
-    var roomColors=['#44546E','#2563EB','#5C8A1E','#7C3AED','#D97706'];
+    var roomColors=['#7B9AB5','#7BA7D4','#85B87A','#A98BD4','#D4A96A'];
     var roomIdx=ROOMS.indexOf(room);
     var roomColor=roomColors[roomIdx]||'#44546E';
     header.style.cssText='display:flex;align-items:center;gap:10px;padding:.6rem .75rem;background:'+roomColor+';border-radius:var(--radius);margin-bottom:.5rem';
@@ -1158,8 +1158,10 @@ function renderDormitory(){
     // 입주자 테이블
     var table=document.createElement('table');
     table.style.marginBottom='0';
+    table.style.tableLayout='fixed';
+    table.style.width='100%';
     var thead=document.createElement('thead');
-    thead.innerHTML='<tr><th>팀명</th><th>성명</th><th>입주일</th><th>비고</th><th>관리</th></tr>';
+    thead.innerHTML='<tr><th style="width:30px"></th><th style="width:200px">팀명</th><th style="width:100px">성명</th><th style="width:110px">입주일</th><th>비고</th><th style="width:80px">관리</th></tr>';
     table.appendChild(thead);
 
     var tbody=document.createElement('tbody');
@@ -1173,9 +1175,10 @@ function renderDormitory(){
         var tr=document.createElement('tr');
         // 방장 배경색 없음
         tr.innerHTML=
-          '<td>'+(x.team||'')+'</td>'+
-          '<td style="font-weight:600">'+(x.isLeader==='Y'?'👑 ':'')+( x.name||'')+'</td>'+
-          '<td style="font-size:12px;color:var(--text-muted)">'+(x.moveInDate||'')+'</td>'+
+          '<td style="text-align:center;font-size:14px">'+(x.isLeader==='Y'?'👑':'')+'</td>'+
+          '<td style="width:200px">'+(x.team||'')+'</td>'+
+          '<td style="width:100px;font-weight:600">'+(x.name||'')+'</td>'+
+          '<td style="width:110px;font-size:12px;color:var(--text-muted)">'+(x.moveInDate||'')+'</td>'+
           '<td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td>'+
           '<td><div class="action-btns">'+
           '<button class="edit-btn" onclick="editDorm('+i+')">✏️</button>'+
@@ -1188,7 +1191,7 @@ function renderDormitory(){
     for(var e=0;e<empty;e++){
       var etr=document.createElement('tr');
       etr.style.cssText='opacity:.4';
-      etr.innerHTML='<td colspan="4" style="font-size:12px;color:var(--text-muted);text-align:center">빈 자리</td><td></td>';
+      etr.innerHTML='<td></td><td colspan="4" style="font-size:12px;color:var(--text-muted);text-align:center">빈 자리</td><td></td>';
       tbody.appendChild(etr);
     }
     table.appendChild(tbody);
