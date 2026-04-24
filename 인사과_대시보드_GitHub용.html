@@ -1373,55 +1373,60 @@ function renderDuties(){
     var section = document.createElement("div");
     section.style.cssText = "margin-bottom:1rem";
 
-    // 카테고리 헤더
+    // 카테고리 헤더 + 없는 담당자 추가 버튼
     var catHeader = document.createElement("div");
-    catHeader.style.cssText = "font-size:13px;font-weight:700;color:#fff;background:var(--navy);padding:.4rem .75rem;border-radius:var(--radius);margin-bottom:.5rem";
-    catHeader.textContent = cat.category;
+    catHeader.style.cssText = "display:flex;align-items:center;gap:6px;background:var(--navy);padding:.4rem .75rem;border-radius:var(--radius);margin-bottom:.5rem;flex-wrap:wrap";
+    var catTitle = document.createElement("span");
+    catTitle.style.cssText = "font-size:13px;font-weight:700;color:#fff;flex:1";
+    catTitle.textContent = cat.category;
+    catHeader.appendChild(catTitle);
+
+    // 없는 담당자만 추가 버튼 표시
+    var membersToCheck = fm ? [fm] : MEMBERS_ORDER;
+    membersToCheck.forEach(function(mname){
+      var items = cat.duties[mname] || [];
+      if(!items.length){
+        var addBtn = document.createElement("button");
+        addBtn.style.cssText = "font-size:10px;padding:2px 8px;border-radius:12px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.15);color:#fff;cursor:pointer;font-family:inherit";
+        addBtn.textContent = "+ " + mname;
+        (function(c, m){ addBtn.onclick = function(){ openDutyEdit(c, m); }; })(cat.category, mname);
+        catHeader.appendChild(addBtn);
+      }
+    });
     section.appendChild(catHeader);
 
-    // 담당자별 업무 표시 - 항상 모두 표시
+    // 내용 있는 담당자만 표시
     var membersToShow = fm ? [fm] : MEMBERS_ORDER;
-    var grid = document.createElement("div");
-    grid.style.cssText = "display:grid;grid-template-columns:repeat("+membersToShow.length+",1fr);gap:8px";
-
     membersToShow.forEach(function(mname){
       var items = cat.duties[mname] || [];
+      if(!items.length) return;
       var color = getMemberColor(mname);
 
       var mSection = document.createElement("div");
-      mSection.style.cssText = "padding:.5rem .75rem;border-left:3px solid "+color+";background:#FAFBFC;border-radius:0 var(--radius) var(--radius) 0;min-height:60px";
+      mSection.style.cssText = "margin-bottom:.5rem;padding:.5rem .75rem;border-left:3px solid "+color+";background:#FAFBFC;border-radius:0 var(--radius) var(--radius) 0";
 
       var mHeader = document.createElement("div");
       mHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem";
       var mName = document.createElement("span");
-      mName.innerHTML = "<span style='display:inline-flex;align-items:center;gap:4px'><span style='width:18px;height:18px;border-radius:50%;background:"+color+";display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff'>"+mname[0]+"</span><span style='font-size:12px;font-weight:600;color:var(--navy)'>"+mname+"</span></span>";
+      mName.innerHTML = "<span style='display:inline-flex;align-items:center;gap:5px'><span style='width:20px;height:20px;border-radius:50%;background:"+color+";display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff'>"+mname[0]+"</span><span style='font-size:12px;font-weight:600;color:var(--navy)'>"+mname+"</span></span>";
       var editBtn = document.createElement("button");
       editBtn.className = "edit-btn";
-      editBtn.textContent = "✏️";
-      editBtn.title = "수정";
+      editBtn.textContent = "✏️ 수정";
       editBtn.style.fontSize = "11px";
       (function(c, m){ editBtn.onclick = function(){ openDutyEdit(c, m); }; })(cat.category, mname);
       mHeader.appendChild(mName); mHeader.appendChild(editBtn);
       mSection.appendChild(mHeader);
 
-      if(items.length){
-        var ul = document.createElement("ul");
-        ul.style.cssText = "margin:0 0 0 1rem;padding:0;font-size:12px;color:var(--text);line-height:1.7";
-        items.forEach(function(item){
-          var li = document.createElement("li");
-          li.textContent = item;
-          ul.appendChild(li);
-        });
-        mSection.appendChild(ul);
-      } else {
-        var empty = document.createElement("div");
-        empty.style.cssText = "font-size:11px;color:var(--text-muted);text-align:center;padding:.5rem 0";
-        empty.textContent = "없음";
-        mSection.appendChild(empty);
-      }
-      grid.appendChild(mSection);
+      var ul = document.createElement("ul");
+      ul.style.cssText = "margin:0 0 0 1rem;padding:0;font-size:12px;color:var(--text);line-height:1.7";
+      items.forEach(function(item){
+        var li = document.createElement("li");
+        li.textContent = item;
+        ul.appendChild(li);
+      });
+      mSection.appendChild(ul);
+      section.appendChild(mSection);
     });
-    section.appendChild(grid);
     container.appendChild(section);
   });
 }
