@@ -973,8 +973,8 @@ function renderRecruit(){
           '<td><span style="font-size:11px;color:var(--text-muted)">'+(x.reason||'')+'</span></td>'+
           '<td><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:'+bg+'">'+(x.status||'')+'</span></td>'+
           '<td style="font-size:12px;color:var(--navy)">'+(x.schedule||'')+'</td>'+
-          '<td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td>'+
-          '<td><div class="action-btns">'+
+          '<td style="font-size:12px;color:var(--text-muted);min-width:160px">'+(x.note||'')+'</td>'+
+          '<td style="width:80px"><div class="action-btns">'+
           '<button class="edit-btn" onclick="editRecruit('+i+')">✏️</button>'+
           '<button class="del-btn" onclick="deleteRecruit('+i+')">🗑️</button>'+
           '</div></td>';
@@ -1001,8 +1001,8 @@ function renderRecruit(){
           '<td>'+(x.replaceName||'')+'</td>'+
           '<td><span style="font-size:11px;color:var(--text-muted)">'+(x.reason||'')+'</span></td>'+
           
-          '<td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td>'+
-          '<td><div class="action-btns">'+
+          '<td style="font-size:12px;color:var(--text-muted);min-width:160px">'+(x.note||'')+'</td>'+
+          '<td style="width:80px"><div class="action-btns">'+
           '<button class="edit-btn" onclick="editRecruit('+i+')">✏️</button>'+
           '<button class="del-btn" onclick="deleteRecruit('+i+')">🗑️</button>'+
           '</div></td>';
@@ -1182,8 +1182,8 @@ function renderDormitory(){
           '<td style="width:200px">'+(x.team||'')+'</td>'+
           '<td style="width:100px;font-weight:600">'+(x.name||'')+'</td>'+
           '<td style="width:110px;font-size:12px;color:var(--text-muted)">'+(x.moveInDate||'')+'</td>'+
-          '<td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td>'+
-          '<td><div class="action-btns">'+
+          '<td style="font-size:12px;color:var(--text-muted);min-width:160px">'+(x.note||'')+'</td>'+
+          '<td style="width:80px"><div class="action-btns">'+
           '<button class="edit-btn" onclick="editDorm('+i+')">✏️</button>'+
           '<button class="del-btn" onclick="deleteDorm('+i+')">🗑️</button>'+
           '</div></td>';
