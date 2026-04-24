@@ -158,10 +158,10 @@ tbody tr:hover{background:#FAFBFC}
 </div>
 <nav class="sidebar">
   <div class="nav-section">업무 현황</div>
-  <div class="nav-item active" onclick="switchNav('daily',this)"><span class="nav-icon">📋</span>일일 업무<span class="nav-badge" id="badge-daily">0</span></div>
+  <div class="nav-item active" onclick="switchNav('daily',this)"><span class="nav-icon">📋</span>일일 업무</div>
   <div class="nav-item" onclick="switchNav('weekly',this)"><span class="nav-icon">📊</span>주간 보고</div>
-  <div class="nav-item" onclick="switchNav('project',this)"><span class="nav-icon">🗂️</span>프로젝트</div>
-  <div class="nav-item" onclick="switchNav('recruit',this)"><span class="nav-icon">👥</span>채용현황</div>
+  <div class="nav-item" onclick="switchNav('project',this)"><span class="nav-icon">🗂️</span>프로젝트<span class="nav-badge" id="badge-project" style="display:none">0</span></div>
+  <div class="nav-item" onclick="switchNav('recruit',this)"><span class="nav-icon">👥</span>채용현황<span class="nav-badge" id="badge-recruit" style="display:none">0</span></div>
   <div class="nav-item" onclick="switchNav('calendar',this)"><span class="nav-icon">📅</span>캘린더</div>
   <div class="nav-divider"></div>
   <div class="nav-item" onclick="switchNav('duties',this)"><span class="nav-icon">📋</span>업무분장</div>
@@ -453,7 +453,20 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
     var fdm=filterRows(dm).map(function(r){return normalizeRow(r,"dormitory");});
     if(fdm.length) data.dormitory=fdm;
     saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
-function updateStats(){document.getElementById("s-total").textContent=data.daily.length+data.project.length;document.getElementById("s-prog").textContent=data.daily.filter(function(x){return x.status==="진행";}).length;document.getElementById("s-due").textContent=data.daily.filter(function(x){return isToday(x.end)&&x.status!=="완료";}).length;document.getElementById("s-done").textContent=data.daily.filter(function(x){return x.status==="완료";}).length;document.getElementById("badge-daily").textContent=data.daily.filter(function(x){return x.status==="진행";}).length;}
+function updateStats(){
+  document.getElementById("s-total").textContent=data.daily.length+data.project.length;
+  document.getElementById("s-prog").textContent=data.daily.filter(function(x){return x.status==="진행";}).length;
+  document.getElementById("s-due").textContent=data.daily.filter(function(x){return isToday(x.end)&&x.status!=="완료";}).length;
+  document.getElementById("s-done").textContent=data.daily.filter(function(x){return x.status==="완료";}).length;
+  // 프로젝트 뱃지 - 완료 제외한 프로젝트 수
+  var projCnt=data.project.filter(function(x){return x.status!=="완료";}).length;
+  var projBadge=document.getElementById("badge-project");
+  if(projBadge){projBadge.textContent=projCnt;projBadge.style.display=projCnt>0?"":"none";}
+  // 채용현황 뱃지 - 채용 진행 중인 건수
+  var recCnt=(data.recruit||[]).filter(function(x){return x.type==="채용";}).length;
+  var recBadge=document.getElementById("badge-recruit");
+  if(recBadge){recBadge.textContent=recCnt;recBadge.style.display=recCnt>0?"":"none";}
+}
 function renderMemberUI(){document.getElementById("topbar-staff").innerHTML=members.map(function(m){return"<div class='t-avatar' style='background:"+m.color+"' title='"+m.name+"'>"+m.name[0]+"</div>";}).join("");var mo="<option value=''>전체 담당자</option>"+members.map(function(m){return"<option>"+m.name+"</option>";}).join("");["filter-member","filter-weekly-member","filter-proj-member"].forEach(function(id){var el=document.getElementById(id);if(!el)return;var cur=el.value;el.innerHTML=mo;if(cur)el.value=cur;});}
 function renderMemberGrid(){document.getElementById("member-grid").innerHTML=members.map(function(m,i){return"<div class='member-card'><div class='member-big-av' style='background:"+m.color+"'>"+m.name[0]+"</div><div style='flex:1'><div style='font-size:14px;font-weight:600'>"+m.name+"</div><div style='font-size:11px;color:var(--text-muted)'>"+(m.role||"")+"</div><div style='display:flex;gap:4px;margin-top:6px'><button class='sm-btn' onclick='openEditMember("+i+")'>✏️ 수정</button>"+(members.length>1?"<button class='sm-btn del' onclick='deleteMember("+i+")'>삭제</button>":"")+"</div></div></div>";}).join("")+"<div class='add-member-card' onclick='openAddMember()'><span style='font-size:20px'>+</span><span>팀원 추가</span></div>";}
 function openEditMember(i){editMemberIdx=i;var m=members[i];document.getElementById("member-modal-title").textContent="팀원 수정";document.getElementById("m-name").value=m.name;document.getElementById("m-role").value=m.role||"";renderColorPicker(m.color);document.getElementById("member-overlay").classList.add("open");}
