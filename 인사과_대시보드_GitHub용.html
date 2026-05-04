@@ -482,6 +482,8 @@ function renderDaily(){
   var fm=document.getElementById("filter-member").value;
   var fs=document.getElementById("filter-status").value;
   var rows=data.daily.filter(function(x){return(!fm||x.member===fm)&&(!fs||x.status===fs);});
+  // 시작일 기준 오름차순 정렬
+  rows.sort(function(a,b){var da=a.start||a.created||'';var db=b.start||b.created||'';return da<db?-1:da>db?1:0;});
   var tbody=document.getElementById("daily-tbody");
   if(!rows.length){tbody.innerHTML="<tr><td colspan='8' class='empty'>업무가 없습니다</td></tr>";return;}
   tbody.innerHTML="";
