@@ -532,6 +532,12 @@ function renderWeekly(){
     return{id:t.id,content:"["+proj.name+"] "+t.content,member:t.member,start:t.start,end:t.end,status:t.status,note:t.note||"",feedback:""};
   });
   var rows=dailyRows.concat(taskRows);
+  // 시작일 기준 오름차순 정렬
+  rows.sort(function(a,b){
+    var da=a.start||a.created||'';
+    var db=b.start||b.created||'';
+    return da<db?-1:da>db?1:0;
+  });
   var byMember={};
   rows.forEach(function(x){if(!byMember[x.member])byMember[x.member]=[];byMember[x.member].push(x);});
   var tbody=document.getElementById("weekly-tbody");
