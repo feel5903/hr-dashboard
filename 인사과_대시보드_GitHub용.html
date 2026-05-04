@@ -898,7 +898,7 @@ function buildWeekSection(wk, title){
   var html="<div class='rs-section'>";
   html+="<div class='rs-title'>"+title+" ("+range.mon+" ~ "+range.sun+")</div>";
 
-  html+="<table class='rs-table'><colgroup><col style='width:60px'><col><col style='width:70px'><col style='width:70px'><col style='width:55px'><col style='width:130px'><col style='width:130px'></colgroup><thead><tr><th>담당자</th><th>업무내용</th><th>시작일</th><th>마감일</th><th>상태</th><th>비고</th><th>피드백</th></tr></thead><tbody>";
+  html+="<table class='rs-table'><thead><tr><th>담당자</th><th>업무내용</th><th>시작일</th><th>마감일</th><th>상태</th><th>비고</th><th>피드백</th></tr></thead><tbody>";
   if(!allRows.length){
     html+="<tr><td colspan='7' style='text-align:center;color:#888;padding:8px'>업무 없음</td></tr>";
   } else {
@@ -949,7 +949,7 @@ function printReport(){
   win.document.write(".rs-table td{padding:5px 8px;border:1px solid #ddd;vertical-align:top;word-break:break-word}");
   win.document.write(".rs-table tr:nth-child(even) td{background:#FAFBFC}");
   win.document.write(".rs-memo{background:#F9F9F9;border:1px solid #ddd;border-radius:4px;padding:8px 12px;font-size:12px;white-space:pre-wrap;min-height:40px;color:#374151}");
-  win.document.write("@media print{button{display:none!important}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}");
+  win.document.write("@media print{body{padding:10px 20px}button{display:none!important}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}");
   win.document.write("</style></head><body>");
 
   // 헤더
