@@ -937,7 +937,8 @@ function printReport(){
 
   var win=window.open("","_blank");
   win.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>인사과 주간업무 회의록</title><style>");
-  win.document.write("body{font-family:'Noto Sans KR',sans-serif;font-size:13px;color:#1F2937;margin:0;padding:20px 30px}");
+  win.document.write("@page{size:A4 landscape;margin:10mm 8mm}");
+  win.document.write("body{font-family:'Noto Sans KR',sans-serif;font-size:12px;color:#1F2937;margin:0;padding:15px 20px}");
   win.document.write(".report-header{text-align:center;border-bottom:2px solid #44546E;padding-bottom:12px;margin-bottom:20px}");
   win.document.write(".report-header h1{font-size:18px;font-weight:700;color:#44546E;margin:0 0 8px}");
   win.document.write(".report-meta{display:flex;justify-content:center;gap:30px;font-size:12px;color:#6B7280}");
