@@ -946,7 +946,8 @@ function printReport(){
   win.document.write(".rs-sub{font-size:12px;font-weight:700;color:#44546E;margin:10px 0 4px;border-left:3px solid #A5D861;padding-left:8px}");
   win.document.write(".rs-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px}");
   win.document.write(".rs-table th{background:#E8ECF0;padding:6px 8px;text-align:left;border:1px solid #ddd;font-weight:600;color:#44546E}");
-  win.document.write(".rs-table td{padding:5px 8px;border:1px solid #ddd;vertical-align:top;word-break:break-word}");
+  win.document.write(".rs-table td{padding:5px 8px;border:1px solid #ddd;vertical-align:top;white-space:nowrap}");
+  win.document.write(".rs-table td:nth-child(2),.rs-table td:nth-child(6),.rs-table td:nth-child(7){white-space:normal;word-break:break-word}");
   win.document.write(".rs-table tr:nth-child(even) td{background:#FAFBFC}");
   win.document.write(".rs-memo{background:#F9F9F9;border:1px solid #ddd;border-radius:4px;padding:8px 12px;font-size:12px;white-space:pre-wrap;min-height:40px;color:#374151}");
   win.document.write("@media print{body{padding:10px 20px}button{display:none!important}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}");
