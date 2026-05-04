@@ -885,24 +885,32 @@ function buildWeekSection(wk, title){
     return{content:"["+proj.name+"] "+t.content,member:t.member,start:t.start,end:t.end,status:t.status,note:t.note||"",feedback:""};
   });
   var allRows=rows.concat(taskRows);
+  // 시작일 기준 정렬
+  allRows.sort(function(a,b){var da=a.start||a.created||"";var db=b.start||b.created||"";return da<db?-1:da>db?1:0;});
+  // 담당자별 그룹화
+  var memberOrder=["김재용","배지은","공지현","최필상"];
+  var byMember={};
+  allRows.forEach(function(x){if(!byMember[x.member])byMember[x.member]=[];byMember[x.member].push(x);});
+  var sortedKeys=memberOrder.filter(function(m){return byMember[m];}).concat(Object.keys(byMember).filter(function(m){return memberOrder.indexOf(m)<0&&byMember[m];}));
   var leaves=data.leave.filter(function(x){return getWeekKey(x.date)===wk;});
   var memo=localStorage.getItem("memo_"+wk)||"";
 
   var html="<div class='rs-section'>";
   html+="<div class='rs-title'>"+title+" ("+range.mon+" ~ "+range.sun+")</div>";
 
-  // 업무 테이블
   html+="<table class='rs-table'><thead><tr><th>담당자</th><th>업무내용</th><th>시작일</th><th>마감일</th><th>상태</th><th>비고</th><th>피드백</th></tr></thead><tbody>";
   if(!allRows.length){
     html+="<tr><td colspan='7' style='text-align:center;color:#888;padding:8px'>업무 없음</td></tr>";
   } else {
-    allRows.forEach(function(x){
-      html+="<tr><td>"+x.member+"</td><td>"+x.content+"</td><td>"+(x.start||"")+"</td><td>"+(x.end||"")+"</td><td>"+x.status+"</td><td>"+(x.note||"")+"</td><td>"+(x.feedback||"")+"</td></tr>";
+    sortedKeys.forEach(function(mn){
+      html+="<tr><td colspan='7' style='background:#E8ECF0;font-size:11px;font-weight:700;color:#44546E;padding:4px 8px'>"+mn+"</td></tr>";
+      byMember[mn].forEach(function(x){
+        html+="<tr><td>"+x.member+"</td><td>"+x.content+"</td><td>"+(x.start||"")+"</td><td>"+(x.end||"")+"</td><td>"+x.status+"</td><td>"+(x.note||"")+"</td><td>"+(x.feedback||"")+"</td></tr>";
+      });
     });
   }
   html+="</tbody></table>";
 
-  // 휴가
   html+="<div class='rs-sub'>휴가 현황</div>";
   if(!leaves.length){
     html+="<p style='color:#888;font-size:12px;margin:4px 0'>휴가 없음</p>";
@@ -912,7 +920,6 @@ function buildWeekSection(wk, title){
     html+="</ul>";
   }
 
-  // 회의메모
   html+="<div class='rs-sub'>회의 메모</div>";
   html+="<div class='rs-memo'>"+(memo||"(없음)")+"</div>";
   html+="</div>";
