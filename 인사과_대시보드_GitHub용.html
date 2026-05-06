@@ -162,7 +162,7 @@ tbody tr:hover{background:#FAFBFC}
   <div class="nav-item" onclick="switchNav('weekly',this)"><span class="nav-icon">📊</span>주간 보고</div>
   <div class="nav-item" onclick="switchNav('project',this)"><span class="nav-icon">🗂️</span>프로젝트<span class="nav-badge" id="badge-project" style="display:none">0</span></div>
   <div class="nav-item" onclick="switchNav('recruit',this)"><span class="nav-icon">👥</span>채용현황<span class="nav-badge" id="badge-recruit" style="display:none">0</span></div>
-  <div class="nav-item" onclick="switchNav('calendar',this)"><span class="nav-icon">📅</span>캘린더</div>
+
   <div class="nav-divider"></div>
   <div class="nav-item" onclick="switchNav('duties',this)"><span class="nav-icon">📋</span>업무분장</div>
   <div class="nav-item" onclick="switchNav('dormitory',this)"><span class="nav-icon">🏠</span>기숙사 현황</div>
@@ -197,6 +197,7 @@ tbody tr:hover{background:#FAFBFC}
       <div class="card-head"><span class="card-title">주간 업무 보고</span>
         <div class="card-actions"><select id="week-select" onchange="renderWeekly()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"></select>
           <select id="filter-weekly-member" onchange="renderWeekly()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 담당자</option></select>
+          <select id="filter-weekly-status" onchange="renderWeekly()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 상태</option><option>진행</option><option>완료</option><option>대기</option><option>피드백</option><option>보류</option></select>
           <button class="btn primary" onclick="printReport()" style="font-size:12px;padding:5px 14px">📄 회의록 PDF</button>
         </div>
       </div>
@@ -210,7 +211,7 @@ tbody tr:hover{background:#FAFBFC}
       </div>
     </div>
     <div class="card">
-      <div class="card-head"><span class="card-title">업무 상세</span><button class="btn lime" onclick="openForm('daily')">+ 업무 추가</button></div>
+      <div class="card-head"><span class="card-title">업무 상세</span></div>
       <table><thead><tr><th>담당자</th><th>업무 내용</th><th>시작일</th><th>마감일</th><th>상태</th><th>비고</th><th>피드백</th></tr></thead>
       <tbody id="weekly-tbody"></tbody></table>
     </div>
@@ -254,7 +255,7 @@ tbody tr:hover{background:#FAFBFC}
     </div>
   </div>
 
-  <div id="pane-calendar" class="pane">
+  <div id="pane-calendar" class="pane" style="display:none !important">
     <div class="card">
       <div class="card-head"><span class="card-title" id="cal-month-label"></span>
         <div class="card-actions"><button class="btn" onclick="changeMonth(-1)">◀ 이전</button><button class="btn" onclick="changeMonth(1)">다음 ▶</button></div>
@@ -530,8 +531,25 @@ function renderWeeklySelect(){var weeks={};data.daily.forEach(function(x){var d=
 function renderWeekly(){
   var wk=document.getElementById("week-select").value;
   var fm=document.getElementById("filter-weekly-member")?document.getElementById("filter-weekly-member").value:"";
-  var dailyRows=data.daily.filter(function(x){var d=x.start||x.created;return d&&getWeekKey(d)===wk&&(!fm||x.member===fm);});
-  var taskRows=data.task.filter(function(x){return x.start&&getWeekKey(x.start)===wk&&(!fm||x.member===fm);}).map(function(t){
+  var fs2=document.getElementById("filter-weekly-status")?document.getElementById("filter-weekly-status").value:"";
+  var dailyRows=data.daily.filter(function(x){
+    if(fm&&x.member!==fm) return false;
+    if(fs2&&x.status!==fs2) return false;
+    var start=x.start||x.created||'';
+    var end=x.end||start;
+    if(!start) return false;
+    // 시작일~마감일 사이의 주차에 모두 표시
+    var startWk=getWeekKey(start);
+    var endWk=getWeekKey(end);
+    return wk>=startWk && wk<=endWk;
+  });
+  var taskRows=data.task.filter(function(x){
+    if(!x.start) return false;
+    if(fm&&x.member!==fm) return false;
+    if(fs2&&x.status!==fs2) return false;
+    var endWk=getWeekKey(x.end||x.start);
+    return wk>=getWeekKey(x.start) && wk<=endWk;
+  }).map(function(t){
     var proj=(data.project||[]).find(function(p){return p.id===t.projectId;})||{name:"프로젝트"};
     return{id:t.id,content:"["+proj.name+"] "+t.content,member:t.member,start:t.start,end:t.end,status:t.status,note:t.note||"",feedback:""};
   });
