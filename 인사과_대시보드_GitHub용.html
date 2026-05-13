@@ -630,12 +630,13 @@ function renderWeeklyRecruit(){
   if(!hiring.length){
     html2+='<div style="padding:.25rem 1.25rem .75rem;font-size:13px;color:var(--text-muted)">진행 중인 채용 없음</div>';
   } else {
-    html2+='<table><thead><tr><th>담당자</th><th>팀</th><th>대체자</th><th>사유</th><th>상태</th><th>비고</th></tr></thead><tbody>';
+    html2+='<table><thead><tr><th>담당자</th><th>팀</th><th>대체자</th><th>사유</th><th>상태</th><th>일정</th><th>비고</th></tr></thead><tbody>';
     hiring.forEach(function(x){
       var bg=statusColors[x.status]||'#F3F4F6';
       html2+='<tr><td style="font-size:12px">'+(x.manager||'')+'</td><td style="font-weight:500">'+(x.team||'')+'</td><td>'+(x.replaceName||'')+'</td>'+
         '<td style="font-size:12px;color:var(--text-muted)">'+(x.reason||'')+'</td>'+
         '<td><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:'+bg+'">'+(x.status||'')+'</span></td>'+
+        '<td style="font-size:12px;color:var(--navy)">'+(x.schedule||'')+'</td>'+
         '<td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td></tr>';
     });
     html2+='</tbody></table>';
