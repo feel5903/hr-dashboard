@@ -420,7 +420,7 @@ tbody tr:hover{background:#FAFBFC}
 </div>
 <script>
 var SHEET_URL="https://script.google.com/macros/s/AKfycbyVVsu9GpiBGMdjb5uU1NYNg0kMjNrDZ7yuyPSrFI2LOOZ0iC8La-71i8U8MjVykMo6/exec";
-var TODAY=new Date(),todayStr=TODAY.toISOString().slice(0,10);
+var TODAY=new Date(),todayStr=(function(){var d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10);})();
 document.getElementById("today-label").textContent=TODAY.toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"short"});
 var PALETTE=["#44546E","#2563EB","#5C8A1E","#7C3AED","#D97706","#DC2626","#0891B2","#DB2777","#059669","#9333EA"];
 var members=JSON.parse(localStorage.getItem("hr_members")||"null")||[{name:"김재용",role:"인사과장",color:"#44546E"},{name:"배지은",role:"인사담당",color:"#2563EB"},{name:"공지현",role:"인사담당",color:"#5C8A1E"},{name:"최필상",role:"인사담당",color:"#7C3AED"}];
