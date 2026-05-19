@@ -230,6 +230,7 @@ tbody tr:hover{background:#FAFBFC}
     <div class="card">
       <div class="card-head"><span class="card-title">프로젝트 현황</span>
         <div class="card-actions">
+          <div style="position:relative;display:inline-flex;align-items:center"><span style="position:absolute;left:8px;font-size:13px">🔍</span><input type="text" id="search-project" oninput="renderProject()" placeholder="검색..." autocomplete="off" style="padding:4px 8px 4px 28px;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:12px;width:140px;font-family:inherit"></div>
           <select id="filter-proj-member" onchange="renderProject()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 담당자</option></select>
           <select id="filter-proj-status" onchange="renderProject()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 상태</option><option>진행</option><option>완료</option><option>대기</option></select>
           <button class="btn lime" onclick="openForm('project')">+ 프로젝트 추가</button>
@@ -562,6 +563,7 @@ function renderWeekly(){
     if(!x.start) return false;
     if(fm&&x.member!==fm) return false;
     if(fs2&&x.status!==fs2) return false;
+    if(sq2&&(x.content||"").toLowerCase().indexOf(sq2)<0&&(x.note||"").toLowerCase().indexOf(sq2)<0) return false;
     var endWk=getWeekKey(x.end||x.start);
     return wk>=getWeekKey(x.start) && wk<=endWk;
   }).map(function(t){
@@ -693,7 +695,7 @@ function saveFeedback(id,val){var item=data.daily.find(function(x){return x.id==
 function openLeaveForm(){document.getElementById("lv-member").innerHTML=members.map(function(m){return"<option>"+m.name+"</option>";}).join("");document.getElementById("lv-date").value=todayStr;document.getElementById("lv-note").value="";document.getElementById("leave-overlay").classList.add("open");}
 async function saveLeave(){var date=document.getElementById("lv-date").value;if(!date){alert("날짜를 선택해주세요");return;}var nr={id:genId("lv"),member:document.getElementById("lv-member").value,date:date,type:document.getElementById("lv-type").value,note:document.getElementById("lv-note").value};data.leave.push(nr);await saveRow("leave",Object.values(nr));document.getElementById("leave-overlay").classList.remove("open");renderWeeklySelect();renderWeekly();renderCalendar();}
 async function deleteLeave(id){if(!confirm("휴가를 삭제할까요?"))return;data.leave=data.leave.filter(function(x){return x.id!==id;});await overwriteTab("leave");renderWeekly();renderCalendar();}
-function renderProject(){var fm=document.getElementById("filter-proj-member")?document.getElementById("filter-proj-member").value:"";var fs=document.getElementById("filter-proj-status")?document.getElementById("filter-proj-status").value:"";var list=document.getElementById("project-list");var filtered=data.project.filter(function(x){return(!fm||x.member===fm)&&(!fs||x.status===fs);});if(!filtered.length){list.innerHTML="<div class='empty'>프로젝트가 없습니다</div>";return;}list.innerHTML="";
+function renderProject(){var fm=document.getElementById("filter-proj-member")?document.getElementById("filter-proj-member").value:"";var fs=document.getElementById("filter-proj-status")?document.getElementById("filter-proj-status").value:"";var sq=document.getElementById("search-project")?document.getElementById("search-project").value.toLowerCase():"";var list=document.getElementById("project-list");var filtered=data.project.filter(function(x){return(!fm||x.member===fm)&&(!fs||x.status===fs)&&(!sq||(x.name||"").toLowerCase().indexOf(sq)>=0||(x.note||"").toLowerCase().indexOf(sq)>=0);});if(!filtered.length){list.innerHTML="<div class='empty'>프로젝트가 없습니다</div>";return;}list.innerHTML="";
 filtered.forEach(function(proj){
 var pi=data.project.indexOf(proj);
 var tasks=data.task.filter(function(t){return t.projectId===proj.id;});
@@ -857,7 +859,7 @@ function renderProjectKeepOpen(pid){
       var cards=document.querySelectorAll(".proj-card");
       var fm=document.getElementById("filter-proj-member").value;
       var fs=document.getElementById("filter-proj-status").value;
-      var filtered=data.project.filter(function(x){return(!fm||x.member===fm)&&(!fs||x.status===fs);});
+      var filtered=data.project.filter(function(x){return(!fm||x.member===fm)&&(!fs||x.status===fs)&&(!sq||(x.name||"").toLowerCase().indexOf(sq)>=0||(x.note||"").toLowerCase().indexOf(sq)>=0);});
       filtered.forEach(function(pj,i){
         if(openIds[pj.id]&&cards[i]){
           var body=cards[i].querySelector(".proj-body");
