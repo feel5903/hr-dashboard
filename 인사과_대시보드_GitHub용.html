@@ -182,7 +182,16 @@ tbody tr:hover{background:#FAFBFC}
         <div class="card-actions">
           <div style="position:relative;display:inline-flex;align-items:center"><span style="position:absolute;left:8px;font-size:13px">🔍</span><input type="text" id="search-daily" oninput="renderDaily()" placeholder="검색..." autocomplete="off" style="padding:4px 8px 4px 28px;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:12px;width:140px;font-family:inherit"></div>
           <select id="filter-member" onchange="renderDaily()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 담당자</option></select>
-          <select id="filter-status" onchange="renderDaily()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 상태</option><option>진행</option><option>완료</option><option>대기</option><option>피드백</option><option>보류</option></select>
+          <div style="position:relative;display:inline-block">
+            <button id="daily-status-btn" onclick="toggleStatusDropdown('daily')" style="font-size:12px;padding:4px 10px;border:1px solid var(--gray-border);border-radius:var(--radius);background:var(--white);cursor:pointer;font-family:inherit">전체 상태 ▾</button>
+            <div id="daily-status-dropdown" style="display:none;position:absolute;right:0;top:110%;background:#fff;border:1px solid var(--gray-border);border-radius:var(--radius);padding:8px 12px;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,.1);min-width:110px">
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-bottom:4px"><input type="checkbox" value="진행" onchange="renderDaily();updateStatusBtn('daily')"> 진행</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-bottom:4px"><input type="checkbox" value="완료" onchange="renderDaily();updateStatusBtn('daily')"> 완료</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-bottom:4px"><input type="checkbox" value="대기" onchange="renderDaily();updateStatusBtn('daily')"> 대기</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-bottom:4px"><input type="checkbox" value="피드백" onchange="renderDaily();updateStatusBtn('daily')"> 피드백</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" value="보류" onchange="renderDaily();updateStatusBtn('daily')"> 보류</label>
+            </div>
+          </div>
           <button class="btn" onclick="deleteSelected()" style="color:#991B1B;border-color:#FECACA;background:#FEE2E2">🗑️ 선택 삭제</button>
           <button class="btn lime" onclick="openForm('daily')">+ 업무 추가</button>
         </div>
@@ -198,7 +207,16 @@ tbody tr:hover{background:#FAFBFC}
       <div class="card-head"><span class="card-title">주간 업무 보고</span>
         <div class="card-actions"><div style="position:relative;display:inline-flex;align-items:center"><span style="position:absolute;left:8px;font-size:13px">🔍</span><input type="text" id="search-weekly" oninput="renderWeekly()" placeholder="검색..." autocomplete="off" style="padding:4px 8px 4px 28px;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:12px;width:140px;font-family:inherit"></div><select id="week-select" onchange="renderWeekly()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"></select>
           <select id="filter-weekly-member" onchange="renderWeekly()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 담당자</option></select>
-          <select id="filter-weekly-status" onchange="renderWeekly()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)"><option value="">전체 상태</option><option>진행</option><option>완료</option><option>대기</option><option>피드백</option><option>보류</option></select>
+          <div style="position:relative;display:inline-block">
+            <button id="weekly-status-btn" onclick="toggleStatusDropdown('weekly')" style="font-size:12px;padding:4px 10px;border:1px solid var(--gray-border);border-radius:var(--radius);background:var(--white);cursor:pointer;font-family:inherit">전체 상태 ▾</button>
+            <div id="weekly-status-dropdown" style="display:none;position:absolute;right:0;top:110%;background:#fff;border:1px solid var(--gray-border);border-radius:var(--radius);padding:8px 12px;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,.1);min-width:110px">
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-bottom:4px"><input type="checkbox" value="진행" onchange="renderWeekly();updateStatusBtn('weekly')"> 진행</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-bottom:4px"><input type="checkbox" value="완료" onchange="renderWeekly();updateStatusBtn('weekly')"> 완료</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-bottom:4px"><input type="checkbox" value="대기" onchange="renderWeekly();updateStatusBtn('weekly')"> 대기</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-bottom:4px"><input type="checkbox" value="피드백" onchange="renderWeekly();updateStatusBtn('weekly')"> 피드백</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" value="보류" onchange="renderWeekly();updateStatusBtn('weekly')"> 보류</label>
+            </div>
+          </div>
           <button class="btn primary" onclick="printReport()" style="font-size:12px;padding:5px 14px">📄 회의록 PDF</button>
         </div>
       </div>
@@ -492,10 +510,10 @@ function saveHeadcount(){var v=document.getElementById("headcount-input").value;
 function loadHeadcount(){var v=localStorage.getItem("hr_headcount")||"266";document.getElementById("headcount-display").textContent=v;document.getElementById("headcount-input").value=v;}
 function renderDaily(){
   var fm=document.getElementById("filter-member").value;
-  var fs=document.getElementById("filter-status").value;
+  var checkedStatuses=getCheckedStatuses("daily");
   var sq=document.getElementById("search-daily")?document.getElementById("search-daily").value.toLowerCase():"";
   var rows=data.daily.filter(function(x){
-    return(!fm||x.member===fm)&&(!fs||x.status===fs)&&
+    return(!fm||x.member===fm)&&(!checkedStatuses.length||checkedStatuses.indexOf(x.status)>=0)&&
     (!sq||(x.content||"").toLowerCase().indexOf(sq)>=0||(x.note||"").toLowerCase().indexOf(sq)>=0);
   });
   // 시작일 기준 오름차순 정렬
@@ -545,11 +563,11 @@ function renderWeeklySelect(){var weeks={};data.daily.forEach(function(x){var d=
 function renderWeekly(){
   var wk=document.getElementById("week-select").value;
   var fm=document.getElementById("filter-weekly-member")?document.getElementById("filter-weekly-member").value:"";
-  var fs2=document.getElementById("filter-weekly-status")?document.getElementById("filter-weekly-status").value:"";
+  var checkedWeeklyStatuses=getCheckedStatuses("weekly");
   var sq2=document.getElementById("search-weekly")?document.getElementById("search-weekly").value.toLowerCase():"";
   var dailyRows=data.daily.filter(function(x){
     if(fm&&x.member!==fm) return false;
-    if(fs2&&x.status!==fs2) return false;
+    if(checkedWeeklyStatuses.length&&checkedWeeklyStatuses.indexOf(x.status)<0) return false;
     if(sq2&&(x.content||"").toLowerCase().indexOf(sq2)<0&&(x.note||"").toLowerCase().indexOf(sq2)<0) return false;
     var start=x.start||x.created||'';
     var end=x.end||start;
@@ -562,7 +580,7 @@ function renderWeekly(){
   var taskRows=data.task.filter(function(x){
     if(!x.start) return false;
     if(fm&&x.member!==fm) return false;
-    if(fs2&&x.status!==fs2) return false;
+    if(checkedWeeklyStatuses.length&&checkedWeeklyStatuses.indexOf(x.status)<0) return false;
     if(sq2&&(x.content||"").toLowerCase().indexOf(sq2)<0&&(x.note||"").toLowerCase().indexOf(sq2)<0) return false;
     var endWk=getWeekKey(x.end||x.start);
     return wk>=getWeekKey(x.start) && wk<=endWk;
@@ -695,7 +713,7 @@ function saveFeedback(id,val){var item=data.daily.find(function(x){return x.id==
 function openLeaveForm(){document.getElementById("lv-member").innerHTML=members.map(function(m){return"<option>"+m.name+"</option>";}).join("");document.getElementById("lv-date").value=todayStr;document.getElementById("lv-note").value="";document.getElementById("leave-overlay").classList.add("open");}
 async function saveLeave(){var date=document.getElementById("lv-date").value;if(!date){alert("날짜를 선택해주세요");return;}var nr={id:genId("lv"),member:document.getElementById("lv-member").value,date:date,type:document.getElementById("lv-type").value,note:document.getElementById("lv-note").value};data.leave.push(nr);await saveRow("leave",Object.values(nr));document.getElementById("leave-overlay").classList.remove("open");renderWeeklySelect();renderWeekly();renderCalendar();}
 async function deleteLeave(id){if(!confirm("휴가를 삭제할까요?"))return;data.leave=data.leave.filter(function(x){return x.id!==id;});await overwriteTab("leave");renderWeekly();renderCalendar();}
-function renderProject(){var fm=document.getElementById("filter-proj-member")?document.getElementById("filter-proj-member").value:"";var fs=document.getElementById("filter-proj-status")?document.getElementById("filter-proj-status").value:"";var sq=document.getElementById("search-project")?document.getElementById("search-project").value.toLowerCase():"";var list=document.getElementById("project-list");var filtered=data.project.filter(function(x){return(!fm||x.member===fm)&&(!fs||x.status===fs)&&(!sq||(x.name||"").toLowerCase().indexOf(sq)>=0||(x.note||"").toLowerCase().indexOf(sq)>=0);});if(!filtered.length){list.innerHTML="<div class='empty'>프로젝트가 없습니다</div>";return;}list.innerHTML="";
+function renderProject(){var fm=document.getElementById("filter-proj-member")?document.getElementById("filter-proj-member").value:"";var fs=document.getElementById("filter-proj-status")?document.getElementById("filter-proj-status").value:"";var sq=document.getElementById("search-project")?document.getElementById("search-project").value.toLowerCase():"";var list=document.getElementById("project-list");var filtered=data.project.filter(function(x){return(!fm||x.member===fm)&&(!checkedStatuses.length||checkedStatuses.indexOf(x.status)>=0)&&(!sq||(x.name||"").toLowerCase().indexOf(sq)>=0||(x.note||"").toLowerCase().indexOf(sq)>=0);});if(!filtered.length){list.innerHTML="<div class='empty'>프로젝트가 없습니다</div>";return;}list.innerHTML="";
 filtered.forEach(function(proj){
 var pi=data.project.indexOf(proj);
 var tasks=data.task.filter(function(t){return t.projectId===proj.id;});
@@ -859,7 +877,7 @@ function renderProjectKeepOpen(pid){
       var cards=document.querySelectorAll(".proj-card");
       var fm=document.getElementById("filter-proj-member").value;
       var fs=document.getElementById("filter-proj-status").value;
-      var filtered=data.project.filter(function(x){return(!fm||x.member===fm)&&(!fs||x.status===fs)&&(!sq||(x.name||"").toLowerCase().indexOf(sq)>=0||(x.note||"").toLowerCase().indexOf(sq)>=0);});
+      var filtered=data.project.filter(function(x){return(!fm||x.member===fm)&&(!checkedStatuses.length||checkedStatuses.indexOf(x.status)>=0)&&(!sq||(x.name||"").toLowerCase().indexOf(sq)>=0||(x.note||"").toLowerCase().indexOf(sq)>=0);});
       filtered.forEach(function(pj,i){
         if(openIds[pj.id]&&cards[i]){
           var body=cards[i].querySelector(".proj-body");
@@ -1633,6 +1651,45 @@ function setLinkValues(linkStr){
     inputs[inputs.length-1].value=links[i];
   }
 }
+
+function toggleStatusDropdown(type){
+  var dd=document.getElementById(type+'-status-dropdown');
+  if(!dd) return;
+  var isOpen=dd.style.display!=='none';
+  // 모든 드롭다운 닫기
+  ['daily','weekly'].forEach(function(t){
+    var d=document.getElementById(t+'-status-dropdown');
+    if(d) d.style.display='none';
+  });
+  if(!isOpen) dd.style.display='block';
+}
+
+function getCheckedStatuses(type){
+  var dd=document.getElementById(type+'-status-dropdown');
+  if(!dd) return [];
+  var checked=[];
+  dd.querySelectorAll('input[type=checkbox]:checked').forEach(function(cb){checked.push(cb.value);});
+  return checked;
+}
+
+function updateStatusBtn(type){
+  var checked=getCheckedStatuses(type);
+  var btn=document.getElementById(type+'-status-btn');
+  if(!btn) return;
+  if(!checked.length) btn.textContent='전체 상태 ▾';
+  else if(checked.length===1) btn.textContent=checked[0]+' ▾';
+  else btn.textContent=checked.length+'개 선택 ▾';
+}
+
+// 드롭다운 외부 클릭 시 닫기
+document.addEventListener('click', function(e){
+  if(!e.target.closest('[id$="-status-dropdown"]')&&!e.target.closest('[id$="-status-btn"]')){
+    ['daily','weekly'].forEach(function(t){
+      var d=document.getElementById(t+'-status-dropdown');
+      if(d) d.style.display='none';
+    });
+  }
+});
 
 function renderAll(){updateStats();renderMemberUI();renderDaily();renderWeeklySelect();renderWeekly();renderProject();renderCalendar();renderRecruit();}
 loadHeadcount();renderAll();syncAll();setInterval(syncAll,60000);
