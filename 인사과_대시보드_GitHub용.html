@@ -512,6 +512,11 @@ function renderDaily(){
   var fm=document.getElementById("filter-member").value;
   var checkedStatuses=getCheckedStatuses("daily");
   var sq=document.getElementById("search-daily")?document.getElementById("search-daily").value.toLowerCase():"";
+  // 오늘마감 카드 클릭 시 플래그 체크
+  if(window._filterDueToday){
+    // 필터나 검색 건드리면 플래그 해제
+    if(fm||checkedStatuses.length||sq) window._filterDueToday=false;
+  }
   var rows=data.daily.filter(function(x){
     if(window._filterDueToday) return isToday(x.end)&&x.status!=="완료";
     return(!fm||x.member===fm)&&(!checkedStatuses.length||checkedStatuses.indexOf(x.status)>=0)&&
@@ -1700,29 +1705,24 @@ document.addEventListener('click', function(e){
 });
 
 function goToDueToday(){
-  // 일일업무 탭으로 이동
   document.querySelectorAll('.nav-item').forEach(function(el){
     if(el.textContent.indexOf('일일 업무')>=0){
       switchNav('daily',el);
     }
   });
   setTimeout(function(){
-    // 담당자/검색 초기화
     var fm=document.getElementById('filter-member');
     if(fm) fm.value='';
     var sq=document.getElementById('search-daily');
     if(sq) sq.value='';
-    // 상태 체크박스 전체 해제
     var dd=document.getElementById('daily-status-dropdown');
     if(dd){
       dd.querySelectorAll('input[type=checkbox]').forEach(function(cb){cb.checked=false;});
       updateStatusBtn('daily');
     }
-    // 오늘 마감 필터 플래그 설정 후 렌더
     window._filterDueToday=true;
     renderDaily();
-    window._filterDueToday=false;
-  },100);
+  },150);
 }
 
 function renderAll(){updateStats();renderMemberUI();renderDaily();renderWeeklySelect();renderWeekly();renderProject();renderCalendar();renderRecruit();}
