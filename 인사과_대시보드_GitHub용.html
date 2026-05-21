@@ -173,7 +173,7 @@ tbody tr:hover{background:#FAFBFC}
   <div class="stats-row">
     <div class="stat-card"><div class="stat-icon blue">📋</div><div><div class="stat-label">전체 업무</div><div class="stat-val blue" id="s-total">0</div></div></div>
     <div class="stat-card"><div class="stat-icon amber">⏳</div><div><div class="stat-label">진행 중</div><div class="stat-val amber" id="s-prog">0</div></div></div>
-    <div class="stat-card"><div class="stat-icon coral">🔔</div><div><div class="stat-label">오늘 마감</div><div class="stat-val coral" id="s-due">0</div></div></div>
+    <div class="stat-card" onclick="goToDueToday()" style="cursor:pointer" title="클릭하면 오늘 마감 업무 보기"><div class="stat-icon coral">🔔</div><div><div class="stat-label">오늘 마감</div><div class="stat-val coral" id="s-due">0</div></div></div>
     <div class="stat-card"><div class="stat-icon green">✅</div><div><div class="stat-label">완료</div><div class="stat-val green" id="s-done">0</div></div></div>
   </div>
   <div id="pane-daily" class="pane active">
@@ -443,7 +443,7 @@ var SHEET_URL="https://script.google.com/macros/s/AKfycbyVVsu9GpiBGMdjb5uU1NYNg0
 var TODAY=new Date(),todayStr=(function(){var d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10);})();
 document.getElementById("today-label").textContent=TODAY.toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"short"});
 var PALETTE=["#44546E","#2563EB","#5C8A1E","#7C3AED","#D97706","#DC2626","#0891B2","#DB2777","#059669","#9333EA"];
-var members=JSON.parse(localStorage.getItem("hr_members")||"null")||[{name:"김재용",role:"인사과장",color:"#44546E"},{name:"배지은",role:"인사담당",color:"#2563EB"},{name:"공지현",role:"인사담당",color:"#5C8A1E"},{name:"최필상",role:"인사담당",color:"#7C3AED"}];
+var members=JSON.parse(localStorage.getItem("hr_members")||"null")||[{name:"김재용",role:"인사과장",color:"#44546E"},{name:"배지은",role:"주임",color:"#2563EB"},{name:"공지현",role:"주임",color:"#5C8A1E"},{name:"최필상",role:"사원",color:"#7C3AED"}];
 var curMonth={y:TODAY.getFullYear(),m:TODAY.getMonth()};
 var curForm="daily",editMemberIdx=null,editIdx=null;
 var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[]};
@@ -687,7 +687,7 @@ function renderWeeklyRecruit(){
         '<td style="font-weight:500">'+(x.name||'')+'</td>'+
         '<td style="font-size:12px">'+(x.job||'')+'</td>'+
         '<td>'+(x.replaceName||'')+'</td>'+
-        '<td style="font-size:12px;color:var(--text-muted)">'+(x.reason||'')+'</td>'+
+        '<td style="font-size:13px">'+(x.reason||'')+'</td>'+
         
         '<td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td></tr>';
     });
@@ -1697,6 +1697,35 @@ document.addEventListener('click', function(e){
     });
   }
 });
+
+function goToDueToday(){
+  // 일일업무 탭으로 이동
+  var navItem=document.querySelector('.nav-item');
+  document.querySelectorAll('.nav-item').forEach(function(el){
+    if(el.textContent.indexOf('일일 업무')>=0){
+      switchNav('daily',el);
+    }
+  });
+  // 오늘 마감 상태 필터 - 완료 제외하고 오늘 마감인 것만
+  // 검색창에 오늘 날짜 입력
+  setTimeout(function(){
+    // 담당자 전체로 초기화
+    var fm=document.getElementById('filter-member');
+    if(fm) fm.value='';
+    // 검색창에 오늘 날짜 입력
+    var sq=document.getElementById('search-daily');
+    if(sq){sq.value=todayStr;renderDaily();}
+    // 상태 체크박스 - 완료 제외 모두 체크
+    var dd=document.getElementById('daily-status-dropdown');
+    if(dd){
+      dd.querySelectorAll('input[type=checkbox]').forEach(function(cb){
+        cb.checked = cb.value!=='완료';
+      });
+      updateStatusBtn('daily');
+      renderDaily();
+    }
+  },100);
+}
 
 function renderAll(){updateStats();renderMemberUI();renderDaily();renderWeeklySelect();renderWeekly();renderProject();renderCalendar();renderRecruit();}
 loadHeadcount();renderAll();syncAll();setInterval(syncAll,60000);
