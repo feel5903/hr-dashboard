@@ -621,7 +621,7 @@ function renderWeekly(){
         if(x.link){x.link.split('||').forEach(function(lnkUrl2,li2){if(!lnkUrl2.trim())return;var wlnk=document.createElement('a');wlnk.href=lnkUrl2.trim();wlnk.target='_blank';wlnk.textContent='📎';wlnk.style.cssText='margin-right:2px;text-decoration:none;font-size:13px';t2.appendChild(wlnk);});}
         var wt=document.createTextNode(x.content);t2.appendChild(wt);
         var t3=document.createElement("td");t3.style.fontSize="12px";t3.textContent=x.start||"";
-        var t4=document.createElement("td");t4.style.fontSize="12px";t4.textContent=x.end||"";
+        var t4=document.createElement("td");t4.style.fontSize="12px";if(wOver){t4.style.color="#DC2626";t4.style.fontWeight="600";t4.textContent=(x.end||"")+" ⚠️";}else if(wDue){t4.style.color="#D97706";t4.style.fontWeight="600";t4.textContent=(x.end||"")+" 🔔";}else{t4.textContent=x.end||"";}
         var t5=document.createElement("td");t5.innerHTML=badge(x.status);
         var t6=document.createElement("td");t6.style.cssText="font-size:12px;color:var(--text-muted);white-space:pre-wrap";t6.textContent=x.note||"";
         var t7=document.createElement("td");
