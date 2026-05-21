@@ -615,7 +615,11 @@ function renderWeekly(){
       htd.style.cssText="background:var(--navy-light);font-size:11px;font-weight:700;color:var(--navy);padding:.4rem 1rem";
       htd.textContent=mn;htr.appendChild(htd);tbody.appendChild(htr);
       byMember[mn].forEach(function(x){
+        var wOver=isOverdue(x.end,x.status);
+        var wDue=isToday(x.end)&&x.status!=="완료";
         var tr=document.createElement("tr");
+        if(wOver) tr.style.background='#FFF5F5';
+        else if(wDue) tr.style.background='#FFFBEB';
         var t1=document.createElement("td");t1.innerHTML=mdot(x.member);
         var t2=document.createElement("td");t2.style.cssText="font-weight:500;white-space:pre-wrap";
         if(x.link){x.link.split('||').forEach(function(lnkUrl2,li2){if(!lnkUrl2.trim())return;var wlnk=document.createElement('a');wlnk.href=lnkUrl2.trim();wlnk.target='_blank';wlnk.textContent='📎';wlnk.style.cssText='margin-right:2px;text-decoration:none;font-size:13px';t2.appendChild(wlnk);});}
