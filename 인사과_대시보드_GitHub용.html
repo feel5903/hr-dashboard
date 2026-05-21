@@ -514,8 +514,11 @@ function renderDaily(){
   var sq=document.getElementById("search-daily")?document.getElementById("search-daily").value.toLowerCase():"";
   // 오늘마감 카드 클릭 시 플래그 체크
   if(window._filterDueToday){
-    // 필터나 검색 건드리면 플래그 해제
-    if(fm||checkedStatuses.length||sq) window._filterDueToday=false;
+    if(fm||checkedStatuses.length||sq){
+      window._filterDueToday=false;
+      var dc=document.getElementById('s-due');
+      if(dc) dc.parentElement.parentElement.style.outline='';
+    }
   }
   var rows=data.daily.filter(function(x){
     if(window._filterDueToday) return isToday(x.end)&&x.status!=="완료";
@@ -1705,6 +1708,16 @@ document.addEventListener('click', function(e){
 });
 
 function goToDueToday(){
+  // 토글 방식
+  if(window._filterDueToday){
+    // 이미 오늘마감 필터 중 → 전체로 복귀
+    window._filterDueToday=false;
+    document.getElementById('s-due').parentElement.parentElement.style.boxShadow='';
+    document.getElementById('s-due').parentElement.parentElement.style.outline='';
+    renderDaily();
+    return;
+  }
+  // 일일업무 탭으로 이동
   document.querySelectorAll('.nav-item').forEach(function(el){
     if(el.textContent.indexOf('일일 업무')>=0){
       switchNav('daily',el);
@@ -1721,6 +1734,9 @@ function goToDueToday(){
       updateStatusBtn('daily');
     }
     window._filterDueToday=true;
+    // 카드에 활성화 표시
+    var card=document.getElementById('s-due').parentElement.parentElement;
+    card.style.outline='2px solid #D97706';
     renderDaily();
   },150);
 }
