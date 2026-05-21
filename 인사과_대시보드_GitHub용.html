@@ -525,7 +525,10 @@ function renderDaily(){
     var di=data.daily.indexOf(x);
     var due=isToday(x.end)&&x.status!=="완료";
     var over=isOverdue(x.end,x.status);
+    var due=isToday(x.end)&&x.status!=="완료";
     var tr=document.createElement("tr");
+    if(over) tr.style.background='#FFF5F5';
+    else if(due) tr.style.background='#FFFBEB';
     // 체크박스
     var td0=document.createElement("td");
     var cb=document.createElement("input");cb.type="checkbox";cb.className="row-check";cb.setAttribute("data-id",x.id);cb.style.cursor="pointer";
@@ -539,7 +542,7 @@ function renderDaily(){
     // 시작일
     var td3=document.createElement("td");td3.style.cssText="font-size:12px;color:var(--text-muted)";td3.textContent=x.start||x.created||"";tr.appendChild(td3);
     // 마감일
-    var td4=document.createElement("td");td4.style.cssText="font-size:12px;color:"+(over?"#DC2626":due?"#D97706":x.status==="완료"?"var(--text-muted)":"inherit");td4.textContent=x.end||"";tr.appendChild(td4);
+    var td4=document.createElement("td");td4.style.cssText="font-size:12px";if(over){td4.style.color="#DC2626";td4.style.fontWeight="600";td4.textContent=(x.end||"")+" ⚠️";}else if(due){td4.style.color="#D97706";td4.style.fontWeight="600";td4.textContent=(x.end||"")+" 🔔";}else{td4.style.color=x.status==="완료"?"var(--text-muted)":"inherit";td4.textContent=x.end||"";}tr.appendChild(td4);
     // 상태
     var td5=document.createElement("td");td5.innerHTML=badge(x.status);tr.appendChild(td5);
     // 비고
