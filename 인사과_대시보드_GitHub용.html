@@ -658,8 +658,7 @@ function renderWeekly(){
 function renderWeeklyRecruit(){
   var recruits=data.recruit||[];
   var fm2=document.getElementById('filter-weekly-member')?document.getElementById('filter-weekly-member').value:'';
-  // 전체 담당자 선택 시 채용현황 숨김, 특정 담당자 선택 시만 표시
-  if(!fm2){var sec2=document.getElementById('weekly-recruit-section');if(sec2)sec2.style.display='none';return;}
+  var sec2=document.getElementById('weekly-recruit-section');if(sec2)sec2.style.display='';
   var hiring=recruits.filter(function(x){return x.type==='채용'&&(!fm2||x.manager===fm2);});
   var hires=recruits.filter(function(x){return x.type==='입사예정'&&(!fm2||x.manager===fm2);});
   hires.sort(function(a,b){return a.date>b.date?1:-1;});
