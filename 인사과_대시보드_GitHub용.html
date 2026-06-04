@@ -692,6 +692,7 @@ function renderWeeklyRecruit(){
     hires.forEach(function(x){
       var isNear=x.date&&x.date>=todayStr;
       html2+='<tr style="background:'+(isNear?'var(--lime-light)':'')+'">'+
+        '<td style="font-size:12px">'+(x.manager||'')+'</td>'+
         '<td style="font-weight:600;color:var(--navy)">'+(x.date||'')+'</td>'+
         '<td style="font-weight:500">'+(x.name||'')+'</td>'+
         '<td style="font-size:12px">'+(x.job||'')+'</td>'+
