@@ -220,7 +220,27 @@ tbody tr:hover{background:#FAFBFC}
           <button class="btn primary" onclick="printReport()" style="font-size:12px;padding:5px 14px">📄 회의록 PDF</button>
         </div>
       </div>
-      <div class="week-meta"><span>📌 재직인원: <strong id="headcount-display">266</strong>명</span><span>💡 일일업무+프로젝트단계 자동 집계</span></div>
+      <div class="week-meta">
+        <span>📌 재직인원: <strong id="headcount-display">266</strong>명 · <span id="headcount-date-display" style="color:var(--text-muted);font-size:12px"></span> 기준 <button onclick="openHeadcountEdit()" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 4px">✏️</button></span>
+        <span>💡 일일업무+프로젝트단계 자동 집계</span>
+      </div>
+      <!-- 재직인원 수정 팝업 -->
+      <div id="headcount-edit-popup" style="display:none;position:absolute;background:#fff;border:1px solid var(--gray-border);border-radius:var(--radius);padding:12px 16px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:100;margin-top:4px">
+        <div style="font-size:12px;font-weight:600;color:var(--navy);margin-bottom:8px">재직인원 수정</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <label style="font-size:12px">인원수</label>
+          <input type="number" id="headcount-popup-input" style="width:80px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:13px">
+          <label style="font-size:12px">명</label>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <label style="font-size:12px">기준일</label>
+          <input type="date" id="headcount-popup-date" style="padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:13px">
+        </div>
+        <div style="display:flex;gap:6px;justify-content:flex-end">
+          <button onclick="closeHeadcountEdit()" style="padding:4px 12px;border:1px solid var(--gray-border);border-radius:var(--radius);background:#fff;cursor:pointer;font-size:12px">취소</button>
+          <button onclick="saveHeadcountEdit()" style="padding:4px 12px;border:none;border-radius:var(--radius);background:var(--navy);color:#fff;cursor:pointer;font-size:12px">저장</button>
+        </div>
+      </div>
       <div style="padding:.75rem 1.25rem;border-top:1px solid var(--gray-border)">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
           <span style="font-size:12px;font-weight:700;color:var(--navy)">🏖️ 이번 주 휴가</span>
@@ -502,7 +522,42 @@ function getSelectedColor(){var el=document.querySelector(".color-dot.selected")
 function saveMember(){var name=document.getElementById("m-name").value.trim();var role=document.getElementById("m-role").value.trim();var color=getSelectedColor();if(!name){alert("이름을 입력해주세요");return;}if(editMemberIdx===null){members.push({name:name,role:role,color:color});}else{var old=members[editMemberIdx].name;members[editMemberIdx]={name:name,role:role,color:color};if(old!==name){["daily","project"].forEach(function(k){data[k].forEach(function(x){if(x.member===old)x.member=name;});});}}saveLocal();document.getElementById("member-overlay").classList.remove("open");renderAll();}
 function deleteMember(i){if(!confirm(members[i].name+" 팀원을 삭제할까요?"))return;members.splice(i,1);saveLocal();renderAll();}
 function saveHeadcount(){var v=document.getElementById("headcount-input").value;localStorage.setItem("hr_headcount",v);document.getElementById("headcount-display").textContent=v;alert("저장됐어요!");}
-function loadHeadcount(){var v=localStorage.getItem("hr_headcount")||"266";document.getElementById("headcount-display").textContent=v;document.getElementById("headcount-input").value=v;}
+function loadHeadcount(){
+  var v=localStorage.getItem("hr_headcount")||"266";
+  var savedDate=localStorage.getItem("hr_headcount_date")||todayStr;
+  headcount=parseInt(v)||266;
+  document.getElementById("headcount-display").textContent=v;
+  var inp=document.getElementById("headcount-input");if(inp)inp.value=v;
+  var dateEl=document.getElementById("headcount-date-display");
+  if(dateEl) dateEl.textContent=savedDate.replace(/-/g,'.').slice(2);
+}
+
+function openHeadcountEdit(){
+  var popup=document.getElementById("headcount-edit-popup");
+  if(!popup) return;
+  document.getElementById("headcount-popup-input").value=headcount||266;
+  var savedDate=localStorage.getItem("hr_headcount_date")||todayStr;
+  document.getElementById("headcount-popup-date").value=savedDate;
+  popup.style.display=popup.style.display==="none"?"block":"none";
+}
+
+function closeHeadcountEdit(){
+  var popup=document.getElementById("headcount-edit-popup");
+  if(popup) popup.style.display="none";
+}
+
+function saveHeadcountEdit(){
+  var val=parseInt(document.getElementById("headcount-popup-input").value)||266;
+  var dt=document.getElementById("headcount-popup-date").value||todayStr;
+  headcount=val;
+  localStorage.setItem("hr_headcount",val);
+  localStorage.setItem("hr_headcount_date",dt);
+  document.getElementById("headcount-display").textContent=val;
+  var inp=document.getElementById("headcount-input");if(inp)inp.value=val;
+  var dateEl=document.getElementById("headcount-date-display");
+  if(dateEl) dateEl.textContent=dt.replace(/-/g,'.').slice(2);
+  closeHeadcountEdit();
+}
 function renderDaily(){
   var fm=document.getElementById("filter-member").value;
   var checkedStatuses=getCheckedStatuses("daily");
@@ -1691,6 +1746,11 @@ function updateStatusBtn(type){
 
 // 드롭다운 외부 클릭 시 닫기
 document.addEventListener('click', function(e){
+  var popup=document.getElementById('headcount-edit-popup');
+  if(popup&&popup.style.display!=='none'&&!e.target.closest('#headcount-edit-popup')&&!e.target.closest('button[onclick="openHeadcountEdit()"]')){
+    popup.style.display='none';
+  }
+  
   if(!e.target.closest('[id$="-status-dropdown"]')&&!e.target.closest('[id$="-status-btn"]')){
     ['daily','weekly'].forEach(function(t){
       var d=document.getElementById(t+'-status-dropdown');
