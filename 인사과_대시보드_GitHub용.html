@@ -519,19 +519,19 @@ function deleteMember(i){if(!confirm(members[i].name+" 팀원을 삭제할까요
 function saveHeadcount(){var v=document.getElementById("headcount-input").value;localStorage.setItem("hr_headcount",v);document.getElementById("headcount-display").textContent=v;alert("저장됐어요!");}
 function loadHeadcount(){
   var v=localStorage.getItem("hr_headcount")||"266";
-  var savedDate=localStorage.getItem("hr_headcount_date")||todayStr;
+  var savedDate=localStorage.getItem("hr_headcount_date")||"";
   headcount=parseInt(v)||266;
   document.getElementById("headcount-display").textContent=v;
   var inp=document.getElementById("headcount-input");if(inp)inp.value=v;
   var dateEl=document.getElementById("headcount-date-display");
-  if(dateEl) dateEl.textContent=savedDate.replace(/-/g,'.').slice(2);
+  if(dateEl) dateEl.textContent=savedDate?savedDate.replace(/-/g,'.').slice(2):'';
 }
 
 function openHeadcountEdit(){
   var popup=document.getElementById("headcount-edit-popup");
   if(!popup) return;
   document.getElementById("headcount-popup-input").value=headcount||266;
-  var savedDate=localStorage.getItem("hr_headcount_date")||todayStr;
+  var savedDate=localStorage.getItem("hr_headcount_date")||"";
   document.getElementById("headcount-popup-date").value=savedDate;
   popup.style.display=popup.style.display==="none"?"block":"none";
 }
