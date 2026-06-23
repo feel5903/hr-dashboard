@@ -456,9 +456,9 @@ var PALETTE=["#44546E","#2563EB","#5C8A1E","#7C3AED","#D97706","#DC2626","#0891B
 var members=JSON.parse(localStorage.getItem("hr_members")||"null")||[{name:"김재용",role:"인사과장",color:"#44546E"},{name:"배지은",role:"주임",color:"#2563EB"},{name:"공지현",role:"주임",color:"#5C8A1E"},{name:"최필상",role:"사원",color:"#7C3AED"}];
 var curMonth={y:TODAY.getFullYear(),m:TODAY.getMonth()};
 var curForm="daily",editMemberIdx=null,editIdx=null;
-var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[]};
+var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[],duties:[]};
 var isEditing=false; // 입력 중 동기화 방지 플래그
-(function(){try{var b=localStorage.getItem("hr_data_backup");if(b){var p=JSON.parse(b);if(p.daily)data.daily=p.daily;if(p.project)data.project=p.project;if(p.task)data.task=p.task;if(p.leave)data.leave=p.leave;if(p.recruit)data.recruit=p.recruit;if(p.dormitory)data.dormitory=p.dormitory;}}catch(e){}})();
+(function(){try{var b=localStorage.getItem("hr_data_backup");if(b){var p=JSON.parse(b);if(p.daily)data.daily=p.daily;if(p.project)data.project=p.project;if(p.task)data.task=p.task;if(p.leave)data.leave=p.leave;if(p.recruit)data.recruit=p.recruit;if(p.dormitory)data.dormitory=p.dormitory;if(p.duties)data.duties=p.duties;}}catch(e){}})();
 function toggleSidebar(){
   var app=document.querySelector(".app");
   app.classList.toggle("sidebar-hidden");
@@ -487,11 +487,14 @@ async function overwriteTab(tab){var rows=data[tab]||[];var seen={};rows=rows.fi
 async function saveRow(tab,row){saveLocalBackup();try{await fetch(SHEET_URL,{method:"POST",mode:"cors",redirect:"follow",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"append",tab:tab,row:row})});}catch(e){try{await callScript({action:"append",tab:tab,row:row});}catch(e2){}}setSyncStatus("ok","● 저장됨");}
 async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동기화 대기)");return;}setSyncStatus("loading","⟳ 동기화 중...");try{var d=await callScript({tab:"daily"});var p=await callScript({tab:"project"});var lv=await callScript({tab:"leave"});var tk=await callScript({tab:"task"});
     var rc=await callScript({tab:"recruit"});
-    var dm=await callScript({tab:"dormitory"});var fd=filterRows(d).map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p).map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv).map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk).map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
+    var dm=await callScript({tab:"dormitory"});
+    var dt=await callScript({tab:"duties"});var fd=filterRows(d).map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p).map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv).map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk).map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
     var frc=filterRows(rc).map(function(r){return normalizeRow(r,"recruit");});
     data.recruit=frc;
     var fdm=filterRows(dm).map(function(r){return normalizeRow(r,"dormitory");});
     if(fdm.length) data.dormitory=fdm;
+    var fdt=filterRows(dt).map(function(r){return normalizeRow(r,"duties");});
+    if(fdt.length) data.duties=fdt;
     saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
 function updateStats(){
   document.getElementById("s-total").textContent=data.daily.length+data.project.length;
@@ -1513,13 +1516,33 @@ var DUTY_DATA = [
 var MEMBERS_ORDER = ["김재용","배지은","공지현","최필상"];
 function getMemberColor(name){ var m=members.find(function(x){return x.name===name;}); return m?m.color:"#888"; }
 
-// 로컬에 저장된 수정 내용 불러오기
+// 시트 데이터를 DUTY_DATA 구조로 변환
 function getDutyData(){
-  var saved = localStorage.getItem("hr_duty_data");
-  if(saved){ try{ return JSON.parse(saved); }catch(e){} }
+  if(data.duties && data.duties.length){
+    var grouped={};
+    data.duties.forEach(function(row){
+      if(!grouped[row.category]) grouped[row.category]={category:row.category,duties:{}};
+      try{ grouped[row.category].duties[row.member]=JSON.parse(row.items||"[]"); }
+      catch(e){ grouped[row.category].duties[row.member]=[]; }
+    });
+    return DUTY_DATA.map(function(cat){
+      return grouped[cat.category] || JSON.parse(JSON.stringify(cat));
+    });
+  }
   return JSON.parse(JSON.stringify(DUTY_DATA));
 }
-function saveDutyData(d){ localStorage.setItem("hr_duty_data", JSON.stringify(d)); }
+
+async function saveDutyData(dutyData){
+  var rows=[];
+  dutyData.forEach(function(cat){
+    MEMBERS_ORDER.forEach(function(m){
+      var items=cat.duties[m]||[];
+      rows.push({category:cat.category,member:m,items:JSON.stringify(items)});
+    });
+  });
+  data.duties=rows;
+  await overwriteTab("duties");
+}
 
 function renderDuties(){
   var fm = document.getElementById("duty-filter").value;
@@ -1619,11 +1642,11 @@ function openDutyEdit(category, member){
   win.document.close();
 }
 
-function updateDuty(category, member, items){
+async function updateDuty(category, member, items){
   var dutyData = getDutyData();
   var cat = dutyData.find(function(c){ return c.category === category; });
   if(cat){ cat.duties[member] = items; }
-  saveDutyData(dutyData);
+  await saveDutyData(dutyData);
   renderDuties();
 }
 
