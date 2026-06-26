@@ -485,6 +485,78 @@ function setSyncStatus(t,txt){var b=document.getElementById("sync-btn");b.style.
 async function callScript(params){try{var url=SHEET_URL+"?";Object.keys(params).forEach(function(k){url+=k+"="+encodeURIComponent(typeof params[k]==="object"?JSON.stringify(params[k]):params[k])+"&";});url+="t="+Date.now();var r=await fetch(url,{redirect:"follow",mode:"cors"});if(!r.ok)return null;var txt=await r.text();try{return JSON.parse(txt);}catch(e){return null;}}catch(e){return null;}}
 async function overwriteTab(tab){var rows=data[tab]||[];if(tab!=="duties"){var seen={};rows=rows.filter(function(r){if(!r.id||seen[r.id])return false;seen[r.id]=true;return true;});}var df=["end","start","created","date"];rows=rows.map(function(r){var out={};Object.keys(r).forEach(function(k){out[k]=df.indexOf(k)>=0?formatDateVal(r[k]):r[k];});return out;});data[tab]=rows;saveLocalBackup();if(rows.length){var headers=Object.keys(rows[0]);var dataRows=rows.map(function(r){return headers.map(function(h){return r[h]||"";});});try{await fetch(SHEET_URL,{method:"POST",mode:"cors",redirect:"follow",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"overwrite",tab:tab,rows:dataRows})});}catch(e){try{await callScript({action:"overwrite",tab:tab,rows:dataRows});}catch(e2){}}}else{try{var url2=SHEET_URL+"?action=overwrite&tab="+tab+"&rows="+encodeURIComponent("[]")+"&t="+Date.now();await fetch(url2,{redirect:"follow",mode:"cors"});}catch(e){}}setSyncStatus("ok","● 저장됨");}
 async function saveRow(tab,row){saveLocalBackup();try{await fetch(SHEET_URL,{method:"POST",mode:"cors",redirect:"follow",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"append",tab:tab,row:row})});}catch(e){try{await callScript({action:"append",tab:tab,row:row});}catch(e2){}}setSyncStatus("ok","● 저장됨");}
+
+// 안전한 행 수정: 해당 id 행만 정확히 찾아서 업데이트 (전체 덮어쓰기 없음)
+async function updateRowSafe(tab,id,row){
+  saveLocalBackup();
+  setSyncStatus("loading","⟳ 저장 중...");
+  try{
+    var resp=await fetch(SHEET_URL,{method:"POST",mode:"cors",redirect:"follow",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"updateRow",tab:tab,id:id,row:row})});
+    var result=await resp.json().catch(function(){return null;});
+    if(result&&result.status==="ok"){
+      setSyncStatus("ok","● 저장됨 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");
+      return true;
+    }
+  }catch(e){
+    try{
+      var result2=await callScript({action:"updateRow",tab:tab,id:id,row:row});
+      if(result2&&result2.status==="ok"){
+        setSyncStatus("ok","● 저장됨");
+        return true;
+      }
+    }catch(e2){}
+  }
+  setSyncStatus("err","⚠ 저장 실패 (재시도 필요)");
+  return false;
+}
+
+// 안전한 행 삭제: 해당 id 행만 정확히 찾아서 삭제
+async function deleteRowSafe(tab,id){
+  saveLocalBackup();
+  setSyncStatus("loading","⟳ 삭제 중...");
+  try{
+    var resp=await fetch(SHEET_URL,{method:"POST",mode:"cors",redirect:"follow",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"deleteRow",tab:tab,id:id})});
+    var result=await resp.json().catch(function(){return null;});
+    if(result&&result.status==="ok"){
+      setSyncStatus("ok","● 삭제됨");
+      return true;
+    }
+  }catch(e){
+    try{
+      var result2=await callScript({action:"deleteRow",tab:tab,id:id});
+      if(result2&&result2.status==="ok"){
+        setSyncStatus("ok","● 삭제됨");
+        return true;
+      }
+    }catch(e2){}
+  }
+  setSyncStatus("err","⚠ 삭제 실패 (재시도 필요)");
+  return false;
+}
+
+// 여러 개 한꺼번에 안전 삭제 (선택삭제용)
+async function deleteRowsSafe(tab,ids){
+  saveLocalBackup();
+  setSyncStatus("loading","⟳ 삭제 중...");
+  try{
+    var resp=await fetch(SHEET_URL,{method:"POST",mode:"cors",redirect:"follow",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"deleteRows",tab:tab,ids:ids})});
+    var result=await resp.json().catch(function(){return null;});
+    if(result&&result.status==="ok"){
+      setSyncStatus("ok","● 삭제됨");
+      return true;
+    }
+  }catch(e){
+    try{
+      var result2=await callScript({action:"deleteRows",tab:tab,ids:ids});
+      if(result2&&result2.status==="ok"){
+        setSyncStatus("ok","● 삭제됨");
+        return true;
+      }
+    }catch(e2){}
+  }
+  setSyncStatus("err","⚠ 삭제 실패 (재시도 필요)");
+  return false;
+}
 async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동기화 대기)");return;}setSyncStatus("loading","⟳ 동기화 중...");try{var d=await callScript({tab:"daily"});var p=await callScript({tab:"project"});var lv=await callScript({tab:"leave"});var tk=await callScript({tab:"task"});
     var rc=await callScript({tab:"recruit"});
     var dm=await callScript({tab:"dormitory"});
@@ -618,7 +690,7 @@ function renderDaily(){
 }
 
 function toggleAllCheck(el){document.querySelectorAll(".row-check").forEach(function(cb){cb.checked=el.checked;});}
-async function deleteSelected(){var checked=document.querySelectorAll(".row-check:checked");if(!checked.length){alert("삭제할 업무를 선택해주세요");return;}if(!confirm(checked.length+"건을 삭제할까요?"))return;var ids=[];checked.forEach(function(cb){ids.push(cb.getAttribute("data-id"));});data.daily=data.daily.filter(function(x){return ids.indexOf(x.id)<0;});await overwriteTab("daily");renderAll();}
+async function deleteSelected(){var checked=document.querySelectorAll(".row-check:checked");if(!checked.length){alert("삭제할 업무를 선택해주세요");return;}if(!confirm(checked.length+"건을 삭제할까요?"))return;var ids=[];checked.forEach(function(cb){ids.push(cb.getAttribute("data-id"));});data.daily=data.daily.filter(function(x){return ids.indexOf(x.id)<0;});await deleteRowsSafe("daily",ids);renderAll();}
 function renderWeeklySelect(){var weeks={};data.daily.forEach(function(x){var d=x.start||x.created;if(!d)return;var k=getWeekKey(d);if(k&&!weeks[k])weeks[k]=getWeekLabel(d);});data.task.forEach(function(x){var d=x.start;if(!d)return;var k=getWeekKey(d);if(k&&!weeks[k])weeks[k]=getWeekLabel(d);});data.leave.forEach(function(x){var d=x.date;if(!d)return;var k=getWeekKey(d);if(k&&!weeks[k])weeks[k]=getWeekLabel(d);});var sel=document.getElementById("week-select");var cur=sel.value;var opts=Object.entries(weeks).sort(function(a,b){return a[0]>b[0]?-1:1;});sel.innerHTML=opts.map(function(e){return"<option value='"+e[0]+"'>"+e[1]+"</option>";}).join("");if(cur&&opts.some(function(o){return o[0]===cur;}))sel.value=cur;else{var tw=getWeekKey(todayStr);var found=opts.find(function(o){return o[0]===tw;});if(found){sel.value=found[0];}else{// 현재 주차와 가장 가까운 과거 주차 찾기
 var past=opts.filter(function(o){return o[0]<=tw;});sel.value=past.length?past[0][0]:(opts.length?opts[opts.length-1][0]:"");}}}
 function renderWeekly(){
@@ -773,10 +845,10 @@ function renderLeaveList(wk){
 
 function saveMemo(){var wk=document.getElementById("week-select").value;var val=document.getElementById("meeting-memo").value;localStorage.setItem("memo_"+wk,val);var st=document.getElementById("memo-save-status");st.textContent="✅ 저장됨";setTimeout(function(){st.textContent="";},2000);}
 function loadMemo(){var wk=document.getElementById("week-select").value;var el=document.getElementById("meeting-memo");if(el)el.value=localStorage.getItem("memo_"+wk)||"";}
-function saveFeedback(id,val){var item=data.daily.find(function(x){return x.id===id;});if(item){item.feedback=val;clearTimeout(window._fbTimer);window._fbTimer=setTimeout(function(){overwriteTab("daily");},1000);}}
+function saveFeedback(id,val){var item=data.daily.find(function(x){return x.id===id;});if(item){item.feedback=val;clearTimeout(window._fbTimer);window._fbTimer=setTimeout(function(){updateRowSafe("daily",item.id,[item.id,item.member,item.content,item.created,item.end,item.status,item.note||"",item.feedback||"",item.link||""]);},1000);}}
 function openLeaveForm(){document.getElementById("lv-member").innerHTML=members.map(function(m){return"<option>"+m.name+"</option>";}).join("");document.getElementById("lv-date").value=todayStr;document.getElementById("lv-note").value="";document.getElementById("leave-overlay").classList.add("open");}
 async function saveLeave(){var date=document.getElementById("lv-date").value;if(!date){alert("날짜를 선택해주세요");return;}var nr={id:genId("lv"),member:document.getElementById("lv-member").value,date:date,type:document.getElementById("lv-type").value,note:document.getElementById("lv-note").value};data.leave.push(nr);await saveRow("leave",Object.values(nr));document.getElementById("leave-overlay").classList.remove("open");renderWeeklySelect();renderWeekly();renderCalendar();}
-async function deleteLeave(id){if(!confirm("휴가를 삭제할까요?"))return;data.leave=data.leave.filter(function(x){return x.id!==id;});await overwriteTab("leave");renderWeekly();renderCalendar();}
+async function deleteLeave(id){if(!confirm("휴가를 삭제할까요?"))return;data.leave=data.leave.filter(function(x){return x.id!==id;});await deleteRowSafe("leave",id);renderWeekly();renderCalendar();}
 function renderProject(){var fm=document.getElementById("filter-proj-member")?document.getElementById("filter-proj-member").value:"";var fs=document.getElementById("filter-proj-status")?document.getElementById("filter-proj-status").value:"";var sq=document.getElementById("search-project")?document.getElementById("search-project").value.toLowerCase():"";var checkedStatuses=getCheckedStatuses("proj");var list=document.getElementById("project-list");var filtered=data.project.filter(function(x){return(!fm||x.member===fm)&&(!checkedStatuses.length||checkedStatuses.indexOf(x.status)>=0)&&(!sq||(x.name||"").toLowerCase().indexOf(sq)>=0||(x.note||"").toLowerCase().indexOf(sq)>=0);});if(!filtered.length){list.innerHTML="<div class='empty'>프로젝트가 없습니다</div>";return;}list.innerHTML="";
 filtered.forEach(function(proj){
 var pi=data.project.indexOf(proj);
@@ -866,10 +938,12 @@ async function saveTaskInline(pid){
   var eid=document.getElementById("if-editid-"+pid).value;
   try{
     if(eid){
-      // 수정: 로컬 먼저 반영, 시트는 백그라운드
+      // 수정: 로컬 먼저 반영, 시트는 안전하게 해당 행만 업데이트
       var t=data.task.find(function(x){return x.id===eid;});
-      if(t){t.content=c2;t.member=mv;t.status=sv;t.start=stv;t.end=ev;t.note=nv;}
-      setTimeout(function(){overwriteTab("task");},50);
+      if(t){
+        t.content=c2;t.member=mv;t.status=sv;t.start=stv;t.end=ev;t.note=nv;
+        updateRowSafe("task",t.id,[t.id,t.projectId,t.step||"",t.content,t.member,t.start,t.end,t.status,t.note||""]);
+      }
     }else{
       // 신규: append (빠름) - 이중저장 방지
       var already=data.task.find(function(t){return t.projectId===pid&&t.content===c2&&t.start===stv;});
@@ -896,14 +970,14 @@ async function toggleTaskDone(cb,taskId,pid){
   t.status=cb.checked?"완료":"대기";
   recalcProgressLocal(pid); // 즉시 UI 업데이트
   renderProjectKeepOpen(pid); // 화면 먼저 갱신
-  await overwriteTab("task"); // 시트는 백그라운드
+  await updateRowSafe("task",t.id,[t.id,t.projectId,t.step||"",t.content,t.member,t.start,t.end,t.status,t.note||""]); // 안전하게 해당 행만 업데이트
 }
 async function deleteTask(taskId,pid){
   if(!confirm("이 단계를 삭제할까요?"))return;
   data.task=data.task.filter(function(t){return t.id!==taskId;});
   recalcProgressLocal(pid);   // 로컬 즉시 반영
   renderProjectKeepOpen(pid); // 화면 먼저 갱신
-  setTimeout(function(){overwriteTab("task");},50); // 시트는 백그라운드
+  await deleteRowSafe("task",taskId); // 시트에서 해당 행만 안전하게 삭제
 }
 function recalcProgressLocal(pid){
   var proj=data.project.find(function(p){return p.id===pid;});if(!proj)return;
@@ -912,8 +986,8 @@ function recalcProgressLocal(pid){
   proj.progress=total>0?Math.round(done/total*100):0;
   proj.status=proj.progress===100?"완료":proj.progress>0?"진행":"대기";
   updateStats();
-  // 시트 저장은 백그라운드로 (UI 블로킹 없이)
-  setTimeout(function(){overwriteTab("project");},100);
+  // 시트 저장은 백그라운드로, 해당 프로젝트 행만 안전하게 업데이트
+  setTimeout(function(){updateRowSafe("project",proj.id,[proj.id,proj.name,proj.member,proj.start,proj.end,proj.progress,proj.status,proj.note||""]);},100);
 }
 async function recalcProgress(pid){
   var proj=data.project.find(function(p){return p.id===pid;});if(!proj)return;
@@ -921,7 +995,8 @@ async function recalcProgress(pid){
   var total=tasks.length,done=tasks.filter(function(t){return t.status==="완료";}).length;
   proj.progress=total>0?Math.round(done/total*100):0;
   proj.status=proj.progress===100?"완료":proj.progress>0?"진행":"대기";
-  await overwriteTab("project");updateStats();
+  await updateRowSafe("project",proj.id,[proj.id,proj.name,proj.member,proj.start,proj.end,proj.progress,proj.status,proj.note||""]);
+  updateStats();
 }
 function renderProjectKeepOpen(pid){
   // 열린 카드 목록 기억
@@ -962,17 +1037,26 @@ async function deleteItem(type,idx){
   var x=data[type][idx];
   if(!confirm("["+(x.content||x.name)+"]을 삭제할까요?"))return;
   data[type].splice(idx,1);
+  // 프로젝트 삭제 시 해당 단계(task)들도 각각 안전하게 삭제
   if(type==="project"&&x.id){
+    var relatedTasks=data.task.filter(function(t){return t.projectId===x.id;});
     data.task=data.task.filter(function(t){return t.projectId!==x.id;});
-    setTimeout(function(){overwriteTab("task");},50);
+    for(var i=0;i<relatedTasks.length;i++){
+      await deleteRowSafe("task",relatedTasks[i].id);
+    }
   }
-  await overwriteTab(type);
+  await deleteRowSafe(type,x.id);
   renderAll();
 }
 function openForm(type){curForm=type;editIdx=null;document.getElementById("modal-title").textContent=type==="daily"?"일일 업무 추가":"프로젝트 추가";document.getElementById("field-start").style.display=type==="project"?"block":"none";document.getElementById("field-created").style.display=type==="daily"?"block":"none";document.getElementById("f-member").innerHTML=members.map(function(m){return"<option>"+m.name+"</option>";}).join("");document.getElementById("f-content").value="";document.getElementById("f-created").value=todayStr;document.getElementById("f-end").value=todayStr;document.getElementById("f-start").value=todayStr;document.getElementById("f-status").value="진행";document.getElementById("f-note").value="";setLinkValues("");var fld=document.getElementById("field-link");if(fld)fld.style.display=type==="daily"?"":"none";document.getElementById("save-btn").textContent="저장";document.getElementById("save-btn").disabled=false;document.getElementById("overlay").classList.add("open");}
 function closeOverlay(){document.getElementById("overlay").classList.remove("open");editIdx=null;document.getElementById("save-btn").textContent="저장";document.getElementById("save-btn").disabled=false;}
 function closeOverlayOutside(e){if(e.target===document.getElementById("overlay"))closeOverlay();}
-async function saveForm(){var btn=document.getElementById("save-btn");if(btn.disabled)return;btn.disabled=true;btn.textContent="저장 중...";var member=document.getElementById("f-member").value;var content=document.getElementById("f-content").value.trim();var end=document.getElementById("f-end").value;var status=document.getElementById("f-status").value;var note=document.getElementById("f-note").value;if(!content){alert("내용을 입력해주세요");btn.disabled=false;btn.textContent="저장";return;}if(editIdx!==null){var x=data[curForm][editIdx];if(curForm==="daily"){x.member=member;x.content=content;x.start=document.getElementById("f-created").value||todayStr;x.created=x.start;x.end=end;x.status=status;x.note=note;x.link=getLinkValues();}else if(curForm==="project"){x.member=member;x.name=content;x.start=document.getElementById("f-start").value;x.end=end;x.status=status;x.note=note;}await overwriteTab(curForm);closeOverlay();renderAll();return;}if(curForm==="daily"){var sv=document.getElementById("f-created").value||todayStr;var lnk2=getLinkValues();
+async function saveForm(){var btn=document.getElementById("save-btn");if(btn.disabled)return;btn.disabled=true;btn.textContent="저장 중...";var member=document.getElementById("f-member").value;var content=document.getElementById("f-content").value.trim();var end=document.getElementById("f-end").value;var status=document.getElementById("f-status").value;var note=document.getElementById("f-note").value;if(!content){alert("내용을 입력해주세요");btn.disabled=false;btn.textContent="저장";return;}if(editIdx!==null){var x=data[curForm][editIdx];if(curForm==="daily"){x.member=member;x.content=content;x.start=document.getElementById("f-created").value||todayStr;x.created=x.start;x.end=end;x.status=status;x.note=note;x.link=getLinkValues();
+    await updateRowSafe("daily",x.id,[x.id,x.member,x.content,x.created,x.end,x.status,x.note,x.feedback||"",x.link||""]);
+  }else if(curForm==="project"){x.member=member;x.name=content;x.start=document.getElementById("f-start").value;x.end=end;x.status=status;x.note=note;
+    await updateRowSafe("project",x.id,[x.id,x.name,x.member,x.start,x.end,x.progress||0,x.status,x.note]);
+  }
+  saveLocalBackup();closeOverlay();renderAll();return;}if(curForm==="daily"){var sv=document.getElementById("f-created").value||todayStr;var lnk2=getLinkValues();
     var nr={id:genId("d"),member:member,content:content,created:sv,start:sv,end:end,status:status,note:note,feedback:"",link:lnk2};data.daily.push(nr);await saveRow("daily",[nr.id,nr.member,nr.content,nr.created,nr.end,nr.status,nr.note,nr.feedback,nr.link||""]);}else if(curForm==="project"){var nr={id:genId("p"),name:content,member:member,start:document.getElementById("f-start").value,end:end,progress:0,status:status,note:note};data.project.push(nr);await saveRow("project",Object.values(nr));}closeOverlay();renderAll();}
 function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").forEach(function(n){n.classList.remove("active");});if(el)el.classList.add("active");document.querySelectorAll(".pane").forEach(function(p){p.classList.remove("active");});document.getElementById("pane-"+name).classList.add("active");if(name==="settings")renderMemberGrid();if(name==="calendar")renderCalendar();
   if(name==="recruit")renderRecruit();
@@ -1272,11 +1356,11 @@ async function saveRecruit(){
   }
   if(!data.recruit) data.recruit=[];
   if(eid){
-    // 수정
+    // 수정: 해당 행만 안전하게 업데이트
     var idx=data.recruit.findIndex(function(x){return x.id===eid;});
     if(idx>=0) data.recruit[idx]=nr;
     saveLocalBackup();
-    setTimeout(function(){overwriteTab('recruit');},100);
+    await updateRowSafe('recruit',nr.id,[nr.id,nr.type,nr.manager,nr.team,nr.replaceName,nr.reason,nr.status,nr.name,nr.job,nr.date,nr.otTime||'',nr.note||'',nr.schedule||'']);
   } else {
     // 신규 - append만 사용 (빠르고 안전)
     data.recruit.push(nr);
@@ -1290,9 +1374,10 @@ async function saveRecruit(){
 
 async function deleteRecruit(i){
   if(!confirm('삭제할까요?')) return;
+  var x=data.recruit[i];
   data.recruit.splice(i,1);
-  setTimeout(function(){overwriteTab('recruit');},50);
   saveLocalBackup();
+  await deleteRowSafe('recruit',x.id);
   renderRecruit();
 }
 
@@ -1431,7 +1516,7 @@ async function saveDorm(){
   if(eid){
     var idx=data.dormitory.findIndex(function(x){return x.id===eid;});
     if(idx>=0) data.dormitory[idx]=nr;
-    setTimeout(function(){overwriteTab('dormitory');},50);
+    await updateRowSafe('dormitory',nr.id,[nr.id,nr.room,nr.team,nr.name,nr.moveInDate,nr.note,nr.isLeader]);
   } else {
     data.dormitory.push(nr);
     await saveRow('dormitory',Object.values(nr));
@@ -1443,9 +1528,10 @@ async function saveDorm(){
 
 async function deleteDorm(i){
   if(!confirm('삭제할까요?')) return;
+  var x=data.dormitory[i];
   data.dormitory.splice(i,1);
   saveLocalBackup();
-  setTimeout(function(){overwriteTab('dormitory');},50);
+  await deleteRowSafe('dormitory',x.id);
   renderDormitory();
 }
 
