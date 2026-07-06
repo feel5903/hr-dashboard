@@ -626,7 +626,7 @@ function toggleSidebar(){
     app.classList.remove("sidebar-hidden");
   }
 }
-function saveLocalBackup(){try{localStorage.setItem("hr_data_backup",JSON.stringify(data));}catch(e){}}
+function saveLocalBackup(){try{var backup={daily:data.daily,project:data.project,task:data.task,leave:data.leave,recruit:data.recruit,dormitory:data.dormitory};localStorage.setItem("hr_data_backup",JSON.stringify(backup));}catch(e){}}
 function genId(p){return p+Date.now();}
 function saveLocal(){localStorage.setItem("hr_members",JSON.stringify(members));}
 function getMember(n){return members.find(function(m){return m.name===n;})||{name:n,color:"#888",role:""};}
