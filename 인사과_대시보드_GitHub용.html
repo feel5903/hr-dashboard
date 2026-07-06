@@ -850,7 +850,25 @@ function renderDaily(){
 
 function toggleAllCheck(el){document.querySelectorAll(".row-check").forEach(function(cb){cb.checked=el.checked;});}
 async function deleteSelected(){var checked=document.querySelectorAll(".row-check:checked");if(!checked.length){alert("삭제할 업무를 선택해주세요");return;}if(!confirm(checked.length+"건을 삭제할까요?"))return;var ids=[];checked.forEach(function(cb){ids.push(cb.getAttribute("data-id"));});data.daily=data.daily.filter(function(x){return ids.indexOf(x.id)<0;});await deleteRowsSafe("daily",ids);renderAll();}
-function renderWeeklySelect(){var weeks={};data.daily.forEach(function(x){var d=x.start||x.created;if(!d)return;var k=getWeekKey(d);if(k&&!weeks[k])weeks[k]=getWeekLabel(d);});data.task.forEach(function(x){var d=x.start;if(!d)return;var k=getWeekKey(d);if(k&&!weeks[k])weeks[k]=getWeekLabel(d);});data.leave.forEach(function(x){var d=x.date;if(!d)return;var k=getWeekKey(d);if(k&&!weeks[k])weeks[k]=getWeekLabel(d);});var sel=document.getElementById("week-select");var cur=sel.value;var opts=Object.entries(weeks).sort(function(a,b){return a[0]>b[0]?-1:1;});sel.innerHTML=opts.map(function(e){return"<option value='"+e[0]+"'>"+e[1]+"</option>";}).join("");if(cur&&opts.some(function(o){return o[0]===cur;}))sel.value=cur;else{var tw=getWeekKey(todayStr);var found=opts.find(function(o){return o[0]===tw;});if(found){sel.value=found[0];}else{// 현재 주차와 가장 가까운 과거 주차 찾기
+function renderWeeklySelect(){var weeks={};
+// 시작일~마감일 사이 모든 주차를 목록에 추가
+function addWeeksInRange(start, end) {
+  if(!start) return;
+  var s = new Date(start);
+  var e = end ? new Date(end) : s;
+  var d = new Date(s);
+  while(d <= e) {
+    var k = getWeekKey(d.toISOString().slice(0,10));
+    if(k && !weeks[k]) weeks[k] = getWeekLabel(d.toISOString().slice(0,10));
+    d.setDate(d.getDate()+7);
+  }
+  // 마감일 주차도 추가
+  var ek = getWeekKey(e.toISOString().slice(0,10));
+  if(ek && !weeks[ek]) weeks[ek] = getWeekLabel(e.toISOString().slice(0,10));
+}
+data.daily.forEach(function(x){addWeeksInRange(x.start||x.created, x.end);});
+data.task.forEach(function(x){addWeeksInRange(x.start, x.end);});
+data.leave.forEach(function(x){var d=x.date;if(!d)return;var k=getWeekKey(d);if(k&&!weeks[k])weeks[k]=getWeekLabel(d);});var sel=document.getElementById("week-select");var cur=sel.value;var opts=Object.entries(weeks).sort(function(a,b){return a[0]>b[0]?-1:1;});sel.innerHTML=opts.map(function(e){return"<option value='"+e[0]+"'>"+e[1]+"</option>";}).join("");if(cur&&opts.some(function(o){return o[0]===cur;}))sel.value=cur;else{var tw=getWeekKey(todayStr);var found=opts.find(function(o){return o[0]===tw;});if(found){sel.value=found[0];}else{// 현재 주차와 가장 가까운 과거 주차 찾기
 var past=opts.filter(function(o){return o[0]<=tw;});sel.value=past.length?past[0][0]:(opts.length?opts[opts.length-1][0]:"");}}}
 function renderWeekly(){
   var wk=document.getElementById("week-select").value;
