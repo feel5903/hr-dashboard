@@ -724,7 +724,7 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
     data.recruit=frc;
     var fdm=filterRows(dm).map(function(r){return normalizeRow(r,"dormitory");});
     if(fdm.length) data.dormitory=fdm;
-    var fdt=filterRows(dt).map(function(r){return normalizeRow(r,"duties");});
+    var fdt=(dt||[]).filter(function(r){return r&&r.category;}).map(function(r){return normalizeRow(r,"duties");});
     if(fdt.length) data.duties=fdt;
     saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
 function updateStats(){
