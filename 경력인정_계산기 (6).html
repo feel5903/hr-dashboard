@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>경력 인정 계산기 | 서울재활병원 인사과</title>
+<style>
+  :root{
+    --teal-900:#0d3b36;
+    --teal-700:#146b5f;
+    --teal-500:#1f8a78;
+    --teal-100:#e3f2ee;
+    --paper:#f7f9f8;
+    --card:#ffffff;
+    --ink:#1c2b28;
+    --muted:#5f7873;
+    --line:#dbe6e2;
+    --amber:#c98a2b;
+    --amber-bg:#fbf1de;
+    --danger:#b3492f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Malgun Gothic','맑은 고딕',-apple-system,sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    padding:28px 20px 60px;
+  }
+  .wrap{max-width:1180px;margin:0 auto;}
+  header{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+    margin-bottom:20px;
+    border-bottom:3px solid var(--teal-900);
+    padding-bottom:14px;
+  }
+  header h1{
+    font-size:22px;
+    margin:0 0 4px;
+    color:var(--teal-900);
+    letter-spacing:-0.3px;
+  }
+  header p{margin:0;color:var(--muted);font-size:13px;}
+  .top-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  button, select, input{font-family:inherit;font-size:13.5px;}
+  .btn{
+    border:1px solid var(--teal-700);
+    background:var(--card);
+    color:var(--teal-700);
+    padding:8px 14px;
+    border-radius:6px;
+    cursor:pointer;
+    font-weight:600;
+    transition:.12s;
+  }
+  .btn:hover{background:var(--teal-100);}
+  .btn-primary{
+    background:var(--teal-700);
+    color:#fff;
+    border-color:var(--teal-700);
+  }
+  .btn-primary:hover{background:var(--teal-900);}
+  .btn-ghost{border-color:var(--line);color:var(--muted);}
+  .btn-ghost:hover{background:#eef2f1;}
+
+  .panel{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px 20px;
+    margin-bottom:18px;
+  }
+  .panel h2{
+    font-size:14px;
+    margin:0 0 12px;
+    color:var(--teal-900);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .panel h2 .num{
+    background:var(--teal-700);
+    color:#fff;
+    width:20px;height:20px;
+    border-radius:50%;
+    font-size:11px;
+    display:inline-flex;align-items:center;justify-content:center;
+  }
+
+  .job-select-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .job-select-row select{
+    padding:9px 12px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    background:#fff;
+    min-width:260px;
+    color:var(--ink);
+  }
+  .hint{
+    font-size:12px;
+    color:var(--muted);
+    background:var(--teal-100);
+    border-radius:6px;
+    padding:8px 12px;
+    line-height:1.5;
+  }
+  .hint a{color:var(--teal-700);}
+
+  .table-scroll{overflow-x:auto;}
+  table{
+    border-collapse:collapse;
+    width:100%;
+    min-width:980px;
+    font-size:12.5px;
+  }
+  thead th{
+    background:var(--teal-900);
+    color:#fff;
+    padding:9px 8px;
+    text-align:center;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  tbody td{
+    border-bottom:1px solid var(--line);
+    padding:7px 6px;
+    text-align:center;
+    vertical-align:middle;
+  }
+  tbody tr:nth-child(even){background:#fbfcfc;}
+  tbody tr:hover{background:var(--teal-100);}
+  td input[type=text]{
+    width:120px;
+    padding:6px 7px;
+    border:1px solid var(--line);
+    border-radius:5px;
+  }
+  td input.date-field{
+    padding:5px 4px;
+    border:1px solid var(--line);
+    border-radius:5px;
+    width:110px;
+    text-align:center;
+    letter-spacing:0.3px;
+  }
+  td select{
+    padding:6px 6px;
+    border:1px solid var(--line);
+    border-radius:5px;
+    width:100%;
+    min-width:190px;
+  }
+  .col-pct{font-weight:700;color:var(--teal-700);}
+  .col-result{font-weight:700;color:var(--teal-900);white-space:nowrap;}
+  .col-duration{color:var(--muted);white-space:nowrap;}
+  .del-btn{
+    border:none;background:none;color:var(--danger);
+    cursor:pointer;font-size:15px;
+  }
+  .del-btn:hover{opacity:.6;}
+
+  .summary{
+    display:flex;
+    justify-content:flex-end;
+    gap:26px;
+    margin-top:14px;
+    padding-top:14px;
+    border-top:2px solid var(--teal-900);
+    flex-wrap:wrap;
+  }
+  .summary .stat{text-align:right;}
+  .summary .stat .label{font-size:12px;color:var(--muted);}
+  .summary .stat .value{font-size:20px;font-weight:800;color:var(--teal-900);}
+  .summary .stat.total .value{color:var(--amber);font-size:26px;}
+
+  .add-row-btn{
+    margin-top:12px;
+  }
+
+  .modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(13,59,54,0.45);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:100;
+    padding:20px;
+  }
+  .modal-box{
+    background:#fff;
+    border-radius:12px;
+    width:min(760px, 100%);
+    max-height:85vh;
+    display:flex;
+    flex-direction:column;
+    box-shadow:0 12px 40px rgba(0,0,0,.25);
+  }
+  .modal-head{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    justify-content:space-between;
+    padding:16px 20px;
+    border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+  }
+  .modal-head h3{margin:0;font-size:15px;color:var(--teal-900);}
+  .modal-head input[type=text]{
+    padding:7px 10px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    flex:1;
+    min-width:140px;
+  }
+  .modal-body{
+    padding:6px 20px 20px;
+    overflow-y:auto;
+  }
+
+  footer{
+    margin-top:26px;
+    font-size:11.5px;
+    color:var(--muted);
+    line-height:1.6;
+  }
+
+  @media print{
+    body{background:#fff;padding:0;}
+    .top-actions, .add-row-btn, .del-btn, .btn, .job-select-row select, .hint, .modal-overlay{display:none !important;}
+    .panel{border:none;box-shadow:none;padding:0;}
+    header{border-bottom:2px solid #000;}
+    thead th{background:#eee !important;color:#000 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  }
+
+  @media (max-width:720px){
+    .summary{justify-content:flex-start;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>경력 인정 계산기</h1>
+      <p>서울재활병원 인사과 &middot; 지원서류(경력증명서) 기준 근무기간 → 인정경력 자동 환산</p>
+    </div>
+    <div class="top-actions">
+      <button class="btn btn-ghost" onclick="window.print()">🖨 인쇄</button>
+      <a class="btn" href="https://www.hira.or.kr/ra/hosp/getHealthMap.do?pgmid=HIRAA030002010000" target="_blank" rel="noopener">🔍 병원종별 확인 (심평원)</a>
+    </div>
+  </header>
+
+  <div class="panel">
+    <h2><span class="num">1</span>직종 선택</h2>
+    <div class="job-select-row">
+      <input type="text" id="candidateName" placeholder="지원자명 입력" style="padding:9px 12px;border:1px solid var(--line);border-radius:6px;min-width:150px;">
+      <select id="jobCategory" onchange="onCategoryChange()">
+        <optgroup label="의료 기술직">
+          <option value="간호사">간호사</option>
+          <option value="치료사">치료사</option>
+          <option value="사회복지사등">사회복지사 · 약사 · 의무기록사 · 영양사</option>
+          <option value="임상병리방사선">임상병리사 · 방사선사</option>
+        </optgroup>
+        <optgroup label="기능직 / 행정직 / 고용직">
+          <option value="의료기능직">의료 기능직 (의공기사·보조기사·간호조무사)</option>
+          <option value="일반기능직">일반 기능직 (보일러기능사·전기기능사·운전기사)</option>
+          <option value="사무행정직">사무 행정직 (총무과·원무과 등)</option>
+          <option value="고용직">고용직 (미화·취사·수위 등)</option>
+        </optgroup>
+      </select>
+      <div class="hint">
+        기관 종별(종합병원/일반병원/의원급)은 <a href="https://www.hira.or.kr/ra/hosp/getHealthMap.do?pgmid=HIRAA030002010000" target="_blank" rel="noopener">건강보험심사평가원 병원·약국찾기</a>에서 확인 후 각 행의 "구분"에서 선택하세요.
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2><span class="num">2</span>근무경력 입력</h2>
+    <div class="table-scroll">
+      <table id="careerTable">
+        <thead>
+          <tr>
+            <th style="min-width:150px;">근무처명</th>
+            <th>시작일</th>
+            <th>종료일</th>
+            <th style="min-width:220px;">구분 (기관종별)</th>
+            <th>인정비율</th>
+            <th>실 근무기간</th>
+            <th>환산개월<br><span style="font-weight:400;font-size:10px;">(15일 이상 반올림)</span></th>
+            <th>인정경력</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <button class="btn btn-primary add-row-btn" onclick="addRow()">+ 경력 추가</button>
+    <div class="hint" style="margin-top:10px;">
+      시작일 · 종료일은 숫자만 이어서 입력하면 자동으로 하이픈(-)이 붙습니다. 예: <b>20240401</b> 입력 → <b>2024-04-01</b>로 자동 변환
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2><span class="num">3</span>저장 / 불러오기</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <button class="btn btn-primary" onclick="saveCurrent()">💾 현재 입력 저장</button>
+      <button class="btn btn-ghost" onclick="clearForm()">🗑 새로 작성(초기화)</button>
+      <button class="btn" onclick="openHistoryModal()">📂 저장 이력 보기 <span id="historyCountBadge">(0)</span></button>
+    </div>
+    <div class="hint" style="margin-top:10px;">
+      저장한 이력은 이 컴퓨터의 브라우저에만 저장됩니다(다른 PC와 공유되지 않음). 시크릿 모드이거나 브라우저 데이터를 삭제하면 사라질 수 있으니, 중요한 결과는 인쇄 또는 캡처로 별도 보관해 주세요.
+    </div>
+  </div>
+
+  <div id="historyModalOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this) closeHistoryModal()">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>저장된 이력</h3>
+        <input type="text" id="historySearch" placeholder="지원자명 검색" oninput="renderHistoryList()">
+        <button class="btn btn-ghost" onclick="closeHistoryModal()">닫기 ✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="table-scroll">
+          <table id="historyTable" style="min-width:640px;">
+            <thead>
+              <tr>
+                <th style="min-width:120px;">지원자명</th>
+                <th>저장일시</th>
+                <th>직종</th>
+                <th>경력 건수</th>
+                <th>인정경력 합계</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="summary">
+      <div class="stat">
+        <div class="label">전 경력 합계 (인정비율 적용 전)</div>
+        <div class="value" id="sumRawMonths">0개월</div>
+      </div>
+      <div class="stat total">
+        <div class="label">합계 인정경력 (인정비율 적용 후)</div>
+        <div class="value" id="sumRecognized">0개월</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    ※ 계산 방식: 시작일~종료일(말일 기준) 사이 실 근무기간을 연/월/일로 산출 → 일수 15일 이상이면 1개월로 반올림 → 직종·기관종별 인정비율 적용(반올림) → 인정경력 산출.<br>
+    ※ 특례(본원 퇴직후 재취업 / 본원 계약직·인턴 근무 / 본법인 근무 / 대한민국 군인 복무 / 공무원 근무 등)는 100%로 인정됩니다.<br>
+    ※ 대한민국 군 복무 경력은 성별·직종과 무관하게 모든 구분에서 특례(100%)로 동일 적용됩니다.
+  </footer>
+
+</div>
+
+<script>
+const RATE_TABLE = {
+  "간호사": [
+    {label:"재취업/계약직·인턴/본법인/군복무/공무원", pct:100},
+    {label:"종합병원", pct:100},
+    {label:"재활병원", pct:100},
+    {label:"일반병원", pct:80},
+    {label:"의원급", pct:50},
+  ],
+  "치료사": [
+    {label:"재취업/계약직·인턴/본법인/군복무/공무원", pct:100},
+    {label:"종합병원", pct:100},
+    {label:"재활병원", pct:100},
+    {label:"일반병원", pct:80},
+    {label:"의원급", pct:50},
+    {label:"복지관 / 장애인시설", pct:50},
+  ],
+  "사회복지사등": [
+    {label:"재취업/계약직·인턴/본법인/군복무/공무원", pct:100},
+    {label:"종합병원", pct:100},
+    {label:"재활병원", pct:100},
+    {label:"의원급", pct:50},
+    {label:"복지관 / 시설 (사회복지사)", pct:50},
+  ],
+  "임상병리방사선": [
+    {label:"재취업/계약직·인턴/본법인/군복무/공무원", pct:100},
+    {label:"병원 (종합/일반/재활 등)", pct:100},
+    {label:"의원급", pct:50},
+  ],
+  "의료기능직": [
+    {label:"재취업/계약직·인턴/본법인/군복무/공무원", pct:100},
+    {label:"종합병원", pct:100},
+    {label:"일반병원", pct:80},
+    {label:"의원급", pct:80},
+    {label:"이종업체 동종업무", pct:50},
+  ],
+  "일반기능직": [
+    {label:"재취업/계약직/본법인/군복무/공무원", pct:100},
+    {label:"동종업체 · 동종업무", pct:100},
+    {label:"이종업체 · 동종업무", pct:80},
+  ],
+  "사무행정직": [
+    {label:"재취업/계약직·인턴/본법인/군복무/공무원", pct:100},
+    {label:"종합병원 (동종업체·동종업무)", pct:100},
+    {label:"재활병원", pct:100},
+    {label:"일반병원", pct:80},
+    {label:"동종업체 · 이종업무", pct:50},
+    {label:"이종업체 · 동종업무", pct:50},
+  ],
+  "고용직": [
+    {label:"재취업/계약직/본법인/군복무", pct:100},
+    {label:"동종경력", pct:100},
+  ],
+};
+
+let rowSeq = 0;
+
+function optionsHtml(category){
+  return RATE_TABLE[category].map(o=>`<option value="${o.pct}">${o.label}</option>`).join('');
+}
+
+function addRow(){
+  rowSeq++;
+  const id = 'row'+rowSeq;
+  const category = document.getElementById('jobCategory').value;
+  const tr = document.createElement('tr');
+  tr.id = id;
+  tr.innerHTML = `
+    <td><input type="text" class="f-name" placeholder="예: 문원의료재단 서울병원"></td>
+    <td><input type="text" inputmode="numeric" maxlength="10" class="f-start date-field" placeholder="20240401" oninput="onDateInput(this,'${id}')"></td>
+    <td><input type="text" inputmode="numeric" maxlength="10" class="f-end date-field" placeholder="20241231" oninput="onDateInput(this,'${id}')"></td>
+    <td><select class="f-tier" onchange="recalc('${id}')">${optionsHtml(category)}</select></td>
+    <td class="col-pct f-pct">-</td>
+    <td class="col-duration f-duration">-</td>
+    <td class="f-converted">-</td>
+    <td class="col-result f-result">-</td>
+    <td><button class="del-btn" title="삭제" onclick="delRow('${id}')">✕</button></td>
+  `;
+  document.getElementById('tbody').appendChild(tr);
+  recalc(id);
+}
+
+function delRow(id){
+  const el = document.getElementById(id);
+  if(el){ el.remove(); recalcAll(); }
+}
+
+function maskDate(el){
+  const raw = el.value.replace(/\D/g, '').slice(0, 8); // keep digits only, max YYYYMMDD
+  let out = raw.slice(0, 4);
+  if(raw.length > 4) out += '-' + raw.slice(4, 6);
+  if(raw.length > 6) out += '-' + raw.slice(6, 8);
+  el.value = out;
+}
+
+function onDateInput(el, id){
+  maskDate(el);
+  recalc(id);
+}
+
+function parseLocalDate(str){
+  // str: "YYYY-MM-DD" -> local Date, avoids UTC/local timezone off-by-one issues
+  const [y, m, d] = str.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function diffYMD(start, end){
+  // inclusive end-date diff, matches Excel DATEDIF Y / YM / MD
+  let y = end.getFullYear() - start.getFullYear();
+  let m = end.getMonth() - start.getMonth();
+  let d = end.getDate() - start.getDate();
+  if(d < 0){
+    m -= 1;
+    const prevMonthLastDay = new Date(end.getFullYear(), end.getMonth(), 0).getDate();
+    d += prevMonthLastDay;
+  }
+  if(m < 0){
+    y -= 1;
+    m += 12;
+  }
+  return {y, m, d};
+}
+
+function monthsToStr(totalMonths){
+  totalMonths = Math.max(0, Math.round(totalMonths));
+  const y = Math.floor(totalMonths/12);
+  const m = totalMonths % 12;
+  if(y>0 && m>0) return `${y}년 ${m}개월`;
+  if(y>0 && m===0) return `${y}년`;
+  return `${m}개월`;
+}
+
+function recalc(id){
+  const tr = document.getElementById(id);
+  const startVal = tr.querySelector('.f-start').value;
+  const endVal = tr.querySelector('.f-end').value;
+  const pctCell = tr.querySelector('.f-pct');
+  const durCell = tr.querySelector('.f-duration');
+  const convCell = tr.querySelector('.f-converted');
+  const resultCell = tr.querySelector('.f-result');
+  const tierSelect = tr.querySelector('.f-tier');
+  const pct = Number(tierSelect.value);
+  pctCell.textContent = pct + '%';
+
+  if(!startVal || !endVal){
+    durCell.textContent = '-';
+    convCell.textContent = '-';
+    resultCell.textContent = '-';
+    tr.dataset.recognizedMonths = 0;
+    recalcAll(false);
+    return;
+  }
+
+  const DATE_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+
+  if(!DATE_RE.test(startVal) || !DATE_RE.test(endVal)){
+    durCell.textContent = '-';
+    convCell.textContent = '-';
+    resultCell.textContent = '-';
+    tr.dataset.recognizedMonths = 0;
+    tr.dataset.rawMonths = 0;
+    recalcAll(false);
+    return;
+  }
+
+  const start = parseLocalDate(startVal);
+  const end = parseLocalDate(endVal);
+
+  if(end < start){
+    durCell.textContent = '종료일 오류';
+    convCell.textContent = '-';
+    resultCell.textContent = '-';
+    tr.dataset.recognizedMonths = 0;
+    recalcAll(false);
+    return;
+  }
+
+  const {y, m, d} = diffYMD(start, end);
+  durCell.textContent = `${y}년 ${m}개월 ${d}일`;
+
+  let totalMonths = y*12 + m;
+  if(d >= 15) totalMonths += 1;
+  convCell.textContent = monthsToStr(totalMonths);
+
+  const recognizedMonths = Math.round(totalMonths * pct / 100);
+  resultCell.textContent = monthsToStr(recognizedMonths);
+  tr.dataset.recognizedMonths = recognizedMonths;
+  tr.dataset.rawMonths = totalMonths;
+
+  recalcAll(false);
+}
+
+function recalcAll(){
+  const rows = document.querySelectorAll('#tbody tr');
+  let sumRecognized = 0;
+  let sumRaw = 0;
+  rows.forEach(r=>{
+    sumRecognized += Number(r.dataset.recognizedMonths || 0);
+    sumRaw += Number(r.dataset.rawMonths || 0);
+  });
+  document.getElementById('sumRecognized').textContent = monthsToStr(sumRecognized);
+  document.getElementById('sumRawMonths').textContent = monthsToStr(sumRaw);
+}
+
+function onCategoryChange(){
+  const category = document.getElementById('jobCategory').value;
+  const newOptionsHtml = optionsHtml(category);
+  document.querySelectorAll('.f-tier').forEach(sel=>{
+    const prevLabel = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : null;
+    sel.innerHTML = newOptionsHtml;
+    // try to keep a matching label selected, otherwise default to first option
+    if(prevLabel){
+      for(let i=0;i<sel.options.length;i++){
+        if(sel.options[i].text === prevLabel){ sel.selectedIndex = i; break; }
+      }
+    }
+  });
+  document.querySelectorAll('#tbody tr').forEach(r=>recalc(r.id));
+}
+
+function clearForm(){
+  if(!confirm('현재 입력 내용을 모두 지우고 새로 작성하시겠습니까?')) return;
+  document.getElementById('candidateName').value = '';
+  document.getElementById('tbody').innerHTML = '';
+  addRow();
+  addRow();
+}
+
+// ---- 저장/불러오기 (localStorage) ----
+const HISTORY_KEY = 'seoul_rehab_career_calc_history_v1';
+
+function loadHistoryList(){
+  try{ return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+  catch(e){ return []; }
+}
+
+function persistHistoryList(list){
+  try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); }
+  catch(e){ alert('저장에 실패했습니다 (브라우저 저장공간 문제일 수 있습니다).'); }
+}
+
+function categoryLabel(value){
+  const sel = document.getElementById('jobCategory');
+  for(const opt of sel.options){ if(opt.value === value) return opt.text; }
+  return value;
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+function gatherCurrentState(){
+  const jobCategory = document.getElementById('jobCategory').value;
+  const candidateName = document.getElementById('candidateName').value.trim();
+  const rows = [];
+  document.querySelectorAll('#tbody tr').forEach(tr=>{
+    const tierSelect = tr.querySelector('.f-tier');
+    rows.push({
+      name: tr.querySelector('.f-name').value,
+      start: tr.querySelector('.f-start').value,
+      end: tr.querySelector('.f-end').value,
+      tierLabel: tierSelect.options[tierSelect.selectedIndex] ? tierSelect.options[tierSelect.selectedIndex].text : '',
+      tierPct: tierSelect.value,
+    });
+  });
+  return {jobCategory, candidateName, rows};
+}
+
+function saveCurrent(){
+  const state = gatherCurrentState();
+  if(!state.candidateName){
+    alert('저장하기 전에 지원자명을 입력해주세요.');
+    document.getElementById('candidateName').focus();
+    return;
+  }
+  const record = {
+    id: Date.now(),
+    savedAt: new Date().toLocaleString('ko-KR'),
+    recognizedTotalText: document.getElementById('sumRecognized').textContent,
+    ...state,
+  };
+  const list = loadHistoryList();
+  list.unshift(record);
+  persistHistoryList(list);
+  renderHistoryList();
+  alert('저장되었습니다.');
+}
+
+function openHistoryModal(){
+  document.getElementById('historySearch').value = '';
+  renderHistoryList();
+  document.getElementById('historyModalOverlay').style.display = 'flex';
+}
+
+function closeHistoryModal(){
+  document.getElementById('historyModalOverlay').style.display = 'none';
+}
+
+function renderHistoryList(){
+  const list = loadHistoryList();
+  document.getElementById('historyCountBadge').textContent = `(${list.length})`;
+
+  const tbody = document.getElementById('historyBody');
+  const searchEl = document.getElementById('historySearch');
+  const keyword = searchEl ? searchEl.value.trim().toLowerCase() : '';
+  const filtered = keyword
+    ? list.filter(r => (r.candidateName || '').toLowerCase().includes(keyword))
+    : list;
+
+  if(filtered.length === 0){
+    tbody.innerHTML = `<tr><td colspan="6" style="color:var(--muted);padding:14px;">${keyword ? '검색 결과가 없습니다.' : '저장된 이력이 없습니다.'}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(r=>`
+    <tr>
+      <td>${escapeHtml(r.candidateName)}</td>
+      <td>${r.savedAt}</td>
+      <td>${escapeHtml(categoryLabel(r.jobCategory))}</td>
+      <td>${r.rows.length}건</td>
+      <td class="col-result">${r.recognizedTotalText}</td>
+      <td>
+        <button class="btn btn-ghost" style="padding:4px 8px;" onclick="loadRecord(${r.id})">불러오기</button>
+        <button class="del-btn" title="삭제" onclick="deleteRecord(${r.id})">✕</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function loadRecord(id){
+  const record = loadHistoryList().find(r=>r.id === id);
+  if(!record) return;
+  document.getElementById('candidateName').value = record.candidateName;
+  document.getElementById('jobCategory').value = record.jobCategory;
+  document.getElementById('tbody').innerHTML = '';
+  record.rows.forEach(rowData=>{
+    addRow();
+    const tr = document.getElementById('tbody').lastElementChild;
+    tr.querySelector('.f-name').value = rowData.name;
+    tr.querySelector('.f-start').value = rowData.start;
+    tr.querySelector('.f-end').value = rowData.end;
+    const tierSelect = tr.querySelector('.f-tier');
+    let matched = false;
+    for(let i=0;i<tierSelect.options.length;i++){
+      if(tierSelect.options[i].text === rowData.tierLabel){ tierSelect.selectedIndex = i; matched = true; break; }
+    }
+    if(!matched && rowData.tierPct !== undefined){ tierSelect.value = rowData.tierPct; }
+    recalc(tr.id);
+  });
+  if(record.rows.length === 0){ addRow(); addRow(); }
+  closeHistoryModal();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function deleteRecord(id){
+  if(!confirm('이 저장 이력을 삭제하시겠습니까?')) return;
+  const list = loadHistoryList().filter(r=>r.id !== id);
+  persistHistoryList(list);
+  renderHistoryList();
+}
+
+// initial rows
+addRow();
+addRow();
+renderHistoryList();
+</script>
+</body>
+</html>
