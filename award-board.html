@@ -477,6 +477,18 @@ function tenureMonths(hireISO, ref){
   return (ref.getFullYear()-h.getFullYear())*12 + (ref.getMonth()-h.getMonth());
 }
 
+function normalizeHireDate(v){
+  if(!v) return '';
+  const s = String(v);
+  const simple = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(simple) return s;
+  const d = new Date(s);
+  if(isNaN(d)) return '';
+  const y = d.getFullYear();
+  const mo = String(d.getMonth()+1).padStart(2,'0');
+  const da = String(d.getDate()).padStart(2,'0');
+  return `${y}-${mo}-${da}`;
+}
 function normalizeAwards(e){
   const out = {};
   for(const [name,val] of Object.entries(e.awards||{})){
@@ -484,6 +496,7 @@ function normalizeAwards(e){
     else if(val!=null && val!=='') out[name] = [val];
   }
   e.awards = out;
+  e.hire = normalizeHireDate(e.hire);
   return e;
 }
 function flatAwardEntries(awards){
