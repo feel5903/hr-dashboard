@@ -514,48 +514,69 @@ function employeeAwardCount(e){
   return flatAwardEntries(e.awards).length;
 }
 
+async function fetchSheetOnce(){
+  const res = await fetch(SHEET_API_URL + '?t=' + Date.now(), {method:'GET', cache:'no-store'});
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  return await res.json();
+}
 async function loadData(){
+  let data;
   try{
-    const res = await fetch(SHEET_API_URL + '?t=' + Date.now(), {method:'GET', cache:'no-store'});
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const data = await res.json();
-    if(data.employees && data.employees.length){
-      employees = data.employees.map(normalizeAwards);
-      departments = data.departments || [];
-      lastModified = data.lastModified || null;
-      dataSource = 'sheet';
+    data = await fetchSheetOnce();
+  }catch(err1){
+    console.warn('시트 연결 1차 실패, 재시도 중…', err1);
+    document.getElementById('syncStatus').textContent = '연결이 늦어지고 있어요, 재시도 중…';
+    try{
+      await new Promise(r=>setTimeout(r, 1500));
+      data = await fetchSheetOnce();
+    }catch(err2){
+      console.error('시트 불러오기 최종 실패', err2);
+      dataSource = 'error';
+      employees = JSON.parse(JSON.stringify(SEED_DATA)).map(normalizeAwards);
+      departments = [];
+      alert('구글시트 연결에 실패했습니다. 지금 보이는 내용은 임시 데이터이며 저장되지 않습니다.\n잠시 후 새로고침해주세요.');
       return;
     }
-    // sheet is empty -> seed it once with the default 266-person dataset
-    employees = JSON.parse(JSON.stringify(SEED_DATA)).map(normalizeAwards);
-    departments = [];
-    dataSource = 'sheet';
-    await pushToSheet();
-  }catch(err){
-    console.error('시트 불러오기 실패', err);
-    dataSource = 'error';
-    employees = JSON.parse(JSON.stringify(SEED_DATA)).map(normalizeAwards);
-    departments = [];
-    alert('구글시트 연결에 실패했습니다. 지금 보이는 내용은 임시 데이터이며 저장되지 않습니다.\n네트워크 상태를 확인한 뒤 새로고침해주세요.');
   }
+  if(data.employees && data.employees.length){
+    employees = data.employees.map(normalizeAwards);
+    departments = data.departments || [];
+    lastModified = data.lastModified || null;
+    dataSource = 'sheet';
+    return;
+  }
+  // sheet is empty -> seed it once with the default 266-person dataset
+  employees = JSON.parse(JSON.stringify(SEED_DATA)).map(normalizeAwards);
+  departments = [];
+  dataSource = 'sheet';
+  await pushToSheet();
+}
+async function pushToSheetOnce(){
+  const res = await fetch(SHEET_API_URL, {
+    method:'POST',
+    headers: {'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({employees, departments})
+  });
+  const data = await res.json();
+  if(data.status!=='ok') throw new Error(data.message||'unknown error');
+  return data;
 }
 async function pushToSheet(){
   try{
-    const res = await fetch(SHEET_API_URL, {
-      method:'POST',
-      headers: {'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({employees, departments})
-    });
-    const data = await res.json();
-    if(data.status==='ok'){
+    const data = await pushToSheetOnce();
+    lastModified = data.lastModified;
+    dataSource = 'sheet';
+  }catch(err1){
+    console.warn('저장 1차 실패, 재시도 중…', err1);
+    try{
+      await new Promise(r=>setTimeout(r, 1500));
+      const data = await pushToSheetOnce();
       lastModified = data.lastModified;
       dataSource = 'sheet';
-    } else {
-      throw new Error(data.message||'unknown error');
+    }catch(err2){
+      console.error('저장 최종 실패', err2);
+      alert('구글시트 저장에 실패했습니다. 방금 하신 변경사항이 시트에 반영되지 않았을 수 있습니다.\n네트워크를 확인하고 다시 시도해주세요.');
     }
-  }catch(err){
-    console.error('저장 실패', err);
-    alert('구글시트 저장에 실패했습니다. 방금 하신 변경사항이 시트에 반영되지 않았을 수 있습니다.\n네트워크를 확인하고 다시 시도해주세요.');
   }
   renderSyncStatus();
 }
