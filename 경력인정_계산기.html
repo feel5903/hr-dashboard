@@ -281,36 +281,7 @@
   </div>
 
   <div class="panel">
-    <h2><span class="num">2</span>이력서 · 경력증명서 자동 인식 (AI)</h2>
-    <div id="aiDropZone" tabindex="0" onclick="document.getElementById('aiFileInput').click()"
-         style="border:2px dashed #b8c9c4;border-radius:8px;padding:14px 16px;text-align:center;color:var(--muted);cursor:pointer;font-size:13px;outline:none;">
-      📋 여기를 클릭한 뒤 캡처화면을 <b>Ctrl+V</b>로 바로 붙여넣거나, 클릭해서 파일을 선택하세요
-    </div>
-    <input type="file" id="aiFileInput" accept="image/*,application/pdf" multiple style="display:none;" onchange="onAiFileInputChange(event)">
-    <div id="aiFileList" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0;">
-      <button class="btn btn-primary" onclick="runAIRecognition()">🤖 AI로 자동 인식해서 추가</button>
-      <button class="btn btn-ghost" onclick="toggleAiSettings()">⚙ 서버 주소 설정</button>
-      <button class="btn btn-ghost" onclick="toggleRawTextBox()">📄 인식 원문 보기</button>
-    </div>
-    <div id="aiSettingsBox" style="display:none;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
-      <input type="text" id="aiEndpointInput" placeholder="Apps Script 웹앱 주소 (https://script.google.com/macros/s/.../exec)" style="flex:1;min-width:280px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;">
-      <button class="btn" onclick="saveAiEndpoint()">저장</button>
-    </div>
-    <div id="aiStatus" class="hint" style="display:none;"></div>
-    <div id="aiRawTextBox" style="display:none;margin-top:10px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <strong style="font-size:12px;color:var(--muted);">OCR 인식 원문 (참고용 — 자동으로 안 채워진 경력은 여기서 복사해 직접 입력하세요)</strong>
-      </div>
-      <textarea id="aiRawTextArea" readonly style="width:100%;height:140px;margin-top:6px;padding:8px;border:1px solid var(--line);border-radius:6px;font-size:12px;white-space:pre-wrap;"></textarea>
-    </div>
-    <div class="hint">
-      경력 부분만 캡처해서 붙여넣으면(Ctrl+V) 학력 등 다른 항목이 섞이지 않아 더 깔끔하게 인식됩니다. 문서에서 "날짜~날짜" 형태를 찾아 근무경력을 자동으로 표에 추가하며, <b>구분(기관종별)과 인정비율은 직접 선택해주시고, 자동 인식된 이름·날짜도 원본과 대조해주세요.</b> 일부는 자동으로 안 잡힐 수 있으니 "인식 원문 보기"로 확인해주세요. 최초 1회 서버 주소 설정이 필요합니다.
-    </div>
-  </div>
-
-  <div class="panel">
-    <h2><span class="num">3</span>근무경력 입력</h2>
+    <h2><span class="num">2</span>근무경력 입력</h2>
     <div class="table-scroll">
       <table id="careerTable">
         <thead>
@@ -336,7 +307,7 @@
   </div>
 
   <div class="panel">
-    <h2><span class="num">4</span>저장 / 불러오기</h2>
+    <h2><span class="num">3</span>저장 / 불러오기</h2>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
       <button class="btn btn-primary" onclick="saveCurrent()">💾 현재 입력 저장</button>
       <button class="btn btn-ghost" onclick="clearForm()">🗑 새로 작성(초기화)</button>
@@ -613,161 +584,6 @@ function onCategoryChange(){
     }
   });
   document.querySelectorAll('#tbody tr').forEach(r=>recalc(r.id));
-}
-
-// ---- AI 자동 인식 (이력서/경력증명서 → Apps Script 프록시) ----
-const AI_ENDPOINT_KEY = 'career_calc_ai_endpoint_v1';
-let pendingAiFiles = [];
-
-function onAiFileInputChange(e){
-  const files = Array.from(e.target.files || []);
-  files.forEach(f => pendingAiFiles.push(f));
-  renderAiFileList();
-  e.target.value = ''; // 같은 파일을 다시 선택해도 change가 발생하도록 초기화
-}
-
-function renderAiFileList(){
-  const box = document.getElementById('aiFileList');
-  if(pendingAiFiles.length === 0){ box.innerHTML = ''; return; }
-  box.innerHTML = pendingAiFiles.map((f, i) => `
-    <span style="display:inline-flex;align-items:center;gap:6px;background:var(--teal-100);padding:4px 10px;border-radius:6px;font-size:12px;color:var(--teal-900);">
-      📎 ${escapeHtml(f.name || ('캡처이미지' + (i + 1)))}
-      <button onclick="removeAiFile(${i})" style="border:none;background:none;color:var(--danger);cursor:pointer;font-weight:bold;font-size:13px;">✕</button>
-    </span>
-  `).join('');
-}
-
-function removeAiFile(i){
-  pendingAiFiles.splice(i, 1);
-  renderAiFileList();
-}
-
-document.addEventListener('DOMContentLoaded', function(){
-  const dropZone = document.getElementById('aiDropZone');
-  if(!dropZone) return;
-  dropZone.addEventListener('paste', function(e){
-    const items = (e.clipboardData || window.clipboardData).items;
-    let addedAny = false;
-    for(const item of items){
-      if(item.type.indexOf('image') !== -1){
-        const blob = item.getAsFile();
-        const namedFile = new File([blob], '캡처_' + Date.now() + '_' + pendingAiFiles.length + '.png', { type: blob.type });
-        pendingAiFiles.push(namedFile);
-        addedAny = true;
-      }
-    }
-    if(addedAny){
-      renderAiFileList();
-      e.preventDefault();
-    }
-  });
-});
-
-function toggleAiSettings(){
-  const box = document.getElementById('aiSettingsBox');
-  document.getElementById('aiEndpointInput').value = localStorage.getItem(AI_ENDPOINT_KEY) || '';
-  const isHidden = box.style.display === 'none' || !box.style.display;
-  box.style.display = isHidden ? 'flex' : 'none';
-}
-
-function saveAiEndpoint(){
-  const val = document.getElementById('aiEndpointInput').value.trim();
-  localStorage.setItem(AI_ENDPOINT_KEY, val);
-  showAiStatus('서버 주소가 저장되었습니다.', false);
-  document.getElementById('aiSettingsBox').style.display = 'none';
-}
-
-function showAiStatus(msg, isError){
-  const el = document.getElementById('aiStatus');
-  el.style.display = 'block';
-  el.style.background = isError ? '#fbeceb' : 'var(--teal-100)';
-  el.style.color = isError ? 'var(--danger)' : 'var(--muted)';
-  el.textContent = msg;
-}
-
-function fileToBase64(file){
-  return new Promise((resolve, reject)=>{
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-function removeEmptyRows(){
-  document.querySelectorAll('#tbody tr').forEach(tr=>{
-    const name = tr.querySelector('.f-name').value.trim();
-    const start = tr.querySelector('.f-start').value.trim();
-    const end = tr.querySelector('.f-end').value.trim();
-    if(!name && !start && !end){
-      tr.remove();
-    }
-  });
-}
-
-function toggleRawTextBox(){
-  const box = document.getElementById('aiRawTextBox');
-  box.style.display = (box.style.display === 'none' || !box.style.display) ? 'block' : 'none';
-}
-
-async function runAIRecognition(){
-  const endpoint = localStorage.getItem(AI_ENDPOINT_KEY) || '';
-  if(!endpoint){
-    showAiStatus('먼저 "⚙ 서버 주소 설정"에서 Apps Script 웹앱 주소를 등록해주세요.', true);
-    return;
-  }
-  const files = pendingAiFiles;
-  if(files.length === 0){
-    showAiStatus('먼저 이력서 · 경력증명서 파일을 첨부하거나 캡처화면을 붙여넣어주세요.', true);
-    return;
-  }
-
-  showAiStatus('문서를 읽고 있습니다... (수 초~수십 초 소요됩니다)', false);
-
-  try{
-    const encoded = [];
-    for(const f of files){
-      const base64 = await fileToBase64(f);
-      encoded.push({ name: f.name, mimeType: f.type || 'image/png', data: base64 });
-    }
-
-    const resp = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ files: encoded })
-    });
-    const result = await resp.json();
-
-    if(!result.ok){
-      showAiStatus('오류: ' + (result.error || '알 수 없는 오류가 발생했습니다.'), true);
-      return;
-    }
-
-    document.getElementById('aiRawTextArea').value = result.rawText || '(인식된 텍스트가 없습니다)';
-    document.getElementById('aiRawTextBox').style.display = 'block';
-    const entries = Array.isArray(result.entries) ? result.entries : [];
-
-    if(entries.length === 0){
-      showAiStatus('자동으로 "날짜~날짜" 패턴을 찾지 못했습니다. "📄 인식 원문 보기"에서 텍스트를 확인해 직접 입력해주세요.', true);
-      return;
-    }
-
-    removeEmptyRows();
-    entries.forEach(entry=>{
-      addRow();
-      const tr = document.getElementById('tbody').lastElementChild;
-      tr.querySelector('.f-name').value = entry.name || '';
-      tr.querySelector('.f-start').value = entry.start || '';
-      tr.querySelector('.f-end').value = entry.end || '';
-      recalc(tr.id);
-    });
-
-    showAiStatus(`✅ ${entries.length}건을 자동으로 추가했습니다. 근무처명·날짜·구분(기관종별)을 표에서 꼭 확인해주세요. 혹시 빠진 경력이 있으면 "📄 인식 원문 보기"에서 확인해 직접 입력해주세요.`, false);
-    pendingAiFiles = [];
-    renderAiFileList();
-  }catch(err){
-    showAiStatus('처리 중 오류가 발생했습니다: ' + err.message, true);
-  }
 }
 
 function clearForm(){
