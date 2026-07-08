@@ -104,6 +104,19 @@
   }
   .chip-toggle input{accent-color:var(--primary);}
   .chip-toggle.active{background:var(--primary-tint); border-color:var(--primary); color:var(--primary-dark);}
+  .tenure-filter{
+    display:flex; align-items:center; gap:6px;
+    border:1px solid var(--line); border-radius:10px; padding:7px 10px;
+    background:var(--surface); font-size:12.5px; font-weight:600; color:var(--muted);
+  }
+  .tenure-filter.active{background:var(--primary-tint); border-color:var(--primary); color:var(--primary-dark);}
+  .tenure-filter input[type=number]{
+    width:52px; border:1px solid var(--line); border-radius:7px; padding:5px 6px;
+    font-family:inherit; font-size:13px; text-align:center; font-variant-numeric:tabular-nums;
+  }
+  .tenure-filter #tenureClearBtn{
+    border:none; background:none; color:var(--muted); font-size:12px; cursor:pointer; padding:2px 4px;
+  }
   .spacer{flex:1;}
   .btn-primary{background:var(--primary); color:#fff; border-color:var(--primary);}
   .btn-primary:hover{background:var(--primary-dark);}
@@ -293,6 +306,14 @@
       <option value="hire_asc">입사일 빠른순</option>
       <option value="hire_desc">입사일 최근순</option>
     </select>
+    <div class="tenure-filter">
+      <label>근속연수</label>
+      <input type="number" id="tenureMin" min="0" step="1" placeholder="최소">
+      <span>~</span>
+      <input type="number" id="tenureMax" min="0" step="1" placeholder="최대(미만)">
+      <span>년</span>
+      <button class="btn" id="tenureClearBtn" title="근속연수 필터 초기화">✕</button>
+    </div>
     <label class="chip-toggle" id="thisYearToggleWrap"><input type="checkbox" id="thisYearToggle">올해 수상만</label>
     <label class="chip-toggle" id="seoulToggleWrap"><input type="checkbox" id="seoulToggle">서울거주만</label>
     <label class="chip-toggle" id="hasAwardToggleWrap"><input type="checkbox" id="hasAwardToggle">수상이력 있음만</label>
@@ -317,6 +338,8 @@
     <div class="legend-item"><span class="legend-dot" style="background:var(--slate)"></span>내부 포상·근속</div>
     <div class="legend-item"><span class="legend-dot" style="background:var(--spot)"></span>기준연도 수상</div>
   </div>
+
+  <p id="resultCount" style="font-size:12.5px; font-weight:700; color:var(--muted); margin:0 0 8px;"></p>
 
   <div class="table-wrap" id="tableWrap">
     <table class="roster">
@@ -659,6 +682,10 @@ function render(){
   const onlySeoul = document.getElementById('seoulToggle').checked;
   const onlyHasAward = document.getElementById('hasAwardToggle').checked;
   const onlyNoAward = document.getElementById('noAwardToggle').checked;
+  const tenureMinRaw = document.getElementById('tenureMin').value;
+  const tenureMaxRaw = document.getElementById('tenureMax').value;
+  const tenureMinMonths = tenureMinRaw!==''? parseFloat(tenureMinRaw)*12 : null;
+  const tenureMaxMonths = tenureMaxRaw!==''? parseFloat(tenureMaxRaw)*12 : null;
 
   const refYear = baseDate.getFullYear();
 
@@ -670,6 +697,11 @@ function render(){
     if(onlySeoul && !e.seoul) return false;
     if(onlyHasAward && employeeAwardCount(e)===0) return false;
     if(onlyNoAward && employeeAwardCount(e)>0) return false;
+    if(tenureMinMonths!==null || tenureMaxMonths!==null){
+      const tm = tenureMonths(e.hire, baseDate);
+      if(tenureMinMonths!==null && tm < tenureMinMonths) return false;
+      if(tenureMaxMonths!==null && tm >= tenureMaxMonths) return false;
+    }
     return true;
   });
 
@@ -685,6 +717,10 @@ function render(){
   document.getElementById('emptyState').style.display = list.length? 'none':'block';
   document.getElementById('grid').style.display = (currentView==='card')? 'grid':'none';
   document.getElementById('tableWrap').style.display = (currentView==='table')? 'block':'none';
+  const isFiltered = list.length !== employees.length;
+  document.getElementById('resultCount').textContent = isFiltered
+    ? `조건에 맞는 인원: ${list.length}명 (전체 ${employees.length}명 중)`
+    : `전체 ${employees.length}명`;
 
   if(currentView==='card') renderCards(list, refYear); else renderTable(list, refYear);
 
@@ -944,6 +980,20 @@ document.querySelectorAll('.view-toggle-btn').forEach(btn=>{
 
 ['searchInput'].forEach(id=> document.getElementById(id).addEventListener('input', render));
 ['deptFilter','sortSelect'].forEach(id=> document.getElementById(id).addEventListener('change', render));
+function updateTenureFilterStyle(){
+  const min = document.getElementById('tenureMin').value;
+  const max = document.getElementById('tenureMax').value;
+  document.querySelector('.tenure-filter').classList.toggle('active', min!=='' || max!=='');
+}
+['tenureMin','tenureMax'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', ()=>{ updateTenureFilterStyle(); render(); });
+});
+document.getElementById('tenureClearBtn').addEventListener('click', ()=>{
+  document.getElementById('tenureMin').value = '';
+  document.getElementById('tenureMax').value = '';
+  updateTenureFilterStyle();
+  render();
+});
 ['thisYearToggle','seoulToggle','hasAwardToggle','noAwardToggle'].forEach(id=>{
   document.getElementById(id).addEventListener('change', function(){
     document.getElementById(id+'Wrap').classList.toggle('active', this.checked);
