@@ -503,7 +503,7 @@ function employeeAwardCount(e){
 
 async function loadData(){
   try{
-    const res = await fetch(SHEET_API_URL, {method:'GET'});
+    const res = await fetch(SHEET_API_URL + '?t=' + Date.now(), {method:'GET', cache:'no-store'});
     if(!res.ok) throw new Error('HTTP '+res.status);
     const data = await res.json();
     if(data.employees && data.employees.length){
