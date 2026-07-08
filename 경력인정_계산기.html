@@ -1,200 +1,921 @@
-/**
- * 경력인정 계산기 - AI 자동 인식 백엔드 (무료 버전, Google Drive OCR 사용)
- *
- * [사용 방법]
- * 1. script.google.com 에서 "새 프로젝트" 생성
- * 2. 이 코드를 전체 복사해서 붙여넣기
- * 3. 왼쪽 메뉴 "서비스" 옆 + 버튼 클릭 → "Drive API" 검색해서 추가
- *    (모양이 "Drive API"라고 나오면 그걸로 추가하면 됩니다. 버전은 기본값 그대로)
- * 4. 오른쪽 위 "배포" → "새 배포" → 유형: 웹 앱
- *    - 실행 계정: 나
- *    - 액세스 권한이 있는 사용자: 전체
- *    배포 후 나오는 웹 앱 URL을 계산기 화면의 "⚙ 서버 주소 설정"에 붙여넣으세요.
- *
- * [비용] Google 계정 자체의 OCR 기능만 사용하므로 별도 비용이 전혀 들지 않습니다.
- * [한계] 표 형태의 문서는 완벽하게 구조를 이해하지 못하고, 텍스트 한 줄에서
- *        "날짜~날짜" 패턴만 찾아 근무처명을 추정합니다. 일부 항목은 놓칠 수 있으니
- *        계산기의 "인식 원문 보기"로 원문을 확인해 직접 보완해주세요.
- */
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>경력 인정 계산기 | 서울재활병원 인사과</title>
+<style>
+  :root{
+    --teal-900:#0d3b36;
+    --teal-700:#146b5f;
+    --teal-500:#1f8a78;
+    --teal-100:#e3f2ee;
+    --paper:#f7f9f8;
+    --card:#ffffff;
+    --ink:#1c2b28;
+    --muted:#5f7873;
+    --line:#dbe6e2;
+    --amber:#c98a2b;
+    --amber-bg:#fbf1de;
+    --danger:#b3492f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Malgun Gothic','맑은 고딕',-apple-system,sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    padding:28px 20px 60px;
+  }
+  .wrap{max-width:1180px;margin:0 auto;}
+  header{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+    margin-bottom:20px;
+    border-bottom:3px solid var(--teal-900);
+    padding-bottom:14px;
+  }
+  header h1{
+    font-size:22px;
+    margin:0 0 4px;
+    color:var(--teal-900);
+    letter-spacing:-0.3px;
+  }
+  header p{margin:0;color:var(--muted);font-size:13px;}
+  .top-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  button, select, input{font-family:inherit;font-size:13.5px;}
+  .btn{
+    border:1px solid var(--teal-700);
+    background:var(--card);
+    color:var(--teal-700);
+    padding:8px 14px;
+    border-radius:6px;
+    cursor:pointer;
+    font-weight:600;
+    transition:.12s;
+  }
+  .btn:hover{background:var(--teal-100);}
+  .btn-primary{
+    background:var(--teal-700);
+    color:#fff;
+    border-color:var(--teal-700);
+  }
+  .btn-primary:hover{background:var(--teal-900);}
+  .btn-ghost{border-color:var(--line);color:var(--muted);}
+  .btn-ghost:hover{background:#eef2f1;}
 
-function doPost(e) {
-  var tempFileIds = [];
-  try {
-    var body = JSON.parse(e.postData.contents);
-    var files = body.files || [];
+  .panel{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px 20px;
+    margin-bottom:18px;
+  }
+  .panel h2{
+    font-size:14px;
+    margin:0 0 12px;
+    color:var(--teal-900);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .panel h2 .num{
+    background:var(--teal-700);
+    color:#fff;
+    width:20px;height:20px;
+    border-radius:50%;
+    font-size:11px;
+    display:inline-flex;align-items:center;justify-content:center;
+  }
 
-    if (files.length === 0) {
-      return jsonOutput({ ok: false, error: '첨부된 파일이 없습니다.' });
+  .job-select-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .job-select-row select{
+    padding:9px 12px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    background:#fff;
+    min-width:260px;
+    color:var(--ink);
+  }
+  .hint{
+    font-size:12px;
+    color:var(--muted);
+    background:var(--teal-100);
+    border-radius:6px;
+    padding:8px 12px;
+    line-height:1.5;
+  }
+  .hint a{color:var(--teal-700);}
+
+  .table-scroll{overflow-x:auto;}
+  table{
+    border-collapse:collapse;
+    width:100%;
+    min-width:980px;
+    font-size:12.5px;
+  }
+  thead th{
+    background:var(--teal-900);
+    color:#fff;
+    padding:9px 8px;
+    text-align:center;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  tbody td{
+    border-bottom:1px solid var(--line);
+    padding:7px 6px;
+    text-align:center;
+    vertical-align:middle;
+  }
+  tbody tr:nth-child(even){background:#fbfcfc;}
+  tbody tr:hover{background:var(--teal-100);}
+  td input[type=text]{
+    width:120px;
+    padding:6px 7px;
+    border:1px solid var(--line);
+    border-radius:5px;
+  }
+  td input.date-field{
+    padding:5px 4px;
+    border:1px solid var(--line);
+    border-radius:5px;
+    width:110px;
+    text-align:center;
+    letter-spacing:0.3px;
+  }
+  td select{
+    padding:6px 6px;
+    border:1px solid var(--line);
+    border-radius:5px;
+    width:100%;
+    min-width:190px;
+  }
+  .col-pct{font-weight:700;color:var(--teal-700);}
+  .col-result{font-weight:700;color:var(--teal-900);white-space:nowrap;}
+  .col-duration{color:var(--muted);white-space:nowrap;}
+  .del-btn{
+    border:none;background:none;color:var(--danger);
+    cursor:pointer;font-size:15px;
+  }
+  .del-btn:hover{opacity:.6;}
+
+  .summary{
+    display:flex;
+    justify-content:flex-end;
+    gap:26px;
+    margin-top:14px;
+    padding-top:14px;
+    border-top:2px solid var(--teal-900);
+    flex-wrap:wrap;
+  }
+  .summary .stat{text-align:right;}
+  .summary .stat .label{font-size:12px;color:var(--muted);}
+  .summary .stat .value{font-size:20px;font-weight:800;color:var(--teal-900);}
+  .summary .stat.total .value{color:var(--amber);font-size:26px;}
+
+  .add-row-btn{
+    margin-top:12px;
+  }
+
+  .modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(13,59,54,0.45);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:100;
+    padding:20px;
+  }
+  .modal-box{
+    background:#fff;
+    border-radius:12px;
+    width:min(760px, 100%);
+    max-height:85vh;
+    display:flex;
+    flex-direction:column;
+    box-shadow:0 12px 40px rgba(0,0,0,.25);
+  }
+  .modal-head{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    justify-content:space-between;
+    padding:16px 20px;
+    border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+  }
+  .modal-head h3{margin:0;font-size:15px;color:var(--teal-900);}
+  .modal-head input[type=text]{
+    padding:7px 10px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    flex:1;
+    min-width:140px;
+  }
+  .modal-body{
+    padding:6px 20px 20px;
+    overflow-y:auto;
+  }
+
+  footer{
+    margin-top:26px;
+    font-size:11.5px;
+    color:var(--muted);
+    line-height:1.6;
+  }
+
+  @media print{
+    body{background:#fff;padding:0;}
+    .top-actions, .add-row-btn, .del-btn, .btn, .job-select-row select, .hint, .modal-overlay{display:none !important;}
+    .panel{border:none;box-shadow:none;padding:0;}
+    header{border-bottom:2px solid #000;}
+    thead th{background:#eee !important;color:#000 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  }
+
+  @media (max-width:720px){
+    .summary{justify-content:flex-start;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>경력 인정 계산기</h1>
+      <p>서울재활병원 인사과 &middot; 지원서류(경력증명서) 기준 근무기간 → 인정경력 자동 환산</p>
+    </div>
+    <div class="top-actions">
+      <button class="btn btn-ghost" onclick="window.print()">🖨 인쇄</button>
+      <a class="btn" href="https://www.hira.or.kr/ra/hosp/getHealthMap.do?pgmid=HIRAA030002010000" target="_blank" rel="noopener">🔍 병원종별 확인 (심평원)</a>
+    </div>
+  </header>
+
+  <div class="panel">
+    <h2><span class="num">1</span>직종 선택</h2>
+    <div class="job-select-row">
+      <input type="text" id="candidateName" placeholder="지원자명 입력" style="padding:9px 12px;border:1px solid var(--line);border-radius:6px;min-width:150px;">
+      <select id="jobCategory" onchange="onCategoryChange()">
+        <optgroup label="의료 기술직">
+          <option value="간호사">간호사</option>
+          <option value="치료사">치료사</option>
+          <option value="사회복지사등">사회복지사 · 약사 · 의무기록사 · 영양사</option>
+          <option value="임상병리방사선">임상병리사 · 방사선사</option>
+        </optgroup>
+        <optgroup label="기능직 / 행정직 / 고용직">
+          <option value="의료기능직">의료 기능직 (의공기사·보조기사·간호조무사)</option>
+          <option value="일반기능직">일반 기능직 (보일러기능사·전기기능사·운전기사)</option>
+          <option value="사무행정직">사무 행정직 (총무과·원무과 등)</option>
+          <option value="고용직">고용직 (미화·취사·수위 등)</option>
+        </optgroup>
+      </select>
+      <div class="hint">
+        기관 종별(종합병원/일반병원/의원급)은 <a href="https://www.hira.or.kr/ra/hosp/getHealthMap.do?pgmid=HIRAA030002010000" target="_blank" rel="noopener">건강보험심사평가원 병원·약국찾기</a>에서 확인 후 각 행의 "구분"에서 선택하세요.
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2><span class="num">2</span>이력서 · 경력증명서 자동 인식 (AI)</h2>
+    <div id="aiDropZone" tabindex="0" onclick="document.getElementById('aiFileInput').click()"
+         style="border:2px dashed #b8c9c4;border-radius:8px;padding:14px 16px;text-align:center;color:var(--muted);cursor:pointer;font-size:13px;outline:none;">
+      📋 여기를 클릭한 뒤 캡처화면을 <b>Ctrl+V</b>로 바로 붙여넣거나, 클릭해서 파일을 선택하세요
+    </div>
+    <input type="file" id="aiFileInput" accept="image/*,application/pdf" multiple style="display:none;" onchange="onAiFileInputChange(event)">
+    <div id="aiFileList" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0;">
+      <button class="btn btn-primary" onclick="runAIRecognition()">🤖 AI로 자동 인식해서 추가</button>
+      <button class="btn btn-ghost" onclick="toggleAiSettings()">⚙ 서버 주소 설정</button>
+      <button class="btn btn-ghost" onclick="toggleRawTextBox()">📄 인식 원문 보기</button>
+    </div>
+    <div id="aiSettingsBox" style="display:none;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+      <input type="text" id="aiEndpointInput" placeholder="Apps Script 웹앱 주소 (https://script.google.com/macros/s/.../exec)" style="flex:1;min-width:280px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;">
+      <button class="btn" onclick="saveAiEndpoint()">저장</button>
+    </div>
+    <div id="aiStatus" class="hint" style="display:none;"></div>
+    <div id="aiRawTextBox" style="display:none;margin-top:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <strong style="font-size:12px;color:var(--muted);">OCR 인식 원문 (참고용 — 자동으로 안 채워진 경력은 여기서 복사해 직접 입력하세요)</strong>
+      </div>
+      <textarea id="aiRawTextArea" readonly style="width:100%;height:140px;margin-top:6px;padding:8px;border:1px solid var(--line);border-radius:6px;font-size:12px;white-space:pre-wrap;"></textarea>
+    </div>
+    <div class="hint">
+      경력 부분만 캡처해서 붙여넣으면(Ctrl+V) 학력 등 다른 항목이 섞이지 않아 더 깔끔하게 인식됩니다. 문서에서 "날짜~날짜" 형태를 찾아 근무경력을 자동으로 표에 추가하며, <b>구분(기관종별)과 인정비율은 직접 선택해주시고, 자동 인식된 이름·날짜도 원본과 대조해주세요.</b> 일부는 자동으로 안 잡힐 수 있으니 "인식 원문 보기"로 확인해주세요. 최초 1회 서버 주소 설정이 필요합니다.
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2><span class="num">3</span>근무경력 입력</h2>
+    <div class="table-scroll">
+      <table id="careerTable">
+        <thead>
+          <tr>
+            <th style="min-width:150px;">근무처명</th>
+            <th>시작일</th>
+            <th>종료일</th>
+            <th style="min-width:220px;">구분 (기관종별)</th>
+            <th>인정비율</th>
+            <th>실 근무기간</th>
+            <th>환산개월<br><span style="font-weight:400;font-size:10px;">(15일 이상 반올림)</span></th>
+            <th>인정경력</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <button class="btn btn-primary add-row-btn" onclick="addRow()">+ 경력 추가</button>
+    <div class="hint" style="margin-top:10px;">
+      시작일 · 종료일은 숫자만 이어서 입력하면 자동으로 하이픈(-)이 붙습니다. 예: <b>20240401</b> 입력 → <b>2024-04-01</b>로 자동 변환
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2><span class="num">4</span>저장 / 불러오기</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <button class="btn btn-primary" onclick="saveCurrent()">💾 현재 입력 저장</button>
+      <button class="btn btn-ghost" onclick="clearForm()">🗑 새로 작성(초기화)</button>
+      <button class="btn" onclick="openHistoryModal()">📂 저장 이력 보기 <span id="historyCountBadge">(0)</span></button>
+    </div>
+    <div class="hint" style="margin-top:10px;">
+      저장한 이력은 이 컴퓨터의 브라우저에만 저장됩니다(다른 PC와 공유되지 않음). 시크릿 모드이거나 브라우저 데이터를 삭제하면 사라질 수 있으니, 중요한 결과는 인쇄 또는 캡처로 별도 보관해 주세요.
+    </div>
+  </div>
+
+  <div id="historyModalOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this) closeHistoryModal()">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>저장된 이력</h3>
+        <input type="text" id="historySearch" placeholder="지원자명 검색" oninput="renderHistoryList()">
+        <button class="btn btn-ghost" onclick="closeHistoryModal()">닫기 ✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="table-scroll">
+          <table id="historyTable" style="min-width:640px;">
+            <thead>
+              <tr>
+                <th style="min-width:120px;">지원자명</th>
+                <th>저장일시</th>
+                <th>직종</th>
+                <th>경력 건수</th>
+                <th>인정경력 합계</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="summary">
+      <div class="stat">
+        <div class="label">전 경력 합계 (인정비율 적용 전)</div>
+        <div class="value" id="sumRawMonths">0개월</div>
+      </div>
+      <div class="stat total">
+        <div class="label">합계 인정경력 (인정비율 적용 후)</div>
+        <div class="value" id="sumRecognized">0개월</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    ※ 계산 방식: 시작일~종료일(말일 기준) 사이 실 근무기간을 연/월/일로 산출 → 일수 15일 이상이면 1개월로 반올림 → 직종·기관종별 인정비율 적용(반올림) → 인정경력 산출.<br>
+    ※ 특례(본원 퇴직후 재취업 / 본원 계약직·인턴 근무 / 본법인 근무 / 대한민국 군인 복무 / 공무원 근무 등)는 100%로 인정됩니다.<br>
+    ※ 대한민국 군 복무 경력은 성별·직종과 무관하게 모든 구분에서 특례(100%)로 동일 적용됩니다.
+  </footer>
+
+</div>
+
+<script>
+const RATE_TABLE = {
+  "간호사": [
+    {label:"재취업/계약직·인턴/본법인/군복무/공무원", pct:100},
+    {label:"종합병원", pct:100},
+    {label:"재활병원", pct:100},
+    {label:"일반병원", pct:80},
+    {label:"의원급", pct:50},
+  ],
+  "치료사": [
+    {label:"재취업/계약직·인턴/본법인/군복무/공무원", pct:100},
+    {label:"종합병원", pct:100},
+    {label:"재활병원", pct:100},
+    {label:"일반병원", pct:80},
+    {label:"의원급", pct:50},
+    {label:"복지관 / 장애인시설", pct:50},
+  ],
+  "사회복지사등": [
+    {label:"재취업/계약직·인턴/본법인/군복무/공무원", pct:100},
+    {label:"종합병원", pct:100},
+    {label:"재활병원", pct:100},
+    {label:"의원급", pct:50},
+    {label:"복지관 / 시설 (사회복지사)", pct:50},
+  ],
+  "임상병리방사선": [
+    {label:"재취업/계약직·인턴/본법인/군복무/공무원", pct:100},
+    {label:"병원 (종합/일반/재활 등)", pct:100},
+    {label:"의원급", pct:50},
+  ],
+  "의료기능직": [
+    {label:"재취업/계약직·인턴/본법인/군복무/공무원", pct:100},
+    {label:"종합병원", pct:100},
+    {label:"일반병원", pct:80},
+    {label:"의원급", pct:80},
+    {label:"이종업체 동종업무", pct:50},
+  ],
+  "일반기능직": [
+    {label:"재취업/계약직/본법인/군복무/공무원", pct:100},
+    {label:"동종업체 · 동종업무", pct:100},
+    {label:"이종업체 · 동종업무", pct:80},
+  ],
+  "사무행정직": [
+    {label:"재취업/계약직·인턴/본법인/군복무/공무원", pct:100},
+    {label:"종합병원 (동종업체·동종업무)", pct:100},
+    {label:"재활병원", pct:100},
+    {label:"일반병원", pct:80},
+    {label:"동종업체 · 이종업무", pct:50},
+    {label:"이종업체 · 동종업무", pct:50},
+  ],
+  "고용직": [
+    {label:"재취업/계약직/본법인/군복무", pct:100},
+    {label:"동종경력", pct:100},
+  ],
+};
+
+let rowSeq = 0;
+
+function optionsHtml(category){
+  return RATE_TABLE[category].map(o=>`<option value="${o.pct}">${o.label}</option>`).join('');
+}
+
+function addRow(){
+  rowSeq++;
+  const id = 'row'+rowSeq;
+  const category = document.getElementById('jobCategory').value;
+  const tr = document.createElement('tr');
+  tr.id = id;
+  tr.innerHTML = `
+    <td><input type="text" class="f-name" placeholder="예: 문원의료재단 서울병원"></td>
+    <td><input type="text" inputmode="numeric" maxlength="10" class="f-start date-field" placeholder="20240401" oninput="onDateInput(this,'${id}')"></td>
+    <td><input type="text" inputmode="numeric" maxlength="10" class="f-end date-field" placeholder="20241231" oninput="onDateInput(this,'${id}')"></td>
+    <td><select class="f-tier" onchange="recalc('${id}')">${optionsHtml(category)}</select></td>
+    <td class="col-pct f-pct">-</td>
+    <td class="col-duration f-duration">-</td>
+    <td class="f-converted">-</td>
+    <td class="col-result f-result">-</td>
+    <td><button class="del-btn" title="삭제" onclick="delRow('${id}')">✕</button></td>
+  `;
+  document.getElementById('tbody').appendChild(tr);
+  recalc(id);
+}
+
+function delRow(id){
+  const el = document.getElementById(id);
+  if(el){ el.remove(); recalcAll(); }
+}
+
+function maskDate(el){
+  const raw = el.value.replace(/\D/g, '').slice(0, 8); // keep digits only, max YYYYMMDD
+  let out = raw.slice(0, 4);
+  if(raw.length > 4) out += '-' + raw.slice(4, 6);
+  if(raw.length > 6) out += '-' + raw.slice(6, 8);
+  el.value = out;
+}
+
+function onDateInput(el, id){
+  maskDate(el);
+  recalc(id);
+}
+
+function parseLocalDate(str){
+  // str: "YYYY-MM-DD" -> local Date, avoids UTC/local timezone off-by-one issues
+  const [y, m, d] = str.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function diffYMD(start, end){
+  // inclusive end-date diff, matches Excel DATEDIF Y / YM / MD
+  let y = end.getFullYear() - start.getFullYear();
+  let m = end.getMonth() - start.getMonth();
+  let d = end.getDate() - start.getDate();
+  if(d < 0){
+    m -= 1;
+    const prevMonthLastDay = new Date(end.getFullYear(), end.getMonth(), 0).getDate();
+    d += prevMonthLastDay;
+  }
+  if(m < 0){
+    y -= 1;
+    m += 12;
+  }
+  return {y, m, d};
+}
+
+function monthsToStr(totalMonths){
+  totalMonths = Math.max(0, Math.round(totalMonths));
+  const y = Math.floor(totalMonths/12);
+  const m = totalMonths % 12;
+  if(y>0 && m>0) return `${y}년 ${m}개월`;
+  if(y>0 && m===0) return `${y}년`;
+  return `${m}개월`;
+}
+
+function recalc(id){
+  const tr = document.getElementById(id);
+  const startVal = tr.querySelector('.f-start').value;
+  const endVal = tr.querySelector('.f-end').value;
+  const pctCell = tr.querySelector('.f-pct');
+  const durCell = tr.querySelector('.f-duration');
+  const convCell = tr.querySelector('.f-converted');
+  const resultCell = tr.querySelector('.f-result');
+  const tierSelect = tr.querySelector('.f-tier');
+  const pct = Number(tierSelect.value);
+  pctCell.textContent = pct + '%';
+
+  if(!startVal || !endVal){
+    durCell.textContent = '-';
+    convCell.textContent = '-';
+    resultCell.textContent = '-';
+    tr.dataset.recognizedMonths = 0;
+    recalcAll(false);
+    return;
+  }
+
+  const DATE_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+
+  if(!DATE_RE.test(startVal) || !DATE_RE.test(endVal)){
+    durCell.textContent = '-';
+    convCell.textContent = '-';
+    resultCell.textContent = '-';
+    tr.dataset.recognizedMonths = 0;
+    tr.dataset.rawMonths = 0;
+    recalcAll(false);
+    return;
+  }
+
+  const start = parseLocalDate(startVal);
+  const end = parseLocalDate(endVal);
+
+  if(end < start){
+    durCell.textContent = '종료일 오류';
+    convCell.textContent = '-';
+    resultCell.textContent = '-';
+    tr.dataset.recognizedMonths = 0;
+    recalcAll(false);
+    return;
+  }
+
+  const {y, m, d} = diffYMD(start, end);
+  durCell.textContent = `${y}년 ${m}개월 ${d}일`;
+
+  let totalMonths = y*12 + m;
+  if(d >= 15) totalMonths += 1;
+  convCell.textContent = monthsToStr(totalMonths);
+
+  const recognizedMonths = Math.round(totalMonths * pct / 100);
+  resultCell.textContent = monthsToStr(recognizedMonths);
+  tr.dataset.recognizedMonths = recognizedMonths;
+  tr.dataset.rawMonths = totalMonths;
+
+  recalcAll(false);
+}
+
+function recalcAll(){
+  const rows = document.querySelectorAll('#tbody tr');
+  let sumRecognized = 0;
+  let sumRaw = 0;
+  rows.forEach(r=>{
+    sumRecognized += Number(r.dataset.recognizedMonths || 0);
+    sumRaw += Number(r.dataset.rawMonths || 0);
+  });
+  document.getElementById('sumRecognized').textContent = monthsToStr(sumRecognized);
+  document.getElementById('sumRawMonths').textContent = monthsToStr(sumRaw);
+}
+
+function onCategoryChange(){
+  const category = document.getElementById('jobCategory').value;
+  const newOptionsHtml = optionsHtml(category);
+  document.querySelectorAll('.f-tier').forEach(sel=>{
+    const prevLabel = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : null;
+    sel.innerHTML = newOptionsHtml;
+    // try to keep a matching label selected, otherwise default to first option
+    if(prevLabel){
+      for(let i=0;i<sel.options.length;i++){
+        if(sel.options[i].text === prevLabel){ sel.selectedIndex = i; break; }
+      }
+    }
+  });
+  document.querySelectorAll('#tbody tr').forEach(r=>recalc(r.id));
+}
+
+// ---- AI 자동 인식 (이력서/경력증명서 → Apps Script 프록시) ----
+const AI_ENDPOINT_KEY = 'career_calc_ai_endpoint_v1';
+let pendingAiFiles = [];
+
+function onAiFileInputChange(e){
+  const files = Array.from(e.target.files || []);
+  files.forEach(f => pendingAiFiles.push(f));
+  renderAiFileList();
+  e.target.value = ''; // 같은 파일을 다시 선택해도 change가 발생하도록 초기화
+}
+
+function renderAiFileList(){
+  const box = document.getElementById('aiFileList');
+  if(pendingAiFiles.length === 0){ box.innerHTML = ''; return; }
+  box.innerHTML = pendingAiFiles.map((f, i) => `
+    <span style="display:inline-flex;align-items:center;gap:6px;background:var(--teal-100);padding:4px 10px;border-radius:6px;font-size:12px;color:var(--teal-900);">
+      📎 ${escapeHtml(f.name || ('캡처이미지' + (i + 1)))}
+      <button onclick="removeAiFile(${i})" style="border:none;background:none;color:var(--danger);cursor:pointer;font-weight:bold;font-size:13px;">✕</button>
+    </span>
+  `).join('');
+}
+
+function removeAiFile(i){
+  pendingAiFiles.splice(i, 1);
+  renderAiFileList();
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  const dropZone = document.getElementById('aiDropZone');
+  if(!dropZone) return;
+  dropZone.addEventListener('paste', function(e){
+    const items = (e.clipboardData || window.clipboardData).items;
+    let addedAny = false;
+    for(const item of items){
+      if(item.type.indexOf('image') !== -1){
+        const blob = item.getAsFile();
+        const namedFile = new File([blob], '캡처_' + Date.now() + '_' + pendingAiFiles.length + '.png', { type: blob.type });
+        pendingAiFiles.push(namedFile);
+        addedAny = true;
+      }
+    }
+    if(addedAny){
+      renderAiFileList();
+      e.preventDefault();
+    }
+  });
+});
+
+function toggleAiSettings(){
+  const box = document.getElementById('aiSettingsBox');
+  document.getElementById('aiEndpointInput').value = localStorage.getItem(AI_ENDPOINT_KEY) || '';
+  const isHidden = box.style.display === 'none' || !box.style.display;
+  box.style.display = isHidden ? 'flex' : 'none';
+}
+
+function saveAiEndpoint(){
+  const val = document.getElementById('aiEndpointInput').value.trim();
+  localStorage.setItem(AI_ENDPOINT_KEY, val);
+  showAiStatus('서버 주소가 저장되었습니다.', false);
+  document.getElementById('aiSettingsBox').style.display = 'none';
+}
+
+function showAiStatus(msg, isError){
+  const el = document.getElementById('aiStatus');
+  el.style.display = 'block';
+  el.style.background = isError ? '#fbeceb' : 'var(--teal-100)';
+  el.style.color = isError ? 'var(--danger)' : 'var(--muted)';
+  el.textContent = msg;
+}
+
+function fileToBase64(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function removeEmptyRows(){
+  document.querySelectorAll('#tbody tr').forEach(tr=>{
+    const name = tr.querySelector('.f-name').value.trim();
+    const start = tr.querySelector('.f-start').value.trim();
+    const end = tr.querySelector('.f-end').value.trim();
+    if(!name && !start && !end){
+      tr.remove();
+    }
+  });
+}
+
+function toggleRawTextBox(){
+  const box = document.getElementById('aiRawTextBox');
+  box.style.display = (box.style.display === 'none' || !box.style.display) ? 'block' : 'none';
+}
+
+async function runAIRecognition(){
+  const endpoint = localStorage.getItem(AI_ENDPOINT_KEY) || '';
+  if(!endpoint){
+    showAiStatus('먼저 "⚙ 서버 주소 설정"에서 Apps Script 웹앱 주소를 등록해주세요.', true);
+    return;
+  }
+  const files = pendingAiFiles;
+  if(files.length === 0){
+    showAiStatus('먼저 이력서 · 경력증명서 파일을 첨부하거나 캡처화면을 붙여넣어주세요.', true);
+    return;
+  }
+
+  showAiStatus('문서를 읽고 있습니다... (수 초~수십 초 소요됩니다)', false);
+
+  try{
+    const encoded = [];
+    for(const f of files){
+      const base64 = await fileToBase64(f);
+      encoded.push({ name: f.name, mimeType: f.type || 'image/png', data: base64 });
     }
 
-    var allText = '';
-    files.forEach(function (f) {
-      var result = ocrFileToText(f);
-      tempFileIds.push(result.fileId);
-      allText += result.text + '\n';
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ files: encoded })
     });
+    const result = await resp.json();
 
-    var entries = parseCareerEntries(allText);
-
-    return jsonOutput({ ok: true, rawText: allText.trim(), entries: entries });
-
-  } catch (err) {
-    return jsonOutput({ ok: false, error: String(err) });
-  } finally {
-    // 임시로 생성된 OCR용 Google 문서 정리
-    tempFileIds.forEach(function (id) {
-      try { Drive.Files.remove(id); } catch (e2) { /* 무시 */ }
-    });
-  }
-}
-
-function ocrFileToText(f) {
-  var blob = Utilities.newBlob(Utilities.base64Decode(f.data), f.mimeType, f.name || 'upload');
-  var resource = {
-    name: (f.name || 'upload') + '_ocr',
-    mimeType: MimeType.GOOGLE_DOCS
-  };
-  var options = { ocr: true, ocrLanguage: 'ko' };
-  var docFile = Drive.Files.create(resource, blob, options);
-
-  var text = '';
-  var doc = DocumentApp.openById(docFile.id);
-  text = doc.getBody().getText();
-
-  return { fileId: docFile.id, text: text };
-}
-
-/**
- * OCR 텍스트에서 "YYYY.MM.DD ~ YYYY.MM.DD" 형태의 날짜 범위를 찾아
- * 근무경력 항목으로 변환합니다.
- *
- * 회사명은 날짜와 같은 줄에 있을 때만 정확히 추출합니다. 표 형태 문서는
- * OCR이 열마다 줄 수를 다르게 나눠서, 다른 줄까지 추측하면 오히려
- * 엉뚱한 값(퇴사사유 등)이 회사명으로 잘못 들어갈 위험이 있어 일부러
- * 추측하지 않습니다. 같은 줄에서 못 찾으면 "(근무처명 확인 필요)"로
- * 남겨두니, 계산기의 "인식 원문 보기"를 보고 직접 채워주세요.
- */
-function parseCareerEntries(text) {
-  var rawLines = text.split('\n');
-  var lines = [];
-  rawLines.forEach(function (l) {
-    var t = l.trim();
-    if (t.length > 0) lines.push(t);
-  });
-
-  var entries = [];
-  // 패턴 1: 숫자+구분기호 (예: 2024.04.01 ~ 2024.12.31 / 2024-04 ~ 24.12)
-  var numericRe = /(\d{2,4})[.\-\/](\d{1,2})(?:[.\-\/](\d{1,2}))?\s*[~\-–—∼〜]\s*(\d{2,4})[.\-\/](\d{1,2})(?:[.\-\/](\d{1,2}))?/;
-  // 패턴 2: 한글 년/월/일 표기 (예: 2024년 4월 ~ 2024년 12월, 2024년 4월 1일 ~ 2024년 12월 31일)
-  var koreanRe = /(\d{4})\s*년\s*(\d{1,2})\s*월(?:\s*(\d{1,2})\s*일)?\s*[~\-–—∼〜]\s*(\d{4})\s*년\s*(\d{1,2})\s*월(?:\s*(\d{1,2})\s*일)?/;
-  // 패턴 3: 시작일만 있고 종료가 "재직중/현재"인 경우 - 숫자 표기 (예: 2024.04 ~ 재직중)
-  var ongoingNumericRe = /(\d{2,4})[.\-\/](\d{1,2})(?:[.\-\/](\d{1,2}))?\s*[~\-–—∼〜]\s*(재직\s*중|현재|근무\s*중)/;
-  // 패턴 4: 시작일만 있고 종료가 "재직중/현재"인 경우 - 한글 표기 (예: 2024년 3월 1일 ~ 재직중)
-  var ongoingKoreanRe = /(\d{4})\s*년\s*(\d{1,2})\s*월(?:\s*(\d{1,2})\s*일)?\s*[~\-–—∼〜]\s*(재직\s*중|현재|근무\s*중)/;
-
-  lines.forEach(function (line) {
-    var startY, startM, startD, endY, endM, endD, residualSource;
-
-    var m1 = line.match(numericRe);
-    var m2 = line.match(koreanRe);
-    var m3n = line.match(ongoingNumericRe);
-    var m3k = line.match(ongoingKoreanRe);
-
-    if (m3k) {
-      startY = m3k[1];
-      startM = pad2(m3k[2]);
-      startD = m3k[3] ? pad2(m3k[3]) : '01';
-      var today1 = new Date();
-      endY = String(today1.getFullYear());
-      endM = pad2(today1.getMonth() + 1);
-      endD = pad2(today1.getDate());
-      residualSource = line.replace(ongoingKoreanRe, '');
-    } else if (m3n) {
-      startY = normalizeYear(m3n[1]);
-      startM = pad2(m3n[2]);
-      startD = m3n[3] ? pad2(m3n[3]) : '01';
-      var today2 = new Date();
-      endY = String(today2.getFullYear());
-      endM = pad2(today2.getMonth() + 1);
-      endD = pad2(today2.getDate());
-      residualSource = line.replace(ongoingNumericRe, '');
-    } else if (m2) {
-      startY = m2[1];
-      startM = pad2(m2[2]);
-      startD = m2[3] ? pad2(m2[3]) : '01';
-      endY = m2[4];
-      endM = pad2(m2[5]);
-      endD = m2[6] ? pad2(m2[6]) : lastDayOfMonth(m2[4], pad2(m2[5]));
-      residualSource = line.replace(koreanRe, '');
-    } else if (m1) {
-      startY = normalizeYear(m1[1]);
-      startM = pad2(m1[2]);
-      startD = m1[3] ? pad2(m1[3]) : '01';
-      endY = normalizeYear(m1[4]);
-      endM = pad2(m1[5]);
-      endD = m1[6] ? pad2(m1[6]) : lastDayOfMonth(endY, endM);
-      residualSource = line.replace(numericRe, '');
-    } else {
+    if(!result.ok){
+      showAiStatus('오류: ' + (result.error || '알 수 없는 오류가 발생했습니다.'), true);
       return;
     }
 
-    var residual = cleanNameCandidate(residualSource);
-    var name = isPlausibleName(residual) ? residual : '';
+    document.getElementById('aiRawTextArea').value = result.rawText || '(인식된 텍스트가 없습니다)';
+    document.getElementById('aiRawTextBox').style.display = 'block';
+    const entries = Array.isArray(result.entries) ? result.entries : [];
 
-    entries.push({
-      name: name || '(근무처명 확인 필요)',
-      start: startY + '-' + startM + '-' + startD,
-      end: endY + '-' + endM + '-' + endD
+    if(entries.length === 0){
+      showAiStatus('자동으로 "날짜~날짜" 패턴을 찾지 못했습니다. "📄 인식 원문 보기"에서 텍스트를 확인해 직접 입력해주세요.', true);
+      return;
+    }
+
+    removeEmptyRows();
+    entries.forEach(entry=>{
+      addRow();
+      const tr = document.getElementById('tbody').lastElementChild;
+      tr.querySelector('.f-name').value = entry.name || '';
+      tr.querySelector('.f-start').value = entry.start || '';
+      tr.querySelector('.f-end').value = entry.end || '';
+      recalc(tr.id);
+    });
+
+    showAiStatus(`✅ ${entries.length}건을 자동으로 추가했습니다. 근무처명·날짜·구분(기관종별)을 표에서 꼭 확인해주세요. 혹시 빠진 경력이 있으면 "📄 인식 원문 보기"에서 확인해 직접 입력해주세요.`, false);
+    pendingAiFiles = [];
+    renderAiFileList();
+  }catch(err){
+    showAiStatus('처리 중 오류가 발생했습니다: ' + err.message, true);
+  }
+}
+
+function clearForm(){
+  if(!confirm('현재 입력 내용을 모두 지우고 새로 작성하시겠습니까?')) return;
+  document.getElementById('candidateName').value = '';
+  document.getElementById('tbody').innerHTML = '';
+  addRow();
+  addRow();
+}
+
+// ---- 저장/불러오기 (localStorage) ----
+const HISTORY_KEY = 'seoul_rehab_career_calc_history_v1';
+
+function loadHistoryList(){
+  try{ return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+  catch(e){ return []; }
+}
+
+function persistHistoryList(list){
+  try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); }
+  catch(e){ alert('저장에 실패했습니다 (브라우저 저장공간 문제일 수 있습니다).'); }
+}
+
+function categoryLabel(value){
+  const sel = document.getElementById('jobCategory');
+  for(const opt of sel.options){ if(opt.value === value) return opt.text; }
+  return value;
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+function gatherCurrentState(){
+  const jobCategory = document.getElementById('jobCategory').value;
+  const candidateName = document.getElementById('candidateName').value.trim();
+  const rows = [];
+  document.querySelectorAll('#tbody tr').forEach(tr=>{
+    const tierSelect = tr.querySelector('.f-tier');
+    rows.push({
+      name: tr.querySelector('.f-name').value,
+      start: tr.querySelector('.f-start').value,
+      end: tr.querySelector('.f-end').value,
+      tierLabel: tierSelect.options[tierSelect.selectedIndex] ? tierSelect.options[tierSelect.selectedIndex].text : '',
+      tierPct: tierSelect.value,
     });
   });
-
-  return entries;
+  return {jobCategory, candidateName, rows};
 }
 
-// 괄호 부가설명(예: (2년이상), (만2년), (1년이상)) 및 앞뒤 구두점 제거
-function cleanNameCandidate(s) {
-  s = s.replace(/\([^\)]{1,12}\)/g, '').trim();
-  s = s.replace(/^[\s|·・:\-]+/, '').replace(/[\s|·・:\-]+$/, '');
-  return s;
-}
-
-// 한글이 포함된 최소 2자 이상 텍스트만 회사명 후보로 인정
-function isPlausibleName(s) {
-  if (!s) return false;
-  if (s.length < 2) return false;
-  if (!/[가-힣]/.test(s)) return false;
-  return true;
-}
-
-function normalizeYear(y) {
-  y = String(y);
-  if (y.length === 2) {
-    var n = Number(y);
-    return (n > 50 ? '19' : '20') + y; // 2자리 연도는 20xx로 추정 (50 초과 시 19xx)
+function saveCurrent(){
+  const state = gatherCurrentState();
+  if(!state.candidateName){
+    alert('저장하기 전에 지원자명을 입력해주세요.');
+    document.getElementById('candidateName').focus();
+    return;
   }
-  return y;
+  const record = {
+    id: Date.now(),
+    savedAt: new Date().toLocaleString('ko-KR'),
+    recognizedTotalText: document.getElementById('sumRecognized').textContent,
+    ...state,
+  };
+  const list = loadHistoryList();
+  list.unshift(record);
+  persistHistoryList(list);
+  renderHistoryList();
+  alert('저장되었습니다.');
 }
 
-function pad2(n) {
-  return String(n).length === 1 ? '0' + n : String(n);
+function openHistoryModal(){
+  document.getElementById('historySearch').value = '';
+  renderHistoryList();
+  document.getElementById('historyModalOverlay').style.display = 'flex';
 }
 
-function lastDayOfMonth(y, m) {
-  var d = new Date(Number(y), Number(m), 0).getDate();
-  return pad2(d);
+function closeHistoryModal(){
+  document.getElementById('historyModalOverlay').style.display = 'none';
 }
 
-function jsonOutput(obj) {
-  return ContentService
-    .createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
+function renderHistoryList(){
+  const list = loadHistoryList();
+  document.getElementById('historyCountBadge').textContent = `(${list.length})`;
+
+  const tbody = document.getElementById('historyBody');
+  const searchEl = document.getElementById('historySearch');
+  const keyword = searchEl ? searchEl.value.trim().toLowerCase() : '';
+  const filtered = keyword
+    ? list.filter(r => (r.candidateName || '').toLowerCase().includes(keyword))
+    : list;
+
+  if(filtered.length === 0){
+    tbody.innerHTML = `<tr><td colspan="6" style="color:var(--muted);padding:14px;">${keyword ? '검색 결과가 없습니다.' : '저장된 이력이 없습니다.'}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(r=>`
+    <tr>
+      <td>${escapeHtml(r.candidateName)}</td>
+      <td>${r.savedAt}</td>
+      <td>${escapeHtml(categoryLabel(r.jobCategory))}</td>
+      <td>${r.rows.length}건</td>
+      <td class="col-result">${r.recognizedTotalText}</td>
+      <td>
+        <button class="btn btn-ghost" style="padding:4px 8px;" onclick="loadRecord(${r.id})">불러오기</button>
+        <button class="del-btn" title="삭제" onclick="deleteRecord(${r.id})">✕</button>
+      </td>
+    </tr>
+  `).join('');
 }
 
-/**
- * 배포 후 브라우저로 GET 접속했을 때 정상 동작 확인용 (선택사항)
- */
-function doGet() {
-  return ContentService
-    .createTextOutput(JSON.stringify({ ok: true, message: '경력계산기 OCR 인식 서버가 정상 동작 중입니다.' }))
-    .setMimeType(ContentService.MimeType.JSON);
+function loadRecord(id){
+  const record = loadHistoryList().find(r=>r.id === id);
+  if(!record) return;
+  document.getElementById('candidateName').value = record.candidateName;
+  document.getElementById('jobCategory').value = record.jobCategory;
+  document.getElementById('tbody').innerHTML = '';
+  record.rows.forEach(rowData=>{
+    addRow();
+    const tr = document.getElementById('tbody').lastElementChild;
+    tr.querySelector('.f-name').value = rowData.name;
+    tr.querySelector('.f-start').value = rowData.start;
+    tr.querySelector('.f-end').value = rowData.end;
+    const tierSelect = tr.querySelector('.f-tier');
+    let matched = false;
+    for(let i=0;i<tierSelect.options.length;i++){
+      if(tierSelect.options[i].text === rowData.tierLabel){ tierSelect.selectedIndex = i; matched = true; break; }
+    }
+    if(!matched && rowData.tierPct !== undefined){ tierSelect.value = rowData.tierPct; }
+    recalc(tr.id);
+  });
+  if(record.rows.length === 0){ addRow(); addRow(); }
+  closeHistoryModal();
+  window.scrollTo({top:0, behavior:'smooth'});
 }
+
+function deleteRecord(id){
+  if(!confirm('이 저장 이력을 삭제하시겠습니까?')) return;
+  const list = loadHistoryList().filter(r=>r.id !== id);
+  persistHistoryList(list);
+  renderHistoryList();
+}
+
+// initial rows
+addRow();
+addRow();
+renderHistoryList();
+</script>
+</body>
+</html>
