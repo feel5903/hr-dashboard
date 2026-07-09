@@ -1779,6 +1779,124 @@ function renderDuties(){
 }
 
 // 수정 모달
+
+// ════════ 직원현황 ════════
+function renderStaff() {
+  var sq = (document.getElementById('staff-search')||{value:''}).value.toLowerCase();
+  var ft = (document.getElementById('staff-filter-type')||{value:''}).value;
+  var list = data.staff || [];
+  var filtered = list.filter(function(s) {
+    if(ft && s.contractType !== ft) return false;
+    if(sq && (s.name||'').toLowerCase().indexOf(sq)<0 && (s.dept||'').toLowerCase().indexOf(sq)<0) return false;
+    return true;
+  });
+  function calcTenure(joinDate) {
+    if(!joinDate) return '';
+    var join = new Date(joinDate);
+    var now = new Date(todayStr);
+    var years = now.getFullYear() - join.getFullYear();
+    var months = now.getMonth() - join.getMonth();
+    if(months < 0) { years--; months += 12; }
+    if(years < 0) return '';
+    return years + '년 ' + months + '개월';
+  }
+  var tbody = document.getElementById('staff-tbody');
+  if(!tbody) return;
+  if(!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty">검색 결과가 없습니다</td></tr>';
+    document.getElementById('staff-count').textContent = '';
+    return;
+  }
+  tbody.innerHTML = filtered.map(function(s, i) {
+    var tenure = calcTenure(s.joinDate);
+    var isContract = s.contractType === '계약직';
+    var ce = s.contractEnd || '';
+    return '<tr>' +
+      '<td style="font-weight:600">' + (s.name||'') + '</td>' +
+      '<td style="font-size:12px">' + (s.dept||'') + '</td>' +
+      '<td style="text-align:center;font-size:12px">' + (s.position||'') + '</td>' +
+      '<td style="text-align:center;font-size:12px">' + (s.title||'') + '</td>' +
+      '<td style="text-align:center;font-size:12px">' + (s.joinDate||'') + '</td>' +
+      '<td style="text-align:center;font-size:12px;color:var(--navy)">' + tenure + '</td>' +
+      '<td style="text-align:center">' +
+        '<span style="font-size:11px;padding:2px 8px;border-radius:12px;background:' + (isContract?'#FEF3C7':'#DCFCE7') + ';color:' + (isContract?'#92400E':'#065F46') + '">' + (s.contractType||'') + '</span>' +
+      '</td>' +
+      '<td style="text-align:center;font-size:12px;color:' + (ce?'#DC2626':'#aaa') + '">' + (ce||'-') + '</td>' +
+      '<td style="text-align:center"><div class="action-btns">' +
+        '<button class="edit-btn" onclick="editStaff(this.getAttribute(\'data-sid\'))" data-sid="'+s.id+'">✏️</button>' +
+        '<button class="del-btn" onclick="deleteStaff(this.getAttribute(\'data-sid\'))" data-sid="'+s.id+'">🗑️</button>' +
+      '</div></td>' +
+    '</tr>';
+  }).join('');
+  document.getElementById('staff-count').textContent = '총 ' + filtered.length + '명 표시 중 (전체 ' + list.length + '명)';
+}
+
+function openStaffForm() {
+  document.getElementById('staff-modal-title').textContent = '직원 추가';
+  document.getElementById('staff-edit-id').value = '';
+  document.getElementById('sf-name').value = '';
+  document.getElementById('sf-dept').value = '';
+  document.getElementById('sf-position').value = '';
+  document.getElementById('sf-title').value = '';
+  document.getElementById('sf-joinDate').value = todayStr;
+  document.getElementById('sf-contractType').value = '정규직';
+  document.getElementById('sf-contractEnd').value = '';
+  document.getElementById('staff-overlay').classList.add('open');
+}
+
+function editStaff(id) {
+  var s = (data.staff||[]).find(function(x){return x.id===id;});
+  if(!s) return;
+  document.getElementById('staff-modal-title').textContent = '직원 수정';
+  document.getElementById('staff-edit-id').value = s.id;
+  document.getElementById('sf-name').value = s.name||'';
+  document.getElementById('sf-dept').value = s.dept||'';
+  document.getElementById('sf-position').value = s.position||'';
+  document.getElementById('sf-title').value = s.title||'';
+  document.getElementById('sf-joinDate').value = s.joinDate||'';
+  document.getElementById('sf-contractType').value = s.contractType||'정규직';
+  document.getElementById('sf-contractEnd').value = s.contractEnd||'';
+  document.getElementById('staff-overlay').classList.add('open');
+}
+
+function closeStaffModal() {
+  document.getElementById('staff-overlay').classList.remove('open');
+}
+
+async function saveStaff() {
+  var eid = document.getElementById('staff-edit-id').value;
+  var nr = {
+    id: eid || ('st'+Date.now()),
+    name: document.getElementById('sf-name').value.trim(),
+    dept: document.getElementById('sf-dept').value.trim(),
+    position: document.getElementById('sf-position').value.trim(),
+    title: document.getElementById('sf-title').value.trim(),
+    joinDate: document.getElementById('sf-joinDate').value,
+    contractType: document.getElementById('sf-contractType').value,
+    contractEnd: document.getElementById('sf-contractEnd').value
+  };
+  if(!nr.name) { alert('이름을 입력해주세요'); return; }
+  if(!data.staff) data.staff = [];
+  if(eid) {
+    var idx = data.staff.findIndex(function(x){return x.id===eid;});
+    if(idx>=0) data.staff[idx] = nr;
+    await updateRowSafe('staff', eid, [nr.id,nr.name,nr.dept,nr.position,nr.title,nr.joinDate,nr.contractType,nr.contractEnd]);
+  } else {
+    data.staff.push(nr);
+    await saveRow('staff', [nr.id,nr.name,nr.dept,nr.position,nr.title,nr.joinDate,nr.contractType,nr.contractEnd]);
+  }
+  closeStaffModal();
+  renderStaff();
+}
+
+async function deleteStaff(id) {
+  var s = (data.staff||[]).find(function(x){return x.id===id;});
+  if(!s || !confirm(s.name+'을 삭제할까요?')) return;
+  data.staff = data.staff.filter(function(x){return x.id!==id;});
+  await deleteRowSafe('staff', id);
+  renderStaff();
+}
+
 function openDutyEdit(category, member){
   var dutyData = getDutyData();
   var cat = dutyData.find(function(c){ return c.category === category; });
@@ -1814,6 +1932,9 @@ async function updateDuty(category, member, items){
   await saveDutyData(dutyData);
   renderDuties();
 }
+
+
+
 
 function showFullDuties(){
   var dutyData = getDutyData();
@@ -2724,124 +2845,6 @@ function wdSaveSettings() {
 }
 
 
-
-
-// ════════ 직원현황 ════════
-function renderStaff() {
-  var sq = (document.getElementById('staff-search')||{value:''}).value.toLowerCase();
-  var ft = (document.getElementById('staff-filter-type')||{value:''}).value;
-  var list = data.staff || [];
-  var filtered = list.filter(function(s) {
-    if(ft && s.contractType !== ft) return false;
-    if(sq && (s.name||'').toLowerCase().indexOf(sq)<0 && (s.dept||'').toLowerCase().indexOf(sq)<0) return false;
-    return true;
-  });
-  function calcTenure(joinDate) {
-    if(!joinDate) return '';
-    var join = new Date(joinDate);
-    var now = new Date(todayStr);
-    var years = now.getFullYear() - join.getFullYear();
-    var months = now.getMonth() - join.getMonth();
-    if(months < 0) { years--; months += 12; }
-    if(years < 0) return '';
-    return years + '년 ' + months + '개월';
-  }
-  var tbody = document.getElementById('staff-tbody');
-  if(!tbody) return;
-  if(!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="empty">검색 결과가 없습니다</td></tr>';
-    document.getElementById('staff-count').textContent = '';
-    return;
-  }
-  tbody.innerHTML = filtered.map(function(s, i) {
-    var tenure = calcTenure(s.joinDate);
-    var isContract = s.contractType === '계약직';
-    var ce = s.contractEnd || '';
-    return '<tr>' +
-      '<td style="font-weight:600">' + (s.name||'') + '</td>' +
-      '<td style="font-size:12px">' + (s.dept||'') + '</td>' +
-      '<td style="text-align:center;font-size:12px">' + (s.position||'') + '</td>' +
-      '<td style="text-align:center;font-size:12px">' + (s.title||'') + '</td>' +
-      '<td style="text-align:center;font-size:12px">' + (s.joinDate||'') + '</td>' +
-      '<td style="text-align:center;font-size:12px;color:var(--navy)">' + tenure + '</td>' +
-      '<td style="text-align:center">' +
-        '<span style="font-size:11px;padding:2px 8px;border-radius:12px;background:' + (isContract?'#FEF3C7':'#DCFCE7') + ';color:' + (isContract?'#92400E':'#065F46') + '">' + (s.contractType||'') + '</span>' +
-      '</td>' +
-      '<td style="text-align:center;font-size:12px;color:' + (ce?'#DC2626':'#aaa') + '">' + (ce||'-') + '</td>' +
-      '<td style="text-align:center"><div class="action-btns">' +
-        '<button class="edit-btn" onclick="editStaff(this.getAttribute(\'data-sid\'))" data-sid="'+s.id+'">✏️</button>' +
-        '<button class="del-btn" onclick="deleteStaff(this.getAttribute(\'data-sid\'))" data-sid="'+s.id+'">🗑️</button>' +
-      '</div></td>' +
-    '</tr>';
-  }).join('');
-  document.getElementById('staff-count').textContent = '총 ' + filtered.length + '명 표시 중 (전체 ' + list.length + '명)';
-}
-
-function openStaffForm() {
-  document.getElementById('staff-modal-title').textContent = '직원 추가';
-  document.getElementById('staff-edit-id').value = '';
-  document.getElementById('sf-name').value = '';
-  document.getElementById('sf-dept').value = '';
-  document.getElementById('sf-position').value = '';
-  document.getElementById('sf-title').value = '';
-  document.getElementById('sf-joinDate').value = todayStr;
-  document.getElementById('sf-contractType').value = '정규직';
-  document.getElementById('sf-contractEnd').value = '';
-  document.getElementById('staff-overlay').classList.add('open');
-}
-
-function editStaff(id) {
-  var s = (data.staff||[]).find(function(x){return x.id===id;});
-  if(!s) return;
-  document.getElementById('staff-modal-title').textContent = '직원 수정';
-  document.getElementById('staff-edit-id').value = s.id;
-  document.getElementById('sf-name').value = s.name||'';
-  document.getElementById('sf-dept').value = s.dept||'';
-  document.getElementById('sf-position').value = s.position||'';
-  document.getElementById('sf-title').value = s.title||'';
-  document.getElementById('sf-joinDate').value = s.joinDate||'';
-  document.getElementById('sf-contractType').value = s.contractType||'정규직';
-  document.getElementById('sf-contractEnd').value = s.contractEnd||'';
-  document.getElementById('staff-overlay').classList.add('open');
-}
-
-function closeStaffModal() {
-  document.getElementById('staff-overlay').classList.remove('open');
-}
-
-async function saveStaff() {
-  var eid = document.getElementById('staff-edit-id').value;
-  var nr = {
-    id: eid || ('st'+Date.now()),
-    name: document.getElementById('sf-name').value.trim(),
-    dept: document.getElementById('sf-dept').value.trim(),
-    position: document.getElementById('sf-position').value.trim(),
-    title: document.getElementById('sf-title').value.trim(),
-    joinDate: document.getElementById('sf-joinDate').value,
-    contractType: document.getElementById('sf-contractType').value,
-    contractEnd: document.getElementById('sf-contractEnd').value
-  };
-  if(!nr.name) { alert('이름을 입력해주세요'); return; }
-  if(!data.staff) data.staff = [];
-  if(eid) {
-    var idx = data.staff.findIndex(function(x){return x.id===eid;});
-    if(idx>=0) data.staff[idx] = nr;
-    await updateRowSafe('staff', eid, [nr.id,nr.name,nr.dept,nr.position,nr.title,nr.joinDate,nr.contractType,nr.contractEnd]);
-  } else {
-    data.staff.push(nr);
-    await saveRow('staff', [nr.id,nr.name,nr.dept,nr.position,nr.title,nr.joinDate,nr.contractType,nr.contractEnd]);
-  }
-  closeStaffModal();
-  renderStaff();
-}
-
-async function deleteStaff(id) {
-  var s = (data.staff||[]).find(function(x){return x.id===id;});
-  if(!s || !confirm(s.name+'을 삭제할까요?')) return;
-  data.staff = data.staff.filter(function(x){return x.id!==id;});
-  await deleteRowSafe('staff', id);
-  renderStaff();
-}
 
 </script>
 </body>
