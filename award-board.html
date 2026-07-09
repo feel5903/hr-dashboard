@@ -412,6 +412,16 @@
           <input type="text" id="newAwardDate" placeholder="예: 2026.05.10  (기타는 '2026.03 OO상' 처럼 자유입력)">
           <button class="btn" id="addAwardBtn">+ 추가</button>
         </div>
+        <div class="add-award-row" id="tierPickerRow" style="display:none; margin-top:6px;">
+          <label style="font-size:12px; font-weight:700; color:var(--muted); grid-column:1/2;">기타 항목 색상 등급</label>
+          <select id="newAwardTier" style="grid-column:2/4;">
+            <option value="내부">내부 포상·근속 (회색, 기본)</option>
+            <option value="국가">국가·국회급 (금색)</option>
+            <option value="서울">서울시급 (파랑)</option>
+            <option value="은평">은평구급 (보라)</option>
+            <option value="유관">유관기관급 (로즈)</option>
+          </select>
+        </div>
       </div>
     </div>
     <div class="modal-foot">
@@ -472,9 +482,22 @@ function normalizeDateInText(text){
     return out;
   });
 }
+const ETC_TIER_MAP = {'국가':'gold','서울':'blue','은평':'purple','유관':'rose','내부':'slate'};
+function stripTierTag(text){
+  return String(text||'').replace(/^\[(국가|서울|은평|유관|내부)\]\s*/, '');
+}
+function getEntryTier(awardName, val){
+  if(awardName === '기타'){
+    const m = String(val||'').match(/^\[(국가|서울|은평|유관|내부)\]/);
+    if(m) return ETC_TIER_MAP[m[1]];
+    return 'slate';
+  }
+  return AWARD_TIERS[awardName] || 'slate';
+}
 function displayAwardValue(text){
   if(!text) return '수상';
-  let clean = String(text).split('\n')[0].trim();
+  let clean = stripTierTag(text);
+  clean = clean.split('\n')[0].trim();
   clean = clean.replace(/\s*[ㅇoO]\s*$/,'').trim();
   if(/^[ㅇoO]$/.test(clean)) clean = '';
   clean = normalizeDateInText(clean);
@@ -482,7 +505,8 @@ function displayAwardValue(text){
 }
 function stripLeadingDate(text){
   if(!text) return '';
-  let s = String(text).split('\n')[0].trim();
+  let s = stripTierTag(text);
+  s = s.split('\n')[0].trim();
   s = s.replace(/^\d{2,4}[.\-\/]\d{1,2}(?:[.\-\/]\d{1,2})?\s*/, '');
   s = s.replace(/^[ㅇoO]\s*/, '');
   return s.trim();
@@ -790,7 +814,7 @@ function renderCards(list, refYear){
       </div>
       <div class="award-chips">
         ${awardEntries.length? awardEntries.map(({name,val})=>{
-          const tier = AWARD_TIERS[name]||'slate';
+          const tier = getEntryTier(name, val);
           const yr = extractYear(val);
           const yrLabel = yr? `<span class="yr">'${String(yr).slice(2)}</span> ` : '';
           return `<span class="achip" style="background:var(--${tier}-tint); color:var(--${tier})">${yrLabel}${chipLabel(name,val)}</span>`;
@@ -809,7 +833,7 @@ function renderTable(list, refYear){
     const hasThisYear = employeeHasYear(e, refYear);
     const awardEntries = flatAwardEntries(e.awards);
     const chips = awardEntries.length? awardEntries.map(({name,val})=>{
-      const tier = AWARD_TIERS[name]||'slate';
+      const tier = getEntryTier(name, val);
       const yr = extractYear(val);
       const yrLabel = yr? `<span class="yr">'${String(yr).slice(2)}</span> ` : '';
       return `<span class="mini-chip" style="background:var(--${tier}-tint); color:var(--${tier})">${yrLabel}${chipLabel(name,val)}</span>`;
@@ -836,7 +860,7 @@ function openView(id){
   document.getElementById('viewMeta').innerHTML = `<span>소속 <b>${e.dept||'-'}</b></span>&nbsp;&nbsp;<span>입사 <b>${e.hire||'-'}</b></span>&nbsp;&nbsp;<span>근속 <b>${tenureText(e.hire,baseDate)}</b></span>`;
   const awardEntries = flatAwardEntries(e.awards);
   document.getElementById('viewAwards').innerHTML = awardEntries.length? awardEntries.map(({name,val})=>{
-    const tier = AWARD_TIERS[name]||'slate';
+    const tier = getEntryTier(name, val);
     return `<div class="readonly-award-item"><span class="aname" style="color:var(--${tier})">${name}</span><span class="adate">${displayAwardValue(val)}</span></div>`;
   }).join('') : '<div class="no-award">등록된 수상이력이 없습니다.</div>';
   document.getElementById('viewOverlay').classList.add('show');
@@ -881,6 +905,8 @@ function openEdit(id){
   document.getElementById('fSeoul').checked = draftEmployee.seoul;
   document.getElementById('newAwardName').innerHTML = awardNameOptions();
   document.getElementById('newAwardDate').value = '';
+  document.getElementById('newAwardTier').value = '내부';
+  document.getElementById('tierPickerRow').style.display = 'none';
   document.getElementById('deleteBtn').style.display = existing? 'inline-block':'none';
   renderAwardEditList(draftEmployee);
   document.getElementById('editOverlay').classList.add('show');
@@ -897,11 +923,19 @@ document.getElementById('editClose').addEventListener('click', closeModals);
 document.getElementById('cancelBtn').addEventListener('click', closeModals);
 document.getElementById('editOverlay').addEventListener('click', e=>{ if(e.target.id==='editOverlay') closeModals(); });
 
+document.getElementById('newAwardName').addEventListener('change', function(){
+  document.getElementById('tierPickerRow').style.display = (this.value==='기타')? 'grid' : 'none';
+});
+
 document.getElementById('addAwardBtn').addEventListener('click', ()=>{
   const name = document.getElementById('newAwardName').value;
-  const date = document.getElementById('newAwardDate').value.trim();
+  let date = document.getElementById('newAwardDate').value.trim();
   if(!draftEmployee.awards) draftEmployee.awards = {};
   if(!draftEmployee.awards[name]) draftEmployee.awards[name] = [];
+  if(name==='기타'){
+    const tier = document.getElementById('newAwardTier').value;
+    if(tier && tier!=='내부') date = `[${tier}] ${date}`;
+  }
   draftEmployee.awards[name].push(date || 'O');
   document.getElementById('newAwardDate').value = '';
   renderAwardEditList(draftEmployee);
