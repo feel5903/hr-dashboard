@@ -335,12 +335,13 @@
   </div>
 
   <div class="legend">
-    <div class="legend-item"><span class="legend-dot" style="background:var(--gold)"></span>국가·국회 포상</div>
-    <div class="legend-item"><span class="legend-dot" style="background:var(--blue)"></span>서울시 포상</div>
-    <div class="legend-item"><span class="legend-dot" style="background:var(--purple)"></span>은평구 포상</div>
-    <div class="legend-item"><span class="legend-dot" style="background:var(--rose)"></span>유관기관 포상</div>
-    <div class="legend-item"><span class="legend-dot" style="background:var(--slate)"></span>내부 포상·근속</div>
-    <div class="legend-item clickable" id="thisYearLegendItem"><span class="legend-dot" style="background:var(--spot)"></span>기준연도 수상 <span class="legend-hint">(클릭해서 필터링)</span></div>
+    <div class="legend-item clickable" data-tier="gold"><span class="legend-dot" style="background:var(--gold)"></span>국가·국회 포상</div>
+    <div class="legend-item clickable" data-tier="blue"><span class="legend-dot" style="background:var(--blue)"></span>서울시 포상</div>
+    <div class="legend-item clickable" data-tier="purple"><span class="legend-dot" style="background:var(--purple)"></span>은평구 포상</div>
+    <div class="legend-item clickable" data-tier="rose"><span class="legend-dot" style="background:var(--rose)"></span>유관기관 포상</div>
+    <div class="legend-item clickable" data-tier="slate"><span class="legend-dot" style="background:var(--slate)"></span>내부 포상·근속</div>
+    <div class="legend-item clickable" id="thisYearLegendItem"><span class="legend-dot" style="background:var(--spot)"></span>기준연도 수상</div>
+    <span class="legend-hint">(범례를 클릭하면 해당 항목만 필터링돼요, 여러 개 동시 선택 가능)</span>
   </div>
 
   <p id="resultCount" style="font-size:12.5px; font-weight:700; color:var(--muted); margin:0 0 8px;"></p>
@@ -679,6 +680,7 @@ function populateDeptFilter(){
 }
 
 let currentFilteredList = [];
+let activeTiers = new Set();
 function render(){
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   const dept = document.getElementById('deptFilter').value;
@@ -708,6 +710,10 @@ function render(){
       const tm = tenureMonths(e.hire, baseDate);
       if(tenureMinMonths!==null && tm < tenureMinMonths) return false;
       if(tenureMaxMonths!==null && tm >= tenureMaxMonths) return false;
+    }
+    if(activeTiers.size>0){
+      const hasTier = flatAwardEntries(e.awards).some(entry=>activeTiers.has(AWARD_TIERS[entry.name]));
+      if(!hasTier) return false;
     }
     return true;
   });
@@ -1045,6 +1051,25 @@ document.getElementById('thisYearLegendItem').addEventListener('click', ()=>{
   const cb = document.getElementById('thisYearToggle');
   cb.checked = !cb.checked;
   cb.dispatchEvent(new Event('change'));
+});
+document.querySelectorAll('.legend-item[data-tier]').forEach(item=>{
+  item.addEventListener('click', function(){
+    const tier = this.dataset.tier;
+    if(activeTiers.has(tier)){
+      activeTiers.delete(tier);
+      this.classList.remove('active');
+      this.style.background = '';
+      this.style.borderColor = '';
+      this.style.color = '';
+    } else {
+      activeTiers.add(tier);
+      this.classList.add('active');
+      this.style.background = `var(--${tier}-tint)`;
+      this.style.borderColor = `var(--${tier})`;
+      this.style.color = `var(--${tier})`;
+    }
+    render();
+  });
 });
 document.getElementById('baseDate').addEventListener('change', function(){
   if(this.value) baseDate = new Date(this.value+'T00:00:00');
