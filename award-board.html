@@ -562,7 +562,15 @@ function flatAwardEntries(awards){
   for(const [name, arr] of Object.entries(awards||{})){
     (arr||[]).forEach((val, idx)=> list.push({name, val, idx}));
   }
-  list.sort((a,b)=>AWARD_ORDER.indexOf(a.name)-AWARD_ORDER.indexOf(b.name));
+  list.sort((a,b)=>{
+    const ya = extractYear(a.val);
+    const yb = extractYear(b.val);
+    if(ya===null && yb===null) return AWARD_ORDER.indexOf(a.name)-AWARD_ORDER.indexOf(b.name);
+    if(ya===null) return 1;
+    if(yb===null) return -1;
+    if(ya!==yb) return ya-yb;
+    return AWARD_ORDER.indexOf(a.name)-AWARD_ORDER.indexOf(b.name);
+  });
   return list;
 }
 function employeeHasYear(e, year){
