@@ -303,8 +303,8 @@
   </div>
 
   <div class="toolbar">
-    <div class="search-box"><input type="text" id="searchInput" placeholder="이름 또는 부서 검색"></div>
-    <select id="deptFilter"><option value="">전체 부서</option></select>
+    <div class="search-box"><input type="text" id="searchInput" placeholder="이름 또는 소속 검색"></div>
+    <select id="deptFilter"><option value="">전체 소속</option></select>
     <select id="sortSelect">
       <option value="name">이름순</option>
       <option value="tenure_desc">근속연수 많은순</option>
@@ -353,7 +353,7 @@
       <thead>
         <tr>
           <th>이름</th>
-          <th>부서</th>
+          <th>소속</th>
           <th>서울</th>
           <th>입사일</th>
           <th>근속연수</th>
@@ -391,7 +391,7 @@
     <div class="modal-body">
       <div class="row2">
         <div class="field"><label>이름</label><input type="text" id="fName"></div>
-        <div class="field"><label>부서</label><input type="text" id="fDept" list="deptList"></div>
+        <div class="field"><label>소속</label><input type="text" id="fDept" list="deptList"></div>
       </div>
       <datalist id="deptList"></datalist>
       <div class="row2">
@@ -691,7 +691,7 @@ function populateDeptFilter(){
   const hasCSO = depts.some(d=>d.startsWith('CSO'));
   const csoOption = hasCSO? '<option value="__CSO_ALL__">CSO 전체</option>' : '';
   const visibleDepts = depts.filter(d=>!d.startsWith('CSO'));
-  sel.innerHTML = '<option value="">전체 부서</option>' + csoOption + visibleDepts.map(d=>`<option value="${d}">${d}</option>`).join('');
+  sel.innerHTML = '<option value="">전체 소속</option>' + csoOption + visibleDepts.map(d=>`<option value="${d}">${d}</option>`).join('');
   sel.value = cur;
   document.getElementById('deptList').innerHTML = depts.map(d=>`<option value="${d}">`).join('');
 }
@@ -833,7 +833,7 @@ function openView(id){
   const e = employees.find(x=>x.id===id);
   if(!e) return;
   document.getElementById('viewName').textContent = e.name + (e.title? '  · '+e.title:'') + (e.seoul? '  ·  서울거주':'');
-  document.getElementById('viewMeta').innerHTML = `<span>부서 <b>${e.dept||'-'}</b></span>&nbsp;&nbsp;<span>입사 <b>${e.hire||'-'}</b></span>&nbsp;&nbsp;<span>근속 <b>${tenureText(e.hire,baseDate)}</b></span>`;
+  document.getElementById('viewMeta').innerHTML = `<span>소속 <b>${e.dept||'-'}</b></span>&nbsp;&nbsp;<span>입사 <b>${e.hire||'-'}</b></span>&nbsp;&nbsp;<span>근속 <b>${tenureText(e.hire,baseDate)}</b></span>`;
   const awardEntries = flatAwardEntries(e.awards);
   document.getElementById('viewAwards').innerHTML = awardEntries.length? awardEntries.map(({name,val})=>{
     const tier = AWARD_TIERS[name]||'slate';
@@ -964,7 +964,7 @@ document.getElementById('exportBtn').addEventListener('click', ()=>{
 
 document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   const list = currentFilteredList.length? currentFilteredList : employees;
-  const headers = ['구분(부서)','이름','직책','서울거주','입사일','근속연수', ...AWARD_ORDER, '수상이력요약'];
+  const headers = ['소속','이름','직책','서울거주','입사일','근속연수', ...AWARD_ORDER, '수상이력요약'];
   const rows = list.map(e=>{
     const row = [e.dept||'', e.name, e.title||'', e.seoul?'Y':'', e.hire||'', tenureText(e.hire, baseDate)];
     AWARD_ORDER.forEach(awardName=>{
