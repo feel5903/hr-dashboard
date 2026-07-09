@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+a<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -713,6 +713,14 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
     var fst=filterRows(st).map(function(r){return normalizeRow(r,"staff");});
     if(fst.length) data.staff=fst;
     saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
+function showMainAlertDetail(label) {
+  var items = (window._mainAlerts||{})[label] || [];
+  if(!items.length) return;
+  var lines = [label + ' 대상자 (' + items.length + '명)', ''];
+  items.forEach(function(a){ lines.push('• ' + a.name + (a.dept?' ('+a.dept+')':'') + (a.days===0?' [오늘]':' [D-'+a.days+']')); });
+  alert(lines.join('\n'));
+}
+function switchToStaff(){var el=document.querySelector('.nav-item:nth-child(6)');switchNav('staff',el);}
 function updateStats(){
   var dueEl=document.getElementById("s-due");
   if(dueEl) dueEl.textContent=data.daily.filter(function(x){return isToday(x.end)&&x.status!=="완료";}).length;
@@ -2117,15 +2125,7 @@ function goToDueToday(){
 }
 
 
-function showMainAlertDetail(label) {
-  var items = (window._mainAlerts||{})[label] || [];
-  if(!items.length) return;
-  var lines = [label + ' 대상자 (' + items.length + '명)', ''];
-  items.forEach(function(a){ lines.push('• ' + a.name + (a.dept?' ('+a.dept+')':'') + (a.days===0?' [오늘]':' [D-'+a.days+']')); });
-  alert(lines.join('\n'));
-}
 
-function switchToStaff(){var el=document.querySelector('.nav-item:nth-child(6)');switchNav('staff',el);}
 function renderAll(){updateStats();renderMemberUI();renderDaily();renderWeeklySelect();renderWeekly();renderProject();renderCalendar();renderRecruit();}
 loadHeadcount();renderAll();syncAll();setInterval(syncAll,60000);
 
