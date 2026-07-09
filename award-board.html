@@ -28,6 +28,8 @@
     --slate-tint:#EAEEEF;
     --spot:#C2531F;
     --spot-tint:#FBE8DC;
+    --recent5:#1F7A6C;
+    --recent5-tint:#DCEFEC;
     --radius:14px;
     --shadow:0 1px 2px rgba(30,42,36,.06), 0 6px 20px rgba(30,42,36,.05);
   }
@@ -303,7 +305,6 @@
   <div class="toolbar">
     <div class="search-box"><input type="text" id="searchInput" placeholder="이름 또는 부서 검색"></div>
     <select id="deptFilter"><option value="">전체 부서</option></select>
-    <button class="btn" id="addDeptBtn" style="display:none;">+ 부서 추가</button>
     <select id="sortSelect">
       <option value="name">이름순</option>
       <option value="tenure_desc">근속연수 많은순</option>
@@ -341,6 +342,7 @@
     <div class="legend-item clickable" data-tier="rose"><span class="legend-dot" style="background:var(--rose)"></span>유관기관 포상</div>
     <div class="legend-item clickable" data-tier="slate"><span class="legend-dot" style="background:var(--slate)"></span>내부 포상·근속</div>
     <div class="legend-item clickable" id="thisYearLegendItem"><span class="legend-dot" style="background:var(--spot)"></span>기준연도 수상</div>
+    <div class="legend-item clickable" id="recent5LegendItem"><span class="legend-dot" style="background:var(--recent5)"></span>최근 5년 수상</div>
     <span class="legend-hint">(범례를 클릭하면 해당 항목만 필터링돼요, 여러 개 동시 선택 가능)</span>
   </div>
 
@@ -393,10 +395,13 @@
       </div>
       <datalist id="deptList"></datalist>
       <div class="row2">
-        <div class="field"><label>입사일</label><input type="date" id="fHire"></div>
+        <div class="field"><label>직책 <span style="font-weight:400; color:var(--muted);">(선택, 예: 실장·과장)</span></label><input type="text" id="fTitle" placeholder="비워두면 표시 안 됨"></div>
         <div class="field" style="display:flex; align-items:flex-end;">
           <label class="check-row"><input type="checkbox" id="fSeoul"> 서울 거주자</label>
         </div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>입사일</label><input type="date" id="fHire"></div>
       </div>
 
       <div class="field">
@@ -525,6 +530,7 @@ function normalizeAwards(e){
   }
   e.awards = out;
   e.hire = normalizeHireDate(e.hire);
+  e.title = e.title || '';
   return e;
 }
 function flatAwardEntries(awards){
@@ -537,6 +543,13 @@ function flatAwardEntries(awards){
 }
 function employeeHasYear(e, year){
   return flatAwardEntries(e.awards).some(en=>extractYear(en.val)===year);
+}
+function employeeHasRecentYears(e, years, refYear){
+  const cutoff = refYear - years + 1;
+  return flatAwardEntries(e.awards).some(en=>{
+    const y = extractYear(en.val);
+    return y!==null && y>=cutoff && y<=refYear;
+  });
 }
 function employeeAwardCount(e){
   return flatAwardEntries(e.awards).length;
@@ -677,13 +690,15 @@ function populateDeptFilter(){
   const depts = uniqueDepts();
   const hasCSO = depts.some(d=>d.startsWith('CSO'));
   const csoOption = hasCSO? '<option value="__CSO_ALL__">CSO 전체</option>' : '';
-  sel.innerHTML = '<option value="">전체 부서</option>' + csoOption + depts.map(d=>`<option value="${d}">${d}</option>`).join('');
+  const visibleDepts = depts.filter(d=>!d.startsWith('CSO'));
+  sel.innerHTML = '<option value="">전체 부서</option>' + csoOption + visibleDepts.map(d=>`<option value="${d}">${d}</option>`).join('');
   sel.value = cur;
   document.getElementById('deptList').innerHTML = depts.map(d=>`<option value="${d}">`).join('');
 }
 
 let currentFilteredList = [];
 let activeTiers = new Set();
+let onlyRecent5 = false;
 function render(){
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   const dept = document.getElementById('deptFilter').value;
@@ -720,6 +735,7 @@ function render(){
       const hasTier = flatAwardEntries(e.awards).some(entry=>activeTiers.has(AWARD_TIERS[entry.name]));
       if(!hasTier) return false;
     }
+    if(onlyRecent5 && !employeeHasRecentYears(e, 5, refYear)) return false;
     return true;
   });
 
@@ -763,7 +779,7 @@ function renderCards(list, refYear){
       ${editMode?'<div class="card-edit-hint">✎ 편집</div>':''}
       <div class="card-head">
         <div>
-          <div class="card-name">${e.name}</div>
+          <div class="card-name">${e.name}${e.title?` <span style="font-size:12px; font-weight:700; color:var(--primary);">· ${e.title}</span>`:''}</div>
           <div class="card-dept">${e.dept||'-'}</div>
         </div>
         ${e.seoul?'<span class="seoul-badge">서울거주</span>':''}
@@ -801,7 +817,7 @@ function renderTable(list, refYear){
     const tr = document.createElement('tr');
     tr.className = hasThisYear? 'thisyear':'';
     tr.innerHTML = `
-      <td class="name-cell">${hasThisYear?'<span class="row-star">★</span>':''}${e.name}</td>
+      <td class="name-cell">${hasThisYear?'<span class="row-star">★</span>':''}${e.name}${e.title?` <span style="font-size:11px; font-weight:700; color:var(--primary);">· ${e.title}</span>`:''}</td>
       <td class="dept-cell">${e.dept||'-'}</td>
       <td>${e.seoul?'<span class="seoul-dot" title="서울거주"></span>':''}</td>
       <td class="num-cell">${e.hire||'-'}</td>
@@ -816,7 +832,7 @@ function renderTable(list, refYear){
 function openView(id){
   const e = employees.find(x=>x.id===id);
   if(!e) return;
-  document.getElementById('viewName').textContent = e.name + (e.seoul? '  ·  서울거주':'');
+  document.getElementById('viewName').textContent = e.name + (e.title? '  · '+e.title:'') + (e.seoul? '  ·  서울거주':'');
   document.getElementById('viewMeta').innerHTML = `<span>부서 <b>${e.dept||'-'}</b></span>&nbsp;&nbsp;<span>입사 <b>${e.hire||'-'}</b></span>&nbsp;&nbsp;<span>근속 <b>${tenureText(e.hire,baseDate)}</b></span>`;
   const awardEntries = flatAwardEntries(e.awards);
   document.getElementById('viewAwards').innerHTML = awardEntries.length? awardEntries.map(({name,val})=>{
@@ -855,11 +871,12 @@ let draftEmployee = null;
 
 function openEdit(id){
   const existing = id ? employees.find(x=>x.id===id) : null;
-  draftEmployee = existing ? JSON.parse(JSON.stringify(existing)) : {id:null, name:'', dept:'', hire:todayISO(new Date()), seoul:false, awards:{}};
+  draftEmployee = existing ? JSON.parse(JSON.stringify(existing)) : {id:null, name:'', dept:'', title:'', hire:todayISO(new Date()), seoul:false, awards:{}};
   currentEditId = id || null;
   document.getElementById('editTitle').textContent = existing? existing.name+' 정보 수정' : '새 직원 추가';
   document.getElementById('fName').value = draftEmployee.name;
   document.getElementById('fDept').value = draftEmployee.dept;
+  document.getElementById('fTitle').value = draftEmployee.title || '';
   document.getElementById('fHire').value = draftEmployee.hire;
   document.getElementById('fSeoul').checked = draftEmployee.seoul;
   document.getElementById('newAwardName').innerHTML = awardNameOptions();
@@ -893,6 +910,7 @@ document.getElementById('addAwardBtn').addEventListener('click', ()=>{
 document.getElementById('saveBtn').addEventListener('click', async ()=>{
   draftEmployee.name = document.getElementById('fName').value.trim();
   draftEmployee.dept = document.getElementById('fDept').value.trim();
+  draftEmployee.title = document.getElementById('fTitle').value.trim();
   draftEmployee.hire = document.getElementById('fHire').value;
   draftEmployee.seoul = document.getElementById('fSeoul').checked;
   if(!draftEmployee.name){ alert('이름을 입력해주세요.'); return; }
@@ -926,21 +944,8 @@ document.getElementById('editModeBtn').addEventListener('click', function(){
   editMode = !editMode;
   this.classList.toggle('on', editMode);
   document.getElementById('addBtn').style.display = editMode? 'inline-block':'none';
-  document.getElementById('addDeptBtn').style.display = editMode? 'inline-block':'none';
   document.getElementById('importBtn').style.display = editMode? 'inline-block':'none';
   render();
-});
-
-document.getElementById('addDeptBtn').addEventListener('click', async ()=>{
-  const name = (prompt('추가할 부서명을 입력하세요.')||'').trim();
-  if(!name) return;
-  if(uniqueDepts().includes(name)){ alert('이미 있는 부서명입니다.'); return; }
-  departments.push(name);
-  populateDeptFilter();
-  document.getElementById('deptFilter').value = name;
-  render();
-  await addDeptRemote(name);
-  alert(`"${name}" 부서를 추가했습니다. 이제 직원 등록/수정 시 부서란에서 선택할 수 있어요.`);
 });
 
 document.getElementById('exportBtn').addEventListener('click', ()=>{
@@ -959,9 +964,9 @@ document.getElementById('exportBtn').addEventListener('click', ()=>{
 
 document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   const list = currentFilteredList.length? currentFilteredList : employees;
-  const headers = ['구분(부서)','이름','서울거주','입사일','근속연수', ...AWARD_ORDER, '수상이력요약'];
+  const headers = ['구분(부서)','이름','직책','서울거주','입사일','근속연수', ...AWARD_ORDER, '수상이력요약'];
   const rows = list.map(e=>{
-    const row = [e.dept||'', e.name, e.seoul?'Y':'', e.hire||'', tenureText(e.hire, baseDate)];
+    const row = [e.dept||'', e.name, e.title||'', e.seoul?'Y':'', e.hire||'', tenureText(e.hire, baseDate)];
     AWARD_ORDER.forEach(awardName=>{
       const entries = (e.awards && e.awards[awardName]) || [];
       row.push(entries.map(v=>displayAwardValue(v)).join(' / '));
@@ -973,7 +978,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   const aoa = [headers, ...rows];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols'] = [
-    {wch:14},{wch:10},{wch:8},{wch:11},{wch:12},
+    {wch:14},{wch:10},{wch:10},{wch:8},{wch:11},{wch:12},
     ...AWARD_ORDER.map(()=>({wch:16})),
     {wch:50}
   ];
@@ -1056,6 +1061,14 @@ document.getElementById('thisYearLegendItem').addEventListener('click', ()=>{
   const cb = document.getElementById('thisYearToggle');
   cb.checked = !cb.checked;
   cb.dispatchEvent(new Event('change'));
+});
+document.getElementById('recent5LegendItem').addEventListener('click', function(){
+  onlyRecent5 = !onlyRecent5;
+  this.classList.toggle('active', onlyRecent5);
+  this.style.background = onlyRecent5? 'var(--recent5-tint)' : '';
+  this.style.borderColor = onlyRecent5? 'var(--recent5)' : '';
+  this.style.color = onlyRecent5? 'var(--recent5)' : '';
+  render();
 });
 document.querySelectorAll('.legend-item[data-tier]').forEach(item=>{
   item.addEventListener('click', function(){
