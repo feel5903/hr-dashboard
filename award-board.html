@@ -138,6 +138,10 @@
   /* ---------- Legend ---------- */
   .legend{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px;}
   .legend-item{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--muted); font-weight:600;}
+  .legend-item.clickable{cursor:pointer; padding:4px 9px; border-radius:20px; border:1px solid transparent;}
+  .legend-item.clickable:hover{background:var(--spot-tint); border-color:var(--spot);}
+  .legend-item.clickable.active{background:var(--spot-tint); border-color:var(--spot); color:var(--spot);}
+  .legend-hint{font-size:10px; font-weight:500; opacity:.65;}
   .legend-dot{width:9px; height:9px; border-radius:50%;}
 
   /* ---------- Grid ---------- */
@@ -336,7 +340,7 @@
     <div class="legend-item"><span class="legend-dot" style="background:var(--purple)"></span>은평구 포상</div>
     <div class="legend-item"><span class="legend-dot" style="background:var(--rose)"></span>유관기관 포상</div>
     <div class="legend-item"><span class="legend-dot" style="background:var(--slate)"></span>내부 포상·근속</div>
-    <div class="legend-item"><span class="legend-dot" style="background:var(--spot)"></span>기준연도 수상</div>
+    <div class="legend-item clickable" id="thisYearLegendItem"><span class="legend-dot" style="background:var(--spot)"></span>기준연도 수상 <span class="legend-hint">(클릭해서 필터링)</span></div>
   </div>
 
   <p id="resultCount" style="font-size:12.5px; font-weight:700; color:var(--muted); margin:0 0 8px;"></p>
@@ -1023,6 +1027,9 @@ document.getElementById('tenureClearBtn').addEventListener('click', ()=>{
 ['thisYearToggle','seoulToggle','hasAwardToggle','noAwardToggle'].forEach(id=>{
   document.getElementById(id).addEventListener('change', function(){
     document.getElementById(id+'Wrap').classList.toggle('active', this.checked);
+    if(id==='thisYearToggle'){
+      document.getElementById('thisYearLegendItem').classList.toggle('active', this.checked);
+    }
     if(this.checked && id==='hasAwardToggle'){
       document.getElementById('noAwardToggle').checked = false;
       document.getElementById('noAwardToggleWrap').classList.remove('active');
@@ -1033,6 +1040,11 @@ document.getElementById('tenureClearBtn').addEventListener('click', ()=>{
     }
     render();
   });
+});
+document.getElementById('thisYearLegendItem').addEventListener('click', ()=>{
+  const cb = document.getElementById('thisYearToggle');
+  cb.checked = !cb.checked;
+  cb.dispatchEvent(new Event('change'));
 });
 document.getElementById('baseDate').addEventListener('change', function(){
   if(this.value) baseDate = new Date(this.value+'T00:00:00');
