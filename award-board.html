@@ -674,9 +674,12 @@ function uniqueDepts(){
 function populateDeptFilter(){
   const sel = document.getElementById('deptFilter');
   const cur = sel.value;
-  sel.innerHTML = '<option value="">전체 부서</option>' + uniqueDepts().map(d=>`<option value="${d}">${d}</option>`).join('');
+  const depts = uniqueDepts();
+  const hasCSO = depts.some(d=>d.startsWith('CSO'));
+  const csoOption = hasCSO? '<option value="__CSO_ALL__">CSO 전체</option>' : '';
+  sel.innerHTML = '<option value="">전체 부서</option>' + csoOption + depts.map(d=>`<option value="${d}">${d}</option>`).join('');
   sel.value = cur;
-  document.getElementById('deptList').innerHTML = uniqueDepts().map(d=>`<option value="${d}">`).join('');
+  document.getElementById('deptList').innerHTML = depts.map(d=>`<option value="${d}">`).join('');
 }
 
 let currentFilteredList = [];
@@ -700,7 +703,9 @@ function render(){
 
   let list = employees.filter(e=>{
     if(q && !(e.name.toLowerCase().includes(q) || (e.dept||'').toLowerCase().includes(q))) return false;
-    if(dept && e.dept !== dept) return false;
+    if(dept==='__CSO_ALL__'){
+      if(!(e.dept||'').startsWith('CSO')) return false;
+    } else if(dept && e.dept !== dept) return false;
     const hasThisYear = employeeHasYear(e, refYear);
     if(onlyThisYear && !hasThisYear) return false;
     if(onlySeoul && !e.seoul) return false;
