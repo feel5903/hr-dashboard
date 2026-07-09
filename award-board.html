@@ -1014,7 +1014,16 @@ document.getElementById('deleteBtn').addEventListener('click', async ()=>{
 
 document.getElementById('addBtn').addEventListener('click', ()=> openEdit(null));
 
+const EDIT_PASSWORD = 'agis9401@@';
 document.getElementById('editModeBtn').addEventListener('click', function(){
+  if(!editMode){
+    const pw = prompt('편집모드 비밀번호를 입력하세요.');
+    if(pw === null) return; // cancelled
+    if(pw !== EDIT_PASSWORD){
+      alert('비밀번호가 올바르지 않습니다.');
+      return;
+    }
+  }
   editMode = !editMode;
   this.classList.toggle('on', editMode);
   document.getElementById('addBtn').style.display = editMode? 'inline-block':'none';
