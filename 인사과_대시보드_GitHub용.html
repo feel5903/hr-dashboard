@@ -1,4 +1,4 @@
-a<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -1946,7 +1946,7 @@ function openDutyEdit(category, member){
   win.document.write("<textarea id='duty-text'>"+items.join("\n")+"</textarea><br><br>");
   win.document.write("<button class='btn save' onclick='saveEdit()'>💾 저장</button>");
   win.document.write("<button class='btn cancel' onclick='window.close()'>취소</button>");
-  win.document.write("<script>function saveEdit(){");
+  win.document.write("<scr"+"ipt>function saveEdit(){");
   win.document.write("var text=document.getElementById('duty-text').value;");
   win.document.write("var items=text.split('\\n').map(function(s){return s.trim();}).filter(function(s){return s.length>0;});");
   win.document.write("window.opener.updateDuty('"+category+"','"+member+"',items);");
