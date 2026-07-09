@@ -5,6 +5,7 @@
 <title>서울재활병원 수상이력 보드</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root{
     --bg:#F6F4EE;
@@ -303,8 +304,6 @@
       <option value="name">이름순</option>
       <option value="tenure_desc">근속연수 많은순</option>
       <option value="tenure_asc">근속연수 적은순</option>
-      <option value="hire_asc">입사일 빠른순</option>
-      <option value="hire_desc">입사일 최근순</option>
     </select>
     <div class="tenure-filter">
       <label>근속연수</label>
@@ -323,9 +322,10 @@
       <button class="view-toggle-btn active" data-view="table">☰ 표로 보기</button>
       <button class="view-toggle-btn" data-view="card">▦ 카드로 보기</button>
     </div>
-    <button class="btn" id="exportBtn" title="현재 데이터를 파일로 저장">⬇ 백업</button>
+    <button class="btn" id="exportBtn" title="현재 데이터를 파일로 저장(복원용)">⬇ 백업</button>
     <button class="btn" id="importBtn" title="백업 파일 불러와서 복원" style="display:none;">⬆ 복원</button>
     <input type="file" id="importFile" accept="application/json" style="display:none;">
+    <button class="btn" id="exportExcelBtn" title="현재 화면에 보이는 목록을 엑셀로">⬇ 엑셀로 내보내기</button>
     <button class="btn btn-edit-mode" id="editModeBtn"><span class="switch"></span>편집모드</button>
     <button class="btn btn-primary" id="addBtn" style="display:none;">+ 직원 추가</button>
   </div>
@@ -674,6 +674,7 @@ function populateDeptFilter(){
   document.getElementById('deptList').innerHTML = uniqueDepts().map(d=>`<option value="${d}">`).join('');
 }
 
+let currentFilteredList = [];
 function render(){
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   const dept = document.getElementById('deptFilter').value;
@@ -682,10 +683,12 @@ function render(){
   const onlySeoul = document.getElementById('seoulToggle').checked;
   const onlyHasAward = document.getElementById('hasAwardToggle').checked;
   const onlyNoAward = document.getElementById('noAwardToggle').checked;
-  const tenureMinRaw = document.getElementById('tenureMin').value;
-  const tenureMaxRaw = document.getElementById('tenureMax').value;
-  const tenureMinMonths = tenureMinRaw!==''? parseFloat(tenureMinRaw)*12 : null;
-  const tenureMaxMonths = tenureMaxRaw!==''? parseFloat(tenureMaxRaw)*12 : null;
+  const tenureMinEl = document.getElementById('tenureMin');
+  const tenureMaxEl = document.getElementById('tenureMax');
+  const tenureMinRaw = tenureMinEl ? String(tenureMinEl.value||'').trim() : '';
+  const tenureMaxRaw = tenureMaxEl ? String(tenureMaxEl.value||'').trim() : '';
+  const tenureMinMonths = tenureMinRaw!==''? (isNaN(parseFloat(tenureMinRaw))? null : parseFloat(tenureMinRaw)*12) : null;
+  const tenureMaxMonths = tenureMaxRaw!==''? (isNaN(parseFloat(tenureMaxRaw))? null : parseFloat(tenureMaxRaw)*12) : null;
 
   const refYear = baseDate.getFullYear();
 
@@ -709,10 +712,9 @@ function render(){
     if(sort==='name') return a.name.localeCompare(b.name,'ko');
     if(sort==='tenure_desc') return tenureMonths(b.hire,baseDate)-tenureMonths(a.hire,baseDate);
     if(sort==='tenure_asc') return tenureMonths(a.hire,baseDate)-tenureMonths(b.hire,baseDate);
-    if(sort==='hire_asc') return (a.hire||'').localeCompare(b.hire||'');
-    if(sort==='hire_desc') return (b.hire||'').localeCompare(a.hire||'');
     return 0;
   });
+  currentFilteredList = list;
 
   document.getElementById('emptyState').style.display = list.length? 'none':'block';
   document.getElementById('grid').style.display = (currentView==='card')? 'grid':'none';
@@ -727,11 +729,9 @@ function render(){
   // stats
   const total = employees.length;
   const thisYearCount = employees.filter(e=>employeeHasYear(e, refYear)).length;
-  const seoulCount = employees.filter(e=>e.seoul).length;
   document.getElementById('statRow').innerHTML = `
     <div class="stat-chip"><b>${total}</b><span>전체 인원</span></div>
     <div class="stat-chip"><b style="color:var(--spot)">${thisYearCount}</b><span>${refYear} 수상</span></div>
-    <div class="stat-chip"><b style="color:var(--blue)">${seoulCount}</b><span>서울거주</span></div>
   `;
 }
 
@@ -940,6 +940,32 @@ document.getElementById('exportBtn').addEventListener('click', ()=>{
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+});
+
+document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
+  const list = currentFilteredList.length? currentFilteredList : employees;
+  const headers = ['구분(부서)','이름','서울거주','입사일','근속연수', ...AWARD_ORDER, '수상이력요약'];
+  const rows = list.map(e=>{
+    const row = [e.dept||'', e.name, e.seoul?'Y':'', e.hire||'', tenureText(e.hire, baseDate)];
+    AWARD_ORDER.forEach(awardName=>{
+      const entries = (e.awards && e.awards[awardName]) || [];
+      row.push(entries.map(v=>displayAwardValue(v)).join(' / '));
+    });
+    const summary = flatAwardEntries(e.awards).map(({name,val})=>`${name}(${displayAwardValue(val)})`).join(', ');
+    row.push(summary);
+    return row;
+  });
+  const aoa = [headers, ...rows];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [
+    {wch:14},{wch:10},{wch:8},{wch:11},{wch:12},
+    ...AWARD_ORDER.map(()=>({wch:16})),
+    {wch:50}
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '수상이력');
+  const ts = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `수상이력_${ts}.xlsx`);
 });
 
 document.getElementById('importBtn').addEventListener('click', ()=>{
