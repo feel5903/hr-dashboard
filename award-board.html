@@ -30,6 +30,8 @@
     --spot-tint:#FBE8DC;
     --recent5:#1F7A6C;
     --recent5-tint:#DCEFEC;
+    --pending:#C0392B;
+    --pending-tint:#FBEAEA;
     --radius:14px;
     --shadow:0 1px 2px rgba(30,42,36,.06), 0 6px 20px rgba(30,42,36,.05);
   }
@@ -180,6 +182,10 @@
     display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
   }
   .achip .yr{font-weight:800; font-variant-numeric:tabular-nums;}
+  .pending-chip{
+    background:#fff !important; color:var(--pending) !important;
+    border:1.5px dashed var(--pending) !important;
+  }
   .no-award{font-size:12px; color:var(--muted); font-style:italic;}
   .card-edit-hint{
     position:absolute; top:10px; right:10px; font-size:11px; color:var(--spot); font-weight:700; opacity:0;
@@ -409,7 +415,7 @@
         <div class="award-list" id="awardList"></div>
         <div class="add-award-row">
           <select id="newAwardName"></select>
-          <input type="text" id="newAwardDate" placeholder="예: 2026.05.10  (기타는 '2026.03 OO상' 처럼 자유입력)">
+          <input type="text" id="newAwardDate" placeholder="예: 2026.05.10 / 접수중이면 '2026.05 접수중'처럼 입력">
           <button class="btn" id="addAwardBtn">+ 추가</button>
         </div>
         <div class="add-award-row" id="tierPickerRow" style="display:none; margin-top:6px;">
@@ -483,6 +489,13 @@ function normalizeDateInText(text){
   });
 }
 const ETC_TIER_MAP = {'국가':'gold','서울':'blue','은평':'purple','유관':'rose','내부':'slate'};
+function isPendingText(val){
+  return /접수중/.test(String(val||''));
+}
+function pendingChipLabel(name, val){
+  const label = chipLabel(name, val);
+  return /접수중/.test(label) ? label : `${label} 접수중`;
+}
 function stripTierTag(text){
   return String(text||'').replace(/^\[(국가|서울|은평|유관|내부)\]\s*/, '');
 }
@@ -574,11 +587,12 @@ function flatAwardEntries(awards){
   return list;
 }
 function employeeHasYear(e, year){
-  return flatAwardEntries(e.awards).some(en=>extractYear(en.val)===year);
+  return flatAwardEntries(e.awards).some(en=>!isPendingText(en.val) && extractYear(en.val)===year);
 }
 function employeeHasRecentYears(e, years, refYear){
   const cutoff = refYear - years + 1;
   return flatAwardEntries(e.awards).some(en=>{
+    if(isPendingText(en.val)) return false;
     const y = extractYear(en.val);
     return y!==null && y>=cutoff && y<=refYear;
   });
@@ -822,6 +836,9 @@ function renderCards(list, refYear){
       </div>
       <div class="award-chips">
         ${awardEntries.length? awardEntries.map(({name,val})=>{
+          if(isPendingText(val)){
+            return `<span class="achip pending-chip">⏳ ${pendingChipLabel(name,val)}</span>`;
+          }
           const tier = getEntryTier(name, val);
           const yr = extractYear(val);
           const yrLabel = yr? `<span class="yr">'${String(yr).slice(2)}</span> ` : '';
@@ -841,6 +858,9 @@ function renderTable(list, refYear){
     const hasThisYear = employeeHasYear(e, refYear);
     const awardEntries = flatAwardEntries(e.awards);
     const chips = awardEntries.length? awardEntries.map(({name,val})=>{
+      if(isPendingText(val)){
+        return `<span class="mini-chip pending-chip">⏳ ${pendingChipLabel(name,val)}</span>`;
+      }
       const tier = getEntryTier(name, val);
       const yr = extractYear(val);
       const yrLabel = yr? `<span class="yr">'${String(yr).slice(2)}</span> ` : '';
@@ -868,6 +888,9 @@ function openView(id){
   document.getElementById('viewMeta').innerHTML = `<span>소속 <b>${e.dept||'-'}</b></span>&nbsp;&nbsp;<span>입사 <b>${e.hire||'-'}</b></span>&nbsp;&nbsp;<span>근속 <b>${tenureText(e.hire,baseDate)}</b></span>`;
   const awardEntries = flatAwardEntries(e.awards);
   document.getElementById('viewAwards').innerHTML = awardEntries.length? awardEntries.map(({name,val})=>{
+    if(isPendingText(val)){
+      return `<div class="readonly-award-item" style="border:1px dashed var(--pending);"><span class="aname" style="color:var(--pending)">⏳ ${name}</span><span class="adate" style="color:var(--pending); font-weight:700;">${displayAwardValue(val)}</span></div>`;
+    }
     const tier = getEntryTier(name, val);
     return `<div class="readonly-award-item"><span class="aname" style="color:var(--${tier})">${name}</span><span class="adate">${displayAwardValue(val)}</span></div>`;
   }).join('') : '<div class="no-award">등록된 수상이력이 없습니다.</div>';
@@ -881,13 +904,19 @@ function awardNameOptions(){
 function renderAwardEditList(e){
   const wrap = document.getElementById('awardList');
   const entries = flatAwardEntries(e.awards);
-  wrap.innerHTML = entries.length? entries.map(({name,val,idx})=>`
-    <div class="award-row" data-name="${name}" data-idx="${idx}">
-      <span style="font-weight:700; font-size:13px;">${name}</span>
-      <span style="font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums;">${displayAwardValue(val)}</span>
+  wrap.innerHTML = entries.length? entries.map(({name,val,idx})=>{
+    const pending = isPendingText(val);
+    const rowStyle = pending? 'background:var(--pending-tint); border:1px dashed var(--pending);' : '';
+    const nameStyle = pending? 'color:var(--pending);' : '';
+    const valStyle = pending? 'color:var(--pending); font-weight:700;' : 'color:var(--muted);';
+    return `
+    <div class="award-row" data-name="${name}" data-idx="${idx}" style="${rowStyle}">
+      <span style="font-weight:700; font-size:13px; ${nameStyle}">${pending?'⏳ ':''}${name}</span>
+      <span style="font-size:12px; font-variant-numeric:tabular-nums; ${valStyle}">${displayAwardValue(val)}</span>
       <button class="remove-award" data-remove-name="${name}" data-remove-idx="${idx}">✕</button>
     </div>
-  `).join('') : '<div class="no-award" style="padding:4px 0;">등록된 수상이력 없음</div>';
+  `;
+  }).join('') : '<div class="no-award" style="padding:4px 0;">등록된 수상이력 없음</div>';
   wrap.querySelectorAll('[data-remove-name]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const name = btn.dataset.removeName;
