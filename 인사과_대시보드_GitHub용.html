@@ -165,6 +165,7 @@ tbody tr:hover{background:#FAFBFC}
 
   <div class="nav-divider"></div>
   <div class="nav-item" onclick="switchNav('duties',this)"><span class="nav-icon">📋</span>업무분장</div>
+  <div class="nav-item" onclick="switchNav('staff',this)"><span class="nav-icon">👤</span>직원현황</div>
   <div class="nav-item" onclick="switchNav('dormitory',this)"><span class="nav-icon">🏠</span>기숙사 현황</div>
   <div class="nav-item" onclick="switchNav('settings',this)"><span class="nav-icon">⚙️</span>설정</div>
 
@@ -317,7 +318,63 @@ tbody tr:hover{background:#FAFBFC}
   </div>
 
   <!-- 기숙사 현황 -->
-  <div id="pane-dormitory" class="pane">
+  
+<div id="pane-staff" class="pane">
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">👤 직원현황</span>
+      <div class="card-actions">
+        <div style="position:relative;display:inline-flex;align-items:center">
+          <span style="position:absolute;left:8px;font-size:13px">🔍</span>
+          <input type="text" id="staff-search" oninput="renderStaff()" placeholder="이름/부서 검색..."
+            style="padding:4px 8px 4px 28px;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:12px;width:160px;font-family:inherit">
+        </div>
+        <select id="staff-filter-type" onchange="renderStaff()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)">
+          <option value="">전체</option>
+          <option value="정규직">정규직</option>
+          <option value="계약직">계약직</option>
+        </select>
+        <button class="btn lime" onclick="openStaffForm()">+ 직원 추가</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr>
+          <th>이름</th><th>부서</th><th style="text-align:center">직급</th>
+          <th style="text-align:center">직책</th><th style="text-align:center">입사일</th>
+          <th style="text-align:center">재직기간</th><th style="text-align:center">구분</th>
+          <th style="text-align:center">계약종료</th><th style="text-align:center">관리</th>
+        </tr></thead>
+        <tbody id="staff-tbody"></tbody>
+      </table>
+    </div>
+    <div id="staff-count" style="padding:.75rem 1.25rem;font-size:12px;color:var(--text-muted)"></div>
+  </div>
+</div>
+
+<!-- 직원 추가/수정 모달 -->
+<div class="overlay" id="staff-overlay">
+  <div class="modal" style="width:440px">
+    <h3 id="staff-modal-title">직원 추가</h3>
+    <input type="hidden" id="staff-edit-id">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="field"><label>이름</label><input type="text" id="sf-name"></div>
+      <div class="field"><label>부서</label><input type="text" id="sf-dept"></div>
+      <div class="field"><label>직급</label><input type="text" id="sf-position"></div>
+      <div class="field"><label>직책</label><input type="text" id="sf-title"></div>
+      <div class="field"><label>입사일</label><input type="date" id="sf-joinDate"></div>
+      <div class="field"><label>구분</label>
+        <select id="sf-contractType"><option>정규직</option><option>계약직</option></select>
+      </div>
+    </div>
+    <div class="field"><label>계약종료일 (계약직만)</label><input type="date" id="sf-contractEnd"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeStaffModal()">취소</button>
+      <button class="btn primary" onclick="saveStaff()">저장</button>
+    </div>
+  </div>
+</div>
+<div id="pane-dormitory" class="pane">
     <div class="card">
       <div class="card-head">
         <span class="card-title">🏠 기숙사 현황</span>
@@ -457,7 +514,7 @@ var PALETTE=["#44546E","#2563EB","#5C8A1E","#7C3AED","#D97706","#DC2626","#0891B
 var members=JSON.parse(localStorage.getItem("hr_members")||"null")||[{name:"김재용",role:"인사과장",color:"#44546E"},{name:"배지은",role:"주임",color:"#2563EB"},{name:"공지현",role:"주임",color:"#5C8A1E"},{name:"최필상",role:"사원",color:"#7C3AED"}];
 var curMonth={y:TODAY.getFullYear(),m:TODAY.getMonth()};
 var curForm="daily",editMemberIdx=null,editIdx=null;
-var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[],duties:[]};
+var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[],duties:[],staff:[]};
 var isEditing=false; // 입력 중 동기화 방지 플래그
 (function(){try{var b=localStorage.getItem("hr_data_backup");if(b){var p=JSON.parse(b);if(p.daily)data.daily=p.daily;if(p.project)data.project=p.project;if(p.task)data.task=p.task;if(p.leave)data.leave=p.leave;if(p.recruit)data.recruit=p.recruit;if(p.dormitory)data.dormitory=p.dormitory;}}catch(e){}})();
 function toggleSidebar(){
@@ -562,13 +619,15 @@ async function deleteRowsSafe(tab,ids){
 async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동기화 대기)");return;}setSyncStatus("loading","⟳ 동기화 중...");try{var d=await callScript({tab:"daily"});var p=await callScript({tab:"project"});var lv=await callScript({tab:"leave"});var tk=await callScript({tab:"task"});
     var rc=await callScript({tab:"recruit"});
     var dm=await callScript({tab:"dormitory"});
-    var dt=await callScript({tab:"duties"});var fd=filterRows(d).map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p).map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv).map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk).map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
+    var dt=await callScript({tab:"duties"});var st=await callScript({tab:"staff"});var fd=filterRows(d).map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p).map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv).map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk).map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
     var frc=filterRows(rc).map(function(r){return normalizeRow(r,"recruit");});
     data.recruit=frc;
     var fdm=filterRows(dm).map(function(r){return normalizeRow(r,"dormitory");});
     if(fdm.length) data.dormitory=fdm;
     var fdt=(dt||[]).filter(function(r){return r&&r.category;}).map(function(r){return normalizeRow(r,"duties");});
     if(fdt.length) data.duties=fdt;
+    var fst=filterRows(st).map(function(r){return normalizeRow(r,"staff");});
+    if(fst.length) data.staff=fst;
     saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
 function updateStats(){
   document.getElementById("s-total").textContent=data.daily.length+data.project.length;
@@ -1078,7 +1137,7 @@ async function saveForm(){var btn=document.getElementById("save-btn");if(btn.dis
   }
   saveLocalBackup();closeOverlay();renderAll();return;}if(curForm==="daily"){var sv=document.getElementById("f-created").value||todayStr;var lnk2=getLinkValues();
     var nr={id:genId("d"),member:member,content:content,created:sv,start:sv,end:end,status:status,note:note,feedback:"",link:lnk2};data.daily.push(nr);await saveRow("daily",[nr.id,nr.member,nr.content,nr.created,nr.end,nr.status,nr.note,nr.feedback,nr.link||""]);}else if(curForm==="project"){var nr={id:genId("p"),name:content,member:member,start:document.getElementById("f-start").value,end:end,progress:0,status:status,note:note};data.project.push(nr);await saveRow("project",Object.values(nr));}closeOverlay();renderAll();}
-function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").forEach(function(n){n.classList.remove("active");});if(el)el.classList.add("active");document.querySelectorAll(".pane").forEach(function(p){p.classList.remove("active");});document.getElementById("pane-"+name).classList.add("active");if(name==="settings")renderMemberGrid();if(name==="workdays"&&typeof wdInit==='function')wdInit();if(name==="calendar")renderCalendar();
+function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").forEach(function(n){n.classList.remove("active");});if(el)el.classList.add("active");document.querySelectorAll(".pane").forEach(function(p){p.classList.remove("active");});document.getElementById("pane-"+name).classList.add("active");if(name==="settings")renderMemberGrid();if(name==="staff")renderStaff();if(name==="workdays"&&typeof wdInit==='function')wdInit();if(name==="calendar")renderCalendar();
   if(name==="recruit")renderRecruit();
   if(name==="duties")renderDuties();
   if(name==="dormitory")renderDormitory();if(name==="project")renderProject();if(name==="weekly"){renderWeeklySelect();renderWeekly();}}
@@ -2664,6 +2723,125 @@ function wdSaveSettings() {
   alert('설정이 저장됐어요!');
 }
 
+
+
+
+// ════════ 직원현황 ════════
+function renderStaff() {
+  var sq = (document.getElementById('staff-search')||{value:''}).value.toLowerCase();
+  var ft = (document.getElementById('staff-filter-type')||{value:''}).value;
+  var list = data.staff || [];
+  var filtered = list.filter(function(s) {
+    if(ft && s.contractType !== ft) return false;
+    if(sq && (s.name||'').toLowerCase().indexOf(sq)<0 && (s.dept||'').toLowerCase().indexOf(sq)<0) return false;
+    return true;
+  });
+  function calcTenure(joinDate) {
+    if(!joinDate) return '';
+    var join = new Date(joinDate);
+    var now = new Date(todayStr);
+    var years = now.getFullYear() - join.getFullYear();
+    var months = now.getMonth() - join.getMonth();
+    if(months < 0) { years--; months += 12; }
+    if(years < 0) return '';
+    return years + '년 ' + months + '개월';
+  }
+  var tbody = document.getElementById('staff-tbody');
+  if(!tbody) return;
+  if(!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty">검색 결과가 없습니다</td></tr>';
+    document.getElementById('staff-count').textContent = '';
+    return;
+  }
+  tbody.innerHTML = filtered.map(function(s, i) {
+    var tenure = calcTenure(s.joinDate);
+    var isContract = s.contractType === '계약직';
+    var ce = s.contractEnd || '';
+    return '<tr>' +
+      '<td style="font-weight:600">' + (s.name||'') + '</td>' +
+      '<td style="font-size:12px">' + (s.dept||'') + '</td>' +
+      '<td style="text-align:center;font-size:12px">' + (s.position||'') + '</td>' +
+      '<td style="text-align:center;font-size:12px">' + (s.title||'') + '</td>' +
+      '<td style="text-align:center;font-size:12px">' + (s.joinDate||'') + '</td>' +
+      '<td style="text-align:center;font-size:12px;color:var(--navy)">' + tenure + '</td>' +
+      '<td style="text-align:center">' +
+        '<span style="font-size:11px;padding:2px 8px;border-radius:12px;background:' + (isContract?'#FEF3C7':'#DCFCE7') + ';color:' + (isContract?'#92400E':'#065F46') + '">' + (s.contractType||'') + '</span>' +
+      '</td>' +
+      '<td style="text-align:center;font-size:12px;color:' + (ce?'#DC2626':'#aaa') + '">' + (ce||'-') + '</td>' +
+      '<td style="text-align:center"><div class="action-btns">' +
+        '<button class="edit-btn" onclick="editStaff(this.getAttribute(\'data-sid\'))" data-sid="'+s.id+'">✏️</button>' +
+        '<button class="del-btn" onclick="deleteStaff(this.getAttribute(\'data-sid\'))" data-sid="'+s.id+'">🗑️</button>' +
+      '</div></td>' +
+    '</tr>';
+  }).join('');
+  document.getElementById('staff-count').textContent = '총 ' + filtered.length + '명 표시 중 (전체 ' + list.length + '명)';
+}
+
+function openStaffForm() {
+  document.getElementById('staff-modal-title').textContent = '직원 추가';
+  document.getElementById('staff-edit-id').value = '';
+  document.getElementById('sf-name').value = '';
+  document.getElementById('sf-dept').value = '';
+  document.getElementById('sf-position').value = '';
+  document.getElementById('sf-title').value = '';
+  document.getElementById('sf-joinDate').value = todayStr;
+  document.getElementById('sf-contractType').value = '정규직';
+  document.getElementById('sf-contractEnd').value = '';
+  document.getElementById('staff-overlay').classList.add('open');
+}
+
+function editStaff(id) {
+  var s = (data.staff||[]).find(function(x){return x.id===id;});
+  if(!s) return;
+  document.getElementById('staff-modal-title').textContent = '직원 수정';
+  document.getElementById('staff-edit-id').value = s.id;
+  document.getElementById('sf-name').value = s.name||'';
+  document.getElementById('sf-dept').value = s.dept||'';
+  document.getElementById('sf-position').value = s.position||'';
+  document.getElementById('sf-title').value = s.title||'';
+  document.getElementById('sf-joinDate').value = s.joinDate||'';
+  document.getElementById('sf-contractType').value = s.contractType||'정규직';
+  document.getElementById('sf-contractEnd').value = s.contractEnd||'';
+  document.getElementById('staff-overlay').classList.add('open');
+}
+
+function closeStaffModal() {
+  document.getElementById('staff-overlay').classList.remove('open');
+}
+
+async function saveStaff() {
+  var eid = document.getElementById('staff-edit-id').value;
+  var nr = {
+    id: eid || ('st'+Date.now()),
+    name: document.getElementById('sf-name').value.trim(),
+    dept: document.getElementById('sf-dept').value.trim(),
+    position: document.getElementById('sf-position').value.trim(),
+    title: document.getElementById('sf-title').value.trim(),
+    joinDate: document.getElementById('sf-joinDate').value,
+    contractType: document.getElementById('sf-contractType').value,
+    contractEnd: document.getElementById('sf-contractEnd').value
+  };
+  if(!nr.name) { alert('이름을 입력해주세요'); return; }
+  if(!data.staff) data.staff = [];
+  if(eid) {
+    var idx = data.staff.findIndex(function(x){return x.id===eid;});
+    if(idx>=0) data.staff[idx] = nr;
+    await updateRowSafe('staff', eid, [nr.id,nr.name,nr.dept,nr.position,nr.title,nr.joinDate,nr.contractType,nr.contractEnd]);
+  } else {
+    data.staff.push(nr);
+    await saveRow('staff', [nr.id,nr.name,nr.dept,nr.position,nr.title,nr.joinDate,nr.contractType,nr.contractEnd]);
+  }
+  closeStaffModal();
+  renderStaff();
+}
+
+async function deleteStaff(id) {
+  var s = (data.staff||[]).find(function(x){return x.id===id;});
+  if(!s || !confirm(s.name+'을 삭제할까요?')) return;
+  data.staff = data.staff.filter(function(x){return x.id!==id;});
+  await deleteRowSafe('staff', id);
+  renderStaff();
+}
 
 </script>
 </body>
