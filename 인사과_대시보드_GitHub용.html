@@ -575,6 +575,23 @@ tbody tr:hover{background:#FAFBFC}
 </div>
 <script>
 var SHEET_URL="https://script.google.com/macros/s/AKfycbyVVsu9GpiBGMdjb5uU1NYNg0kMjNrDZ7yuyPSrFI2LOOZ0iC8La-71i8U8MjVykMo6/exec";
+// 세션 자동 로그인 확인
+(function(){
+  var saved = sessionStorage.getItem('hr_user');
+  if(saved) {
+    try {
+      var user = JSON.parse(saved);
+      currentUser = user;
+      document.addEventListener('DOMContentLoaded', function() {
+        var ls = document.getElementById('login-screen');
+        var ud = document.getElementById('login-user-display');
+        if(ls) ls.style.display = 'none';
+        if(ud) ud.textContent = user.displayName + '님';
+        syncAll();
+      });
+    } catch(e) { sessionStorage.removeItem('hr_user'); }
+  }
+})();
 var TODAY=new Date(),todayStr=(function(){var d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10);})();
 document.getElementById("today-label").textContent=TODAY.toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"short"});
 var PALETTE=["#44546E","#2563EB","#5C8A1E","#7C3AED","#D97706","#DC2626","#0891B2","#DB2777","#059669","#9333EA"];
@@ -2858,6 +2875,7 @@ async function doLogin() {
     var result = await callScript({action:'login', username:username, password:password});
     if(result && result.status === 'ok') {
       currentUser = {username: result.name, displayName: result.displayName||result.name};
+      sessionStorage.setItem('hr_user', JSON.stringify(currentUser));
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('login-user-display').textContent = currentUser.displayName + '님';
       await syncAll();
@@ -2875,6 +2893,7 @@ async function doLogin() {
 function logoutUser() {
   if(!confirm('로그아웃 하시겠습니까?')) return;
   currentUser = null;
+  sessionStorage.removeItem('hr_user');
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('login-username').value = '';
   document.getElementById('login-password').value = '';
