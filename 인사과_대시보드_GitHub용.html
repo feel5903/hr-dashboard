@@ -713,6 +713,7 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
     var fst=filterRows(st).map(function(r){return normalizeRow(r,"staff");});
     if(fst.length) data.staff=fst;
     saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
+window._showAlert = function(el) { showMainAlertDetail(decodeURIComponent(el.dataset.lbl)); };
 function showMainAlertDetail(label) {
   var items = (window._mainAlerts||{})[label] || [];
   if(!items.length) return;
@@ -786,12 +787,7 @@ function renderMainStaffAlerts() {
     var label=e[0]; var items=e[1];
     var color = label.indexOf('포상')>=0||label.indexOf('조기')>=0?'#F59E0B':label.indexOf('안식')>=0?'#10B981':'#EF4444';
     var bg = label.indexOf('포상')>=0||label.indexOf('조기')>=0?'#FEF3C7':label.indexOf('안식')>=0?'#D1FAE5':'#FEE2E2';
-    return '<div style="background:'+bg+';border:1.5px solid '+color+';border-radius:8px;padding:5px 10px;cursor:pointer;display:inline-block" onclick="showMainAlertDetail(&quot;'+label+'&quot;)">' +
-      '<span style="font-size:12px;font-weight:700;color:'+color+'">'+label+'</span>' +
-      '<span style="font-size:12px;color:#374151;margin-left:5px">'+items.length+'명</span></div>';
-  }).join('');
-}
-function renderMemberUI(){document.getElementById("topbar-staff").innerHTML=members.map(function(m){return"<div class='t-avatar' style='background:"+m.color+"' title='"+m.name+"'>"+m.name[0]+"</div>";}).join("");var mo="<option value=''>전체 담당자</option>"+members.map(function(m){return"<option>"+m.name+"</option>";}).join("");["filter-member","filter-weekly-member","filter-proj-member"].forEach(function(id){var el=document.getElementById(id);if(!el)return;var cur=el.value;el.innerHTML=mo;if(cur)el.value=cur;});}
+    return '<div style="background:'+bg+';border:1.5px solid '+color+';border-radius:8px;padding:5px 10px;cursor:pointer;display:inline-block" onclick="window._showAlert(this)" data-lbl='+encodeURIComponent(label)+'+m.name[0]+"</div>";}).join("");var mo="<option value=''>전체 담당자</option>"+members.map(function(m){return"<option>"+m.name+"</option>";}).join("");["filter-member","filter-weekly-member","filter-proj-member"].forEach(function(id){var el=document.getElementById(id);if(!el)return;var cur=el.value;el.innerHTML=mo;if(cur)el.value=cur;});}
 function renderMemberGrid(){document.getElementById("member-grid").innerHTML=members.map(function(m,i){return"<div class='member-card'><div class='member-big-av' style='background:"+m.color+"'>"+m.name[0]+"</div><div style='flex:1'><div style='font-size:14px;font-weight:600'>"+m.name+"</div><div style='font-size:11px;color:var(--text-muted)'>"+(m.role||"")+"</div><div style='display:flex;gap:4px;margin-top:6px'><button class='sm-btn' onclick='openEditMember("+i+")'>✏️ 수정</button>"+(members.length>1?"<button class='sm-btn del' onclick='deleteMember("+i+")'>삭제</button>":"")+"</div></div></div>";}).join("")+"<div class='add-member-card' onclick='openAddMember()'><span style='font-size:20px'>+</span><span>팀원 추가</span></div>";}
 function openEditMember(i){editMemberIdx=i;var m=members[i];document.getElementById("member-modal-title").textContent="팀원 수정";document.getElementById("m-name").value=m.name;document.getElementById("m-role").value=m.role||"";renderColorPicker(m.color);document.getElementById("member-overlay").classList.add("open");}
 function openAddMember(){editMemberIdx=null;document.getElementById("member-modal-title").textContent="팀원 추가";document.getElementById("m-name").value="";document.getElementById("m-role").value="";renderColorPicker(PALETTE[members.length%PALETTE.length]);document.getElementById("member-overlay").classList.add("open");}
