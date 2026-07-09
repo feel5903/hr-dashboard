@@ -368,8 +368,7 @@ tbody tr:hover{background:#FAFBFC}
         <button class="btn lime" onclick="openStaffForm()">+ 직원 추가</button>
       </div>
     </div>
-    <!-- 알림 카드 -->
-    <div id="staff-alerts" style="padding:0 1.25rem .5rem"></div>
+    <div id="staff-alerts" style="display:none"></div>
 
     <!-- 직원 테이블 -->
     <div style="overflow-x:auto">
@@ -749,8 +748,14 @@ function renderMainStaffAlerts() {
       var d = Math.floor((ann-today)/86400000);
       if(d>=0&&d<=30) alerts.push({type:'sabbatical', label:'🌿 '+yr+'주년 안식', name:s.name, days:d});
     });
-    // 간호사 조기정착 (3개월, 간호조무사 제외)
-    if(s.dept&&s.dept.indexOf('간호')>=0&&(!s.position||s.position.indexOf('간호조무사')<0)) {
+    // 안식휴가 (7, 20주년)
+    [7, 20].forEach(function(yr) {
+      var ann = new Date(join); ann.setFullYear(join.getFullYear()+yr);
+      var d = Math.floor((ann-today)/86400000);
+      if(d>=0&&d<=30) alerts.push({type:'sabbatical', label:'🌿 안식휴가', name:s.name, days:d, yr:yr});
+    });
+    // 간호사 조기정착 (3개월, 간호조무사/재활지원인력 제외)
+    if(s.dept&&s.dept.indexOf('간호')>=0&&(!s.position||s.position.indexOf('간호조무사')<0)&&(s.position||'').indexOf('재활지원인력')<0) {
       var thm = new Date(join); thm.setMonth(join.getMonth()+3);
       var d = Math.floor((thm-today)/86400000);
       if(d>=0&&d<=30) alerts.push({type:'nurse', label:'🌱 간호사 조기정착', name:s.name, days:d});
@@ -768,11 +773,12 @@ function renderMainStaffAlerts() {
   }
   var groups = {};
   alerts.forEach(function(a){ if(!groups[a.label]) groups[a.label]=[]; groups[a.label].push(a); });
+  window._mainAlerts = groups;
   el.innerHTML = Object.entries(groups).map(function(e) {
     var label=e[0]; var items=e[1];
     var color = label.indexOf('포상')>=0||label.indexOf('조기')>=0?'#F59E0B':label.indexOf('안식')>=0?'#10B981':'#EF4444';
     var bg = label.indexOf('포상')>=0||label.indexOf('조기')>=0?'#FEF3C7':label.indexOf('안식')>=0?'#D1FAE5':'#FEE2E2';
-    return '<div style="background:'+bg+';border:1.5px solid '+color+';border-radius:8px;padding:5px 10px;cursor:pointer;display:inline-block" onclick="switchToStaff()">' +
+    return '<div style="background:'+bg+';border:1.5px solid '+color+';border-radius:8px;padding:5px 10px;cursor:pointer;display:inline-block" onclick="showMainAlertDetail(&quot;'+label+'&quot;)">' +
       '<span style="font-size:12px;font-weight:700;color:'+color+'">'+label+'</span>' +
       '<span style="font-size:12px;color:#374151;margin-left:5px">'+items.length+'명</span></div>';
   }).join('');
@@ -2110,6 +2116,14 @@ function goToDueToday(){
   },150);
 }
 
+
+function showMainAlertDetail(label) {
+  var items = (window._mainAlerts||{})[label] || [];
+  if(!items.length) return;
+  var lines = [label + ' 대상자 (' + items.length + '명)', ''];
+  items.forEach(function(a){ lines.push('• ' + a.name + (a.dept?' ('+a.dept+')':'') + (a.days===0?' [오늘]':' [D-'+a.days+']')); });
+  alert(lines.join('\n'));
+}
 
 function switchToStaff(){var el=document.querySelector('.nav-item:nth-child(6)');switchNav('staff',el);}
 function renderAll(){updateStats();renderMemberUI();renderDaily();renderWeeklySelect();renderWeekly();renderProject();renderCalendar();renderRecruit();}
