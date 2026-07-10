@@ -166,7 +166,7 @@ tbody tr:hover{background:#FAFBFC}
   <div class="nav-divider"></div>
   <div class="nav-item" onclick="switchNav('duties',this)"><span class="nav-icon">📋</span>업무분장</div>
   <div class="nav-item" onclick="switchNav('staff',this)"><span class="nav-icon">👤</span>직원현황</div>
-  <div class="nav-item" onclick="switchNav('staff',this)"><span class="nav-icon">👤</span>직원현황</div>
+
   <div class="nav-item" onclick="switchNav('dormitory',this)"><span class="nav-icon">🏠</span>기숙사 현황</div>
   <div class="nav-item" onclick="switchNav('settings',this)"><span class="nav-icon">⚙️</span>설정</div>
 
@@ -383,61 +383,10 @@ tbody tr:hover{background:#FAFBFC}
   </div>
 </div>
 
-<div id="pane-staff" class="pane">
-  <div class="card">
-    <div class="card-head">
-      <span class="card-title">👤 직원현황</span>
-      <div class="card-actions">
-        <div style="position:relative;display:inline-flex;align-items:center">
-          <span style="position:absolute;left:8px;font-size:13px">🔍</span>
-          <input type="text" id="staff-search" oninput="renderStaff()" placeholder="이름/부서 검색..."
-            style="padding:4px 8px 4px 28px;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:12px;width:160px;font-family:inherit">
-        </div>
-        <select id="staff-filter-type" onchange="renderStaff()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-border);border-radius:var(--radius)">
-          <option value="">전체</option><option value="정규직">정규직</option><option value="계약직">계약직</option>
-        </select>
-        <button class="btn lime" onclick="openStaffForm()">+ 직원 추가</button>
-      </div>
-    </div>
-    <div style="overflow-x:auto">
-      <table>
-        <thead><tr>
-          <th>이름</th><th>부서</th><th style="text-align:center">직급</th>
-          <th style="text-align:center">직책</th><th style="text-align:center">입사일</th>
-          <th style="text-align:center">재직기간</th><th style="text-align:center">구분</th>
-          <th style="text-align:center">계약종료</th><th style="text-align:center">비고</th>
-          <th style="text-align:center">관리</th>
-        </tr></thead>
-        <tbody id="staff-tbody"></tbody>
-      </table>
-    </div>
-    <div id="staff-count" style="padding:.75rem 1.25rem;font-size:12px;color:var(--text-muted)"></div>
-  </div>
-</div>
+
 
 <!-- 직원 추가/수정 모달 -->
-<div class="overlay" id="staff-overlay">
-  <div class="modal" style="width:460px">
-    <h3 id="staff-modal-title">직원 추가</h3>
-    <input type="hidden" id="staff-edit-id">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-      <div class="field"><label>이름</label><input type="text" id="sf-name"></div>
-      <div class="field"><label>부서</label><input type="text" id="sf-dept"></div>
-      <div class="field"><label>직급</label><input type="text" id="sf-position"></div>
-      <div class="field"><label>직책</label><input type="text" id="sf-title"></div>
-      <div class="field"><label>입사일</label><input type="date" id="sf-joinDate"></div>
-      <div class="field"><label>구분</label>
-        <select id="sf-contractType"><option>정규직</option><option>계약직</option></select>
-      </div>
-    </div>
-    <div class="field" style="margin-bottom:8px"><label>계약종료일 (계약직만)</label><input type="date" id="sf-contractEnd"></div>
-    <div class="field" style="margin-bottom:16px"><label>비고</label><input type="text" id="sf-note" placeholder="예: 정규직 전환 예정, 재계약 가능 등"></div>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeStaffModal()">취소</button>
-      <button class="btn primary" onclick="saveStaff()">저장</button>
-    </div>
-  </div>
-</div>
+
 <div id="pane-dormitory" class="pane">
     <div class="card">
       <div class="card-head">
@@ -579,6 +528,7 @@ var members=JSON.parse(localStorage.getItem("hr_members")||"null")||[{name:"김�
 var curMonth={y:TODAY.getFullYear(),m:TODAY.getMonth()};
 var curForm="daily",editMemberIdx=null,editIdx=null;
 var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[],duties:[],staff:[]};
+var dismissedAlerts=[];
 var isEditing=false; // 입력 중 동기화 방지 플래그
 (function(){try{var b=localStorage.getItem("hr_data_backup");if(b){var p=JSON.parse(b);if(p.daily)data.daily=p.daily;if(p.project)data.project=p.project;if(p.task)data.task=p.task;if(p.leave)data.leave=p.leave;if(p.recruit)data.recruit=p.recruit;if(p.dormitory)data.dormitory=p.dormitory;}}catch(e){}})();
 function toggleSidebar(){
@@ -1965,8 +1915,6 @@ async function deleteStaff(id) {
   renderStaff();
 }
 
-
-// ════════ 직원현황 ════════
 function renderStaff() {
   var sq = (document.getElementById('staff-search')||{value:''}).value.toLowerCase();
   var ft = (document.getElementById('staff-filter-type')||{value:''}).value;
