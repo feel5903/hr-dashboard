@@ -172,16 +172,13 @@ tbody tr:hover{background:#FAFBFC}
 
 </nav>
 <main class="main">
-  <div class="stats-row" style="display:flex;gap:12px;align-items:stretch">
-    <div class="stat-card" onclick="goToDueToday()" style="cursor:pointer;min-width:130px;flex-shrink:0" title="클릭하면 오늘 마감 업무 보기">
-      <div class="stat-icon coral">🔔</div>
-      <div><div class="stat-label">오늘 마감</div><div class="stat-val coral" id="s-due">0</div></div>
-    </div>
-    <div style="flex:1;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#fff;border-radius:12px;border:.5px solid var(--gray-border);padding:.75rem 1rem">
+  <div class="stats-row">
+    <div class="stat-card" onclick="goToDueToday()" style="cursor:pointer" title="클릭하면 오늘 마감 업무 보기"><div class="stat-icon coral">🔔</div><div><div class="stat-label">오늘 마감</div><div class="stat-val coral" id="s-due">0</div></div></div>
+    <div class="stat-card" style="flex:1;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button id="btn-alert-award" onclick="showAlertPopup('award')" style="display:none;padding:6px 14px;background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;color:#92400E">🎖️ 포상 <span id="cnt-award"></span></button>
       <button id="btn-alert-sabbatical" onclick="showAlertPopup('sabbatical')" style="display:none;padding:6px 14px;background:#D1FAE5;border:1.5px solid #10B981;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;color:#065F46">🌿 안식 <span id="cnt-sabbatical"></span></button>
       <button id="btn-alert-contract" onclick="showAlertPopup('contract')" style="display:none;padding:6px 14px;background:#FEE2E2;border:1.5px solid #EF4444;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;color:#991B1B">📋 계약만료 <span id="cnt-contract"></span></button>
-      <span id="no-alerts-msg" style="font-size:12px;color:#aaa">동기화 후 알림이 표시됩니다</span>
+      <span id="no-alerts-msg" style="font-size:12px;color:#aaa">동기화 후 표시</span>
     </div>
   </div>
     <div class="stat-card"><div class="stat-icon amber">⏳</div><div><div class="stat-label">진행 중</div><div class="stat-val amber" id="s-prog">0</div></div></div>
@@ -650,19 +647,16 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
     if(fst.length) data.staff=fst;
     saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
 function updateStats(){
-  var dueEl=document.getElementById("s-due");
-  if(dueEl) dueEl.textContent=data.daily.filter(function(x){return isToday(x.end)&&x.status!=="완료";}).length;
-  // 재직인원 자동
-  if(data.staff&&data.staff.length){var hcEl=document.getElementById("headcount-display");if(hcEl)hcEl.textContent=data.staff.length;}
-  renderMainAlerts();
-  // 프로젝트 뱃지 - 완료 제외한 프로젝트 수
+  document.getElementById("s-due").textContent=data.daily.filter(function(x){return isToday(x.end)&&x.status!=="완료";}).length;
   var projCnt=data.project.filter(function(x){return x.status!=="완료";}).length;
   var projBadge=document.getElementById("badge-project");
   if(projBadge){projBadge.textContent=projCnt;projBadge.style.display=projCnt>0?"":"none";}
-  // 채용현황 뱃지 - 채용 진행 중인 건수
   var recCnt=(data.recruit||[]).filter(function(x){return x.type==="채용";}).length;
   var recBadge=document.getElementById("badge-recruit");
   if(recBadge){recBadge.textContent=recCnt;recBadge.style.display=recCnt>0?"":"none";}
+  // 재직인원 자동
+  if(data.staff&&data.staff.length){var hcEl=document.getElementById("headcount-display");if(hcEl)hcEl.textContent=data.staff.length;}
+  renderMainAlerts();
 }
 function renderMemberUI(){document.getElementById("topbar-staff").innerHTML=members.map(function(m){return"<div class='t-avatar' style='background:"+m.color+"' title='"+m.name+"'>"+m.name[0]+"</div>";}).join("");var mo="<option value=''>전체 담당자</option>"+members.map(function(m){return"<option>"+m.name+"</option>";}).join("");["filter-member","filter-weekly-member","filter-proj-member"].forEach(function(id){var el=document.getElementById(id);if(!el)return;var cur=el.value;el.innerHTML=mo;if(cur)el.value=cur;});}
 function renderMemberGrid(){document.getElementById("member-grid").innerHTML=members.map(function(m,i){return"<div class='member-card'><div class='member-big-av' style='background:"+m.color+"'>"+m.name[0]+"</div><div style='flex:1'><div style='font-size:14px;font-weight:600'>"+m.name+"</div><div style='font-size:11px;color:var(--text-muted)'>"+(m.role||"")+"</div><div style='display:flex;gap:4px;margin-top:6px'><button class='sm-btn' onclick='openEditMember("+i+")'>✏️ 수정</button>"+(members.length>1?"<button class='sm-btn del' onclick='deleteMember("+i+")'>삭제</button>":"")+"</div></div></div>";}).join("")+"<div class='add-member-card' onclick='openAddMember()'><span style='font-size:20px'>+</span><span>팀원 추가</span></div>";}
@@ -2022,74 +2016,42 @@ function renderMainAlerts(){
   if(!data.staff||!data.staff.length) return;
   var today=new Date(todayStr);
   var awards=[],sabbaticals=[],contracts=[];
-
   data.staff.forEach(function(s){
     if(!s.joinDate) return;
     var join=new Date(s.joinDate);
-
-    // 포상 5/10주년 (2개월)
     [5,10].forEach(function(n){
       var ann=new Date(join); ann.setFullYear(join.getFullYear()+n);
       var diff=Math.floor((ann-today)/86400000);
-      if(diff>=0&&diff<=60){
-        var atype='포상'+n+'주년', ayear=String(ann.getFullYear());
-        if(!isDismissed(s.id,atype,ayear)) awards.push({s:s,label:n+'주년 포상',type:atype,year:ayear,diff:diff});
-      }
+      if(diff>=0&&diff<=60){var atype='포상'+n+'주년',ayear=String(ann.getFullYear());if(!isDismissed(s.id,atype,ayear))awards.push({s:s,label:n+'주년 포상',type:atype,year:ayear,diff:diff});}
     });
-
-    // 안식 7/20주년 (2개월)
     [7,20].forEach(function(n){
       var ann=new Date(join); ann.setFullYear(join.getFullYear()+n);
       var diff=Math.floor((ann-today)/86400000);
-      if(diff>=0&&diff<=60){
-        var atype='안식'+n+'주년', ayear=String(ann.getFullYear());
-        if(!isDismissed(s.id,atype,ayear)) sabbaticals.push({s:s,label:n+'주년 안식',type:atype,year:ayear,diff:diff});
-      }
+      if(diff>=0&&diff<=60){var atype='안식'+n+'주년',ayear=String(ann.getFullYear());if(!isDismissed(s.id,atype,ayear))sabbaticals.push({s:s,label:n+'주년 안식',type:atype,year:ayear,diff:diff});}
     });
-
-    // 간호사 조기정착 (1개월, 간호조무사/재활지원인력/계약만료 제외)
     var pos=s.position||'';
-    var isNurse=s.dept&&s.dept.indexOf('간호')>=0;
-    var excluded=pos.indexOf('간호조무사')>=0||pos.indexOf('재활지원인력')>=0;
-    var isExpiring=s.contractEnd&&Math.floor((new Date(s.contractEnd)-today)/86400000)<=60;
-    if(isNurse&&!excluded&&!isExpiring){
-      var thm=new Date(join); thm.setMonth(join.getMonth()+3);
-      var diff=Math.floor((thm-today)/86400000);
-      if(diff>=0&&diff<=30){
-        var atype='간호조기정착', ayear=String(thm.getFullYear());
-        if(!isDismissed(s.id,atype,ayear)) awards.push({s:s,label:'간호사 조기정착',type:atype,year:ayear,diff:diff});
-      }
+    if(s.dept&&s.dept.indexOf('간호')>=0&&pos.indexOf('간호조무사')<0&&pos.indexOf('재활지원인력')<0){
+      var isExpiring=s.contractEnd&&Math.floor((new Date(s.contractEnd)-today)/86400000)<=60;
+      if(!isExpiring){var thm=new Date(join);thm.setMonth(join.getMonth()+3);var diff=Math.floor((thm-today)/86400000);if(diff>=0&&diff<=30){var atype='간호조기정착',ayear=String(thm.getFullYear());if(!isDismissed(s.id,atype,ayear))awards.push({s:s,label:'간호사 조기정착',type:atype,year:ayear,diff:diff});}}
     }
-
-    // 계약만료 (2개월)
-    if(s.contractEnd){
-      var ce=new Date(s.contractEnd);
-      var diff=Math.floor((ce-today)/86400000);
-      if(diff>=0&&diff<=60){
-        var atype='계약만료', ayear=s.contractEnd;
-        if(!isDismissed(s.id,atype,ayear)) contracts.push({s:s,label:'계약만료',type:atype,year:ayear,diff:diff,note:s.note||''});
-      }
-    }
+    if(s.contractEnd){var ce=new Date(s.contractEnd),diff=Math.floor((ce-today)/86400000);if(diff>=0&&diff<=60){var atype='계약만료',ayear=s.contractEnd;if(!isDismissed(s.id,atype,ayear))contracts.push({s:s,label:'계약만료',type:atype,year:ayear,diff:diff,note:s.note||''});}}
   });
-
-  // 전역 저장 (팝업용)
   window._alertData={award:awards,sabbatical:sabbaticals,contract:contracts};
-
-  // 버튼 표시
-  var noMsg=document.getElementById('no-alerts-msg');
   var hasAny=awards.length||sabbaticals.length||contracts.length;
-  if(noMsg) noMsg.style.display=hasAny?'none':'';
-
-  function setBtn(id,cntId,items){
-    var btn=document.getElementById(id);
-    var cnt=document.getElementById(cntId);
-    if(!btn) return;
-    if(items.length){btn.style.display='';if(cnt) cnt.textContent=items.length+'명';}
-    else btn.style.display='none';
-  }
+  var noMsg=document.getElementById('no-alerts-msg');if(noMsg)noMsg.style.display=hasAny?'none':'';
+  function setBtn(id,cntId,items){var btn=document.getElementById(id),cnt=document.getElementById(cntId);if(!btn)return;btn.style.display=items.length?'':'none';if(cnt&&items.length)cnt.textContent=items.length+'명';}
   setBtn('btn-alert-award','cnt-award',awards);
   setBtn('btn-alert-sabbatical','cnt-sabbatical',sabbaticals);
   setBtn('btn-alert-contract','cnt-contract',contracts);
+}
+
+function showAlertPopup(type){
+  var items=(window._alertData||{})[type]||[];
+  if(!items.length) return;
+  var title={award:'🎖️ 포상 대상자',sabbatical:'🌿 안식휴가 대상자',contract:'📋 계약만료 대상자'}[type];
+  var lines=[title+' ('+items.length+'명)',''];
+  items.forEach(function(a){var d=a.diff===0?'[오늘]':'[D-'+a.diff+']';var note=a.note?' ('+a.note+')':'';lines.push('• '+a.s.name+' ('+a.s.dept+') '+d+note);});
+  alert(lines.join('\n'));
 }
 
 function showAlertPopup(type){
