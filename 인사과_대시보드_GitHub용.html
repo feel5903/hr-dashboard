@@ -2107,18 +2107,7 @@ function showAlertPopup(type){
   document.body.appendChild(modal);
 }
 
-function showAlertPopup(type){
-  var data2=(window._alertData||{})[type]||[];
-  if(!data2.length) return;
-  var title={award:'🎖️ 포상 대상자',sabbatical:'🌿 안식휴가 대상자',contract:'📋 계약만료 대상자'}[type]||'알림';
-  var lines=[title+' ('+data2.length+'명)',''];
-  data2.forEach(function(a){
-    var d=a.diff===0?'[오늘]':'[D-'+a.diff+']';
-    var note=a.note?' ('+a.note+')':'';
-    lines.push('• '+a.s.name+' ('+a.s.dept+') - '+a.label+' '+d+note);
-  });
-  alert(lines.join('\n'));
-}
+
 
 
 function openDutyEdit(category, member){
