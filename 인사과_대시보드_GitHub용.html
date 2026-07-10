@@ -2018,35 +2018,26 @@ function renderMainAlerts(){
   data.staff.forEach(function(s){
     if(!s.joinDate) return;
     var join=new Date(s.joinDate);
-
     [5,10].forEach(function(n){
       var ann=new Date(join); ann.setFullYear(join.getFullYear()+n);
       var diff=Math.floor((ann-today)/86400000);
-      if(diff>=0&&diff<=60){var atype='포상'+n+'주년',ayear=String(ann.getFullYear());if(!isDismissed(s.id,atype,ayear))awards.push({s:s,label:n+'주년 포상',type:atype,year:ayear,diff:diff,annDate:ann.toISOString().slice(0,10)});}
+      if(diff>=0&&diff<=60){var atype='포상'+n+'주년',ayear=String(ann.getFullYear());if(!isDismissed(s.id,atype,ayear))awards.push({s:s,label:n+'주년 포상',type:atype,year:ayear,diff:diff});}
     });
-
     [7,20].forEach(function(n){
       var ann=new Date(join); ann.setFullYear(join.getFullYear()+n);
       var diff=Math.floor((ann-today)/86400000);
-      if(diff>=0&&diff<=60){var atype='안식'+n+'주년',ayear=String(ann.getFullYear());if(!isDismissed(s.id,atype,ayear))sabbaticals.push({s:s,label:n+'주년 안식',type:atype,year:ayear,diff:diff,annDate:ann.toISOString().slice(0,10)});}
+      if(diff>=0&&diff<=60){var atype='안식'+n+'주년',ayear=String(ann.getFullYear());if(!isDismissed(s.id,atype,ayear))sabbaticals.push({s:s,label:n+'주년 안식',type:atype,year:ayear,diff:diff});}
     });
-
     var nurseTeams=['성인병동간호팀','소아청소년병동간호팀','외래간호팀'];
     var isNurseTeam=nurseTeams.indexOf(s.dept)>=0;
     var pos=s.position||'';
     var nurseExcluded=(s.dept==='성인병동간호팀'&&pos.indexOf('간호조무사')>=0);
     if(isNurseTeam&&!nurseExcluded){
       var isExpiring=s.contractEnd&&Math.floor((new Date(s.contractEnd)-today)/86400000)<=60;
-      if(!isExpiring){var thm=new Date(join);thm.setMonth(join.getMonth()+3);var diff=Math.floor((thm-today)/86400000);if(diff>=0&&diff<=30){var atype='간호조기정착',ayear=String(thm.getFullYear());if(!isDismissed(s.id,atype,ayear))awards.push({s:s,label:'간호사 조기정착',type:atype,year:ayear,diff:diff,annDate:thm.toISOString().slice(0,10)});}}
+      if(!isExpiring){var thm=new Date(join);thm.setMonth(join.getMonth()+3);var diff=Math.floor((thm-today)/86400000);if(diff>=0&&diff<=30){var atype='간호조기정착',ayear=String(thm.getFullYear());if(!isDismissed(s.id,atype,ayear))awards.push({s:s,label:'간호사 조기정착',type:atype,year:ayear,diff:diff});}}
     }
-
-    if(s.contractEnd){
-      var ce=new Date(s.contractEnd);
-      var diff=Math.floor((ce-today)/86400000);
-      if(diff>=0&&diff<=60){var atype='계약만료',ayear=s.contractEnd;if(!isDismissed(s.id,atype,ayear))contracts.push({s:s,label:'계약만료',type:atype,year:ayear,diff:diff,annDate:s.contractEnd,note:s.note||''});}
-    }
+    if(s.contractEnd){var ce=new Date(s.contractEnd),diff=Math.floor((ce-today)/86400000);if(diff>=0&&diff<=60){var atype='계약만료',ayear=s.contractEnd;if(!isDismissed(s.id,atype,ayear))contracts.push({s:s,label:'계약만료',type:atype,year:ayear,diff:diff,note:s.note||''});}}
   });
-
   window._alertData={award:awards,sabbatical:sabbaticals,contract:contracts};
   var hasAny=awards.length||sabbaticals.length||contracts.length;
   var noMsg=document.getElementById('no-alerts-msg');if(noMsg)noMsg.style.display=hasAny?'none':'';
@@ -2065,14 +2056,24 @@ function showAlertPopup(type){
   var existing=document.getElementById('alert-popup-modal');
   if(existing) existing.remove();
 
+  // 포상 소제목 색상
+  var groupColors={
+    '5주년 포상':  {bg:'#DBEAFE',color:'#1E40AF'},
+    '10주년 포상': {bg:'#EDE9FE',color:'#5B21B6'},
+    '간호사 조기정착': {bg:'#D1FAE5',color:'#065F46'}
+  };
+
   var rows='';
+  var colspan=type==='contract'?5:4;
+
   if(type==='award'){
     var order=['5주년 포상','10주년 포상','간호사 조기정착'];
     var groups={};
     items.forEach(function(a){if(!groups[a.label])groups[a.label]=[];groups[a.label].push(a);});
     order.forEach(function(lbl){
       if(!groups[lbl]||!groups[lbl].length) return;
-      rows+='<tr><td colspan="4" style="background:#44546E;color:#fff;font-weight:700;font-size:12px;padding:7px 10px">'+lbl+' ('+groups[lbl].length+'명)</td></tr>';
+      var gc=groupColors[lbl]||{bg:'#F3F4F6',color:'#374151'};
+      rows+='<tr><td colspan="'+colspan+'" style="background:'+gc.bg+';color:'+gc.color+';font-weight:700;font-size:12px;padding:7px 10px">'+lbl+' ('+groups[lbl].length+'명)</td></tr>';
       groups[lbl].forEach(function(a){
         var dLabel=a.diff===0?'<b style="color:#EF4444">[오늘]</b>':'D-'+a.diff;
         rows+='<tr style="border-bottom:1px solid #f3f4f6">'+
@@ -2080,6 +2081,7 @@ function showAlertPopup(type){
           '<td style="padding:7px 10px;color:#6B7280;font-size:12px">'+a.s.dept+'</td>'+
           '<td style="padding:7px 10px;text-align:center;font-size:12px">'+a.annDate+'</td>'+
           '<td style="padding:7px 10px;text-align:center;color:#F59E0B;font-weight:700">'+dLabel+'</td>'+
+          '<td style="padding:7px 4px;text-align:center"><button onclick="dismissFromPopup(this)" data-sid="'+a.s.id+'" data-atype="'+a.type+'" data-ayear="'+a.year+'" data-ptype="'+type+'" style="background:#FEE2E2;border:none;border-radius:4px;width:22px;height:22px;cursor:pointer;color:#DC2626;font-size:12px;line-height:1">✕</button></td>' +
         '</tr>';
       });
     });
@@ -2087,21 +2089,27 @@ function showAlertPopup(type){
     items.forEach(function(a){
       var dLabel=a.diff===0?'<b style="color:#EF4444">[오늘]</b>':'D-'+a.diff;
       var note=a.note||'';
+      var contractCols=type==='contract'?'<td style="padding:7px 10px;font-size:11px;color:#6B7280">'+note+'</td>':'';
       rows+='<tr style="border-bottom:1px solid #f3f4f6">'+
         '<td style="padding:7px 10px;font-weight:600">'+a.s.name+'</td>'+
         '<td style="padding:7px 10px;color:#6B7280;font-size:12px">'+a.s.dept+'</td>'+
         '<td style="padding:7px 10px;text-align:center;font-size:12px">'+a.annDate+'</td>'+
         '<td style="padding:7px 10px;text-align:center;color:#EF4444;font-weight:700">'+dLabel+'</td>'+
-        '<td style="padding:7px 10px;font-size:11px;color:#6B7280">'+note+'</td>'+
+        contractCols+
+          '<td style="padding:7px 4px;text-align:center"><button onclick="dismissFromPopup(this)" data-sid="'+a.s.id+'" data-atype="'+a.type+'" data-ayear="'+a.year+'" data-ptype="'+type+'" style="background:#FEE2E2;border:none;border-radius:4px;width:22px;height:22px;cursor:pointer;color:#DC2626;font-size:12px;line-height:1">✕</button></td>' +
       '</tr>';
     });
   }
 
-  var extraHeader=type==='contract'?'<th style="background:#44546E;color:#fff;padding:7px 10px;text-align:left;font-size:12px">비고</th>':'';
+  var extraHeaders=type==='contract'?
+    '<th style="background:#44546E;color:#fff;padding:7px 10px;text-align:left;font-size:12px">비고</th>'+
+    '<th style="background:#44546E;color:#fff;padding:7px 6px;text-align:center;font-size:12px">처리</th>':
+    '<th style="background:#44546E;color:#fff;padding:7px 6px;text-align:center;font-size:12px">처리</th>';
+
   var modal=document.createElement('div');
   modal.id='alert-popup-modal';
   modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:flex;align-items:center;justify-content:center';
-  modal.innerHTML='<div style="background:#fff;border-radius:12px;padding:24px;width:560px;max-width:95vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)">'+
+  modal.innerHTML='<div style="background:#fff;border-radius:12px;padding:24px;width:580px;max-width:95vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'+
       '<h3 style="font-size:15px;font-weight:700;color:#44546E">'+title+' ('+items.length+'명)</h3>'+
       '<button onclick="document.getElementById(&quot;alert-popup-modal&quot;).remove()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#aaa;line-height:1">✕</button>'+
@@ -2112,13 +2120,38 @@ function showAlertPopup(type){
         '<th style="background:#44546E;color:#fff;padding:7px 10px;text-align:left">부서</th>'+
         '<th style="background:#44546E;color:#fff;padding:7px 10px;text-align:center">해당일</th>'+
         '<th style="background:#44546E;color:#fff;padding:7px 10px;text-align:center">D-day</th>'+
-        extraHeader+
+        extraHeaders+
       '</tr></thead>'+
       '<tbody>'+rows+'</tbody>'+
     '</table>'+
   '</div>';
   modal.onclick=function(e){if(e.target===modal)modal.remove();};
   document.body.appendChild(modal);
+}
+
+async function dismissFromPopup(btn){
+  var staffId=btn.dataset.sid,alertType=btn.dataset.atype,alertYear=btn.dataset.ayear,popupType=btn.dataset.ptype;
+  // 해당 행 제거
+  var row=btn.closest('tr');
+  if(row) row.remove();
+
+  // 전역 데이터에서 제거
+  dismissedAlerts.push({staffId:staffId,alertType:alertType,alertYear:alertYear});
+  if(window._alertData&&window._alertData[popupType]){
+    window._alertData[popupType]=window._alertData[popupType].filter(function(a){
+      return !(String(a.s.id)===String(staffId)&&a.type===alertType&&String(a.year)===String(alertYear));
+    });
+    // 버튼 인원수 업데이트
+    var cntMap={award:'cnt-award',sabbatical:'cnt-sabbatical',contract:'cnt-contract'};
+    var btnMap={award:'btn-alert-award',sabbatical:'btn-alert-sabbatical',contract:'btn-alert-contract'};
+    var remaining=window._alertData[popupType].length;
+    var cntEl=document.getElementById(cntMap[popupType]);
+    var btnEl=document.getElementById(btnMap[popupType]);
+    if(cntEl) cntEl.textContent=remaining+'명';
+    if(btnEl) btnEl.style.display=remaining?'':'none';
+  }
+  // 시트에 저장
+  await callScript({action:'dismissAlert',staffId:staffId,alertType:alertType,alertYear:alertYear});
 }
 
 
