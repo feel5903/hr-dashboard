@@ -175,9 +175,9 @@ tbody tr:hover{background:#FAFBFC}
   <div class="stats-row">
     <div class="stat-card" onclick="goToDueToday()" style="cursor:pointer" title="클릭하면 오늘 마감 업무 보기"><div class="stat-icon coral">🔔</div><div><div class="stat-label">오늘 마감</div><div class="stat-val coral" id="s-due">0</div></div></div>
     <div class="stat-card" style="flex:1;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <button id="btn-alert-award" onclick="showAlertPopup('award')" style="display:none;padding:8px 16px;background:#F59E0B;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;font-weight:700;color:#fff;box-shadow:0 2px 6px rgba(245,158,11,.4)">🎖️ 포상 <span id="cnt-award" style="background:rgba(255,255,255,.3);border-radius:12px;padding:1px 7px;margin-left:4px"></span></button>
-      <button id="btn-alert-sabbatical" onclick="showAlertPopup('sabbatical')" style="display:none;padding:8px 16px;background:#10B981;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;font-weight:700;color:#fff;box-shadow:0 2px 6px rgba(16,185,129,.4)">🌿 안식 <span id="cnt-sabbatical" style="background:rgba(255,255,255,.3);border-radius:12px;padding:1px 7px;margin-left:4px"></span></button>
-      <button id="btn-alert-contract" onclick="showAlertPopup('contract')" style="display:none;padding:8px 16px;background:#EF4444;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;font-weight:700;color:#fff;box-shadow:0 2px 6px rgba(239,68,68,.4)">📋 계약만료 <span id="cnt-contract" style="background:rgba(255,255,255,.3);border-radius:12px;padding:1px 7px;margin-left:4px"></span></button>
+      <button id="btn-alert-award" onclick="showAlertPopup('award')" style="display:none;padding:6px 14px;background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;color:#92400E">🎖️ 포상 <span id="cnt-award"></span></button>
+      <button id="btn-alert-sabbatical" onclick="showAlertPopup('sabbatical')" style="display:none;padding:6px 14px;background:#D1FAE5;border:1.5px solid #10B981;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;color:#065F46">🌿 안식 <span id="cnt-sabbatical"></span></button>
+      <button id="btn-alert-contract" onclick="showAlertPopup('contract')" style="display:none;padding:6px 14px;background:#FEE2E2;border:1.5px solid #EF4444;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;color:#991B1B">📋 계약만료 <span id="cnt-contract"></span></button>
       <span id="no-alerts-msg" style="font-size:12px;color:#aaa">동기화 후 표시</span>
     </div>
   </div>
@@ -2050,48 +2050,55 @@ function renderMainAlerts(){
 function showAlertPopup(type){
   var items=(window._alertData||{})[type]||[];
   if(!items.length) return;
-  // D-day 짧은 순 정렬
   items.sort(function(a,b){return a.diff-b.diff;});
   var titles={award:'🎖️ 포상 대상자',sabbatical:'🌿 안식휴가 대상자',contract:'📋 계약만료 대상자'};
   var title=titles[type]||'알림';
-  
-  // 기존 모달 제거
   var existing=document.getElementById('alert-popup-modal');
   if(existing) existing.remove();
-  
-  // 포상은 종류별 그룹화
+
   var rows='';
   if(type==='award'){
+    // 종류별 그룹화
+    var order=['5주년 포상','10주년 포상','간호사 조기정착'];
     var groups={};
     items.forEach(function(a){if(!groups[a.label])groups[a.label]=[];groups[a.label].push(a);});
-    Object.keys(groups).forEach(function(lbl){
-      rows+='<tr><td colspan="3" style="background:#f0f7e6;font-weight:700;font-size:12px;padding:6px 10px;color:#44546E">'+lbl+'</td></tr>';
+    order.forEach(function(lbl){
+      if(!groups[lbl]||!groups[lbl].length) return;
+      rows+='<tr><td colspan="3" style="background:#44546E;color:#fff;font-weight:700;font-size:12px;padding:7px 10px">'+lbl+' ('+groups[lbl].length+'명)</td></tr>';
       groups[lbl].forEach(function(a){
-        var d=a.diff===0?'<span style="color:#EF4444;font-weight:700">[오늘]</span>':'<span style="color:#F59E0B">D-'+a.diff+'</span>';
-        rows+='<tr><td style="padding:6px 10px;font-weight:600">'+a.s.name+'</td><td style="padding:6px 10px;color:#6B7280;font-size:12px">'+a.s.dept+'</td><td style="padding:6px 10px;text-align:center">'+d+'</td></tr>';
+        var d=a.diff===0?'<b style="color:#EF4444">[오늘]</b>':'D-'+a.diff;
+        rows+='<tr style="border-bottom:1px solid #f3f4f6"><td style="padding:7px 10px;font-weight:600">'+a.s.name+'</td><td style="padding:7px 10px;color:#6B7280;font-size:12px">'+a.s.dept+'</td><td style="padding:7px 10px;text-align:center;color:#F59E0B;font-weight:700">'+d+'</td></tr>';
       });
     });
   } else {
     items.forEach(function(a){
-      var d=a.diff===0?'<span style="color:#EF4444;font-weight:700">[오늘]</span>':'<span style="color:#F59E0B">D-'+a.diff+'</span>';
-      var note=a.note?'<br><span style="font-size:11px;color:#6B7280">'+a.note+'</span>':'';
-      rows+='<tr><td style="padding:6px 10px;font-weight:600">'+a.s.name+note+'</td><td style="padding:6px 10px;color:#6B7280;font-size:12px">'+a.s.dept+'</td><td style="padding:6px 10px;text-align:center">'+d+'</td></tr>';
+      var d=a.diff===0?'<b style="color:#EF4444">[오늘]</b>':'D-'+a.diff;
+      var note=a.note||'';
+      var ce=(a.s&&a.s.contractEnd)?a.s.contractEnd:'';
+      rows+='<tr style="border-bottom:1px solid #f3f4f6">'+
+        '<td style="padding:7px 10px;font-weight:600">'+a.s.name+'</td>'+
+        '<td style="padding:7px 10px;color:#6B7280;font-size:12px">'+a.s.dept+'</td>'+
+        '<td style="padding:7px 10px;text-align:center;color:#EF4444;font-weight:700">'+d+'</td>'+
+        '<td style="padding:7px 10px;font-size:11px;color:#6B7280">'+note+'</td>'+
+      '</tr>';
     });
   }
-  
+
+  var extraHeader = type==='contract' ? '<th style="background:#44546E;color:#fff;padding:7px 10px;text-align:left;font-size:12px">비고</th>' : '';
   var modal=document.createElement('div');
   modal.id='alert-popup-modal';
   modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:flex;align-items:center;justify-content:center';
-  modal.innerHTML='<div style="background:#fff;border-radius:12px;padding:24px;width:480px;max-width:95vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)">'+
+  modal.innerHTML='<div style="background:#fff;border-radius:12px;padding:24px;width:520px;max-width:95vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'+
       '<h3 style="font-size:15px;font-weight:700;color:#44546E">'+title+' ('+items.length+'명)</h3>'+
-      '<button onclick="document.getElementById(&quot;alert-popup-modal&quot;).remove()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#aaa">✕</button>'+
+      '<button onclick="document.getElementById(&quot;alert-popup-modal&quot;).remove()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#aaa;line-height:1">✕</button>'+
     '</div>'+
     '<table style="width:100%;border-collapse:collapse;font-size:13px">'+
       '<thead><tr>'+
         '<th style="background:#44546E;color:#fff;padding:7px 10px;text-align:left">이름</th>'+
         '<th style="background:#44546E;color:#fff;padding:7px 10px;text-align:left">부서</th>'+
         '<th style="background:#44546E;color:#fff;padding:7px 10px;text-align:center">D-day</th>'+
+        extraHeader+
       '</tr></thead>'+
       '<tbody>'+rows+'</tbody>'+
     '</table>'+
