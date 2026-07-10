@@ -28,7 +28,7 @@ body{font-family:"Noto Sans KR",sans-serif;font-size:14px;color:var(--text);back
   .proj-date-el,.proj-status-el,.proj-prog-el{display:none}
   .proj-name-el{font-size:13px}
   .main{padding:.75rem}
-  .stats-row{grid-template-columns:repeat(2,1fr);gap:8px}
+  .stats-row{display:flex;flex-wrap:wrap;gap:12px;align-items:stretch}
   .stat-val{font-size:18px}
   table{font-size:10px}
   thead th,tbody td{padding:.35rem .5rem}
@@ -230,7 +230,7 @@ tbody tr:hover{background:#FAFBFC}
         </div>
       </div>
       <div class="week-meta">
-        <span>📌 재직인원: <strong id="headcount-display">-</strong>명</span> 기준 <button onclick="openHeadcountEdit()" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 4px">✏️</button></span>
+        <span>📌 재직인원: <strong id="headcount-display">-</strong>명</span></span>
         <span>💡 일일업무+프로젝트단계 자동 집계</span>
       </div>
       <!-- 재직인원 수정 팝업 -->
