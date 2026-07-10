@@ -372,6 +372,7 @@ tbody tr:hover{background:#FAFBFC}
       </div>
     </div>
     <div class="field"><label>계약종료일 (계약직만)</label><input type="date" id="sf-contractEnd"></div>
+    <div class="field"><label>비고</label><input type="text" id="sf-note" placeholder="예: 정규직 전환 예정, 재계약 가능 등"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeStaffModal()">취소</button>
       <button class="btn primary" onclick="saveStaff()">저장</button>
@@ -1867,6 +1868,7 @@ function editStaff(id) {
   document.getElementById('sf-joinDate').value = s.joinDate||'';
   document.getElementById('sf-contractType').value = s.contractType||'정규직';
   document.getElementById('sf-contractEnd').value = s.contractEnd||'';
+  document.getElementById('sf-note').value = s.note||'';
   document.getElementById('staff-overlay').classList.add('open');
 }
 
@@ -1891,10 +1893,10 @@ async function saveStaff() {
   if(eid) {
     var idx = data.staff.findIndex(function(x){return x.id===eid;});
     if(idx>=0) data.staff[idx] = nr;
-    await updateRowSafe('staff', eid, [nr.id,nr.name,nr.dept,nr.position,nr.title,nr.joinDate,nr.contractType,nr.contractEnd]);
+    await updateRowSafe('staff', eid, [nr.id,nr.name,nr.dept,nr.position,nr.title,nr.joinDate,nr.contractType,nr.contractEnd,nr.note||'']);
   } else {
     data.staff.push(nr);
-    await saveRow('staff', [nr.id,nr.name,nr.dept,nr.position,nr.title,nr.joinDate,nr.contractType,nr.contractEnd]);
+    await saveRow('staff', [nr.id,nr.name,nr.dept,nr.position,nr.title,nr.joinDate,nr.contractType,nr.contractEnd,nr.note||'']);
   }
   closeStaffModal();
   renderStaff();
@@ -1956,6 +1958,7 @@ function openStaffForm(){
   document.getElementById('sf-joinDate').value=todayStr;
   document.getElementById('sf-contractType').value='정규직';
   document.getElementById('sf-contractEnd').value='';
+  document.getElementById('sf-note').value='';
   document.getElementById('staff-overlay').classList.add('open');
 }
 
@@ -2025,8 +2028,11 @@ function renderMainAlerts(){
       var diff=Math.floor((ann-today)/86400000);
       if(diff>=0&&diff<=60){var atype='안식'+n+'주년',ayear=String(ann.getFullYear());if(!isDismissed(s.id,atype,ayear))sabbaticals.push({s:s,label:n+'주년 안식',type:atype,year:ayear,diff:diff});}
     });
+    var nurseTeams=['성인병동간호팀','소아청소년병동간호팀','외래간호팀'];
+    var isNurseTeam=nurseTeams.indexOf(s.dept)>=0;
     var pos=s.position||'';
-    if(s.dept&&s.dept.indexOf('간호')>=0&&pos.indexOf('간호조무사')<0&&pos.indexOf('재활지원인력')<0){
+    var nurseExcluded=(s.dept==='성인병동간호팀'&&pos.indexOf('간호조무사')>=0);
+    if(isNurseTeam&&!nurseExcluded){
       var isExpiring=s.contractEnd&&Math.floor((new Date(s.contractEnd)-today)/86400000)<=60;
       if(!isExpiring){var thm=new Date(join);thm.setMonth(join.getMonth()+3);var diff=Math.floor((thm-today)/86400000);if(diff>=0&&diff<=30){var atype='간호조기정착',ayear=String(thm.getFullYear());if(!isDismissed(s.id,atype,ayear))awards.push({s:s,label:'간호사 조기정착',type:atype,year:ayear,diff:diff});}}
     }
@@ -2044,10 +2050,54 @@ function renderMainAlerts(){
 function showAlertPopup(type){
   var items=(window._alertData||{})[type]||[];
   if(!items.length) return;
-  var title={award:'🎖️ 포상 대상자',sabbatical:'🌿 안식휴가 대상자',contract:'📋 계약만료 대상자'}[type];
-  var lines=[title+' ('+items.length+'명)',''];
-  items.forEach(function(a){var d=a.diff===0?'[오늘]':'[D-'+a.diff+']';var note=a.note?' ('+a.note+')':'';lines.push('• '+a.s.name+' ('+a.s.dept+') '+d+note);});
-  alert(lines.join('\n'));
+  // D-day 짧은 순 정렬
+  items.sort(function(a,b){return a.diff-b.diff;});
+  var titles={award:'🎖️ 포상 대상자',sabbatical:'🌿 안식휴가 대상자',contract:'📋 계약만료 대상자'};
+  var title=titles[type]||'알림';
+  
+  // 기존 모달 제거
+  var existing=document.getElementById('alert-popup-modal');
+  if(existing) existing.remove();
+  
+  // 포상은 종류별 그룹화
+  var rows='';
+  if(type==='award'){
+    var groups={};
+    items.forEach(function(a){if(!groups[a.label])groups[a.label]=[];groups[a.label].push(a);});
+    Object.keys(groups).forEach(function(lbl){
+      rows+='<tr><td colspan="3" style="background:#f0f7e6;font-weight:700;font-size:12px;padding:6px 10px;color:#44546E">'+lbl+'</td></tr>';
+      groups[lbl].forEach(function(a){
+        var d=a.diff===0?'<span style="color:#EF4444;font-weight:700">[오늘]</span>':'<span style="color:#F59E0B">D-'+a.diff+'</span>';
+        rows+='<tr><td style="padding:6px 10px;font-weight:600">'+a.s.name+'</td><td style="padding:6px 10px;color:#6B7280;font-size:12px">'+a.s.dept+'</td><td style="padding:6px 10px;text-align:center">'+d+'</td></tr>';
+      });
+    });
+  } else {
+    items.forEach(function(a){
+      var d=a.diff===0?'<span style="color:#EF4444;font-weight:700">[오늘]</span>':'<span style="color:#F59E0B">D-'+a.diff+'</span>';
+      var note=a.note?'<br><span style="font-size:11px;color:#6B7280">'+a.note+'</span>':'';
+      rows+='<tr><td style="padding:6px 10px;font-weight:600">'+a.s.name+note+'</td><td style="padding:6px 10px;color:#6B7280;font-size:12px">'+a.s.dept+'</td><td style="padding:6px 10px;text-align:center">'+d+'</td></tr>';
+    });
+  }
+  
+  var modal=document.createElement('div');
+  modal.id='alert-popup-modal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML='<div style="background:#fff;border-radius:12px;padding:24px;width:480px;max-width:95vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'+
+      '<h3 style="font-size:15px;font-weight:700;color:#44546E">'+title+' ('+items.length+'명)</h3>'+
+      '<button onclick="document.getElementById(&quot;alert-popup-modal&quot;).remove()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#aaa">✕</button>'+
+    '</div>'+
+    '<table style="width:100%;border-collapse:collapse;font-size:13px">'+
+      '<thead><tr>'+
+        '<th style="background:#44546E;color:#fff;padding:7px 10px;text-align:left">이름</th>'+
+        '<th style="background:#44546E;color:#fff;padding:7px 10px;text-align:left">부서</th>'+
+        '<th style="background:#44546E;color:#fff;padding:7px 10px;text-align:center">D-day</th>'+
+      '</tr></thead>'+
+      '<tbody>'+rows+'</tbody>'+
+    '</table>'+
+  '</div>';
+  modal.onclick=function(e){if(e.target===modal)modal.remove();};
+  document.body.appendChild(modal);
 }
 
 function showAlertPopup(type){
