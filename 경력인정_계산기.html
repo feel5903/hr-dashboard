@@ -435,8 +435,8 @@ function addRow(){
   tr.id = id;
   tr.innerHTML = `
     <td><input type="text" class="f-name" placeholder="예: 문원의료재단 서울병원"></td>
-    <td><input type="text" inputmode="numeric" maxlength="10" class="f-start date-field" placeholder="20240401" oninput="onDateInput(this,'${id}')"></td>
-    <td><input type="text" inputmode="numeric" maxlength="10" class="f-end date-field" placeholder="20241231" oninput="onDateInput(this,'${id}')"></td>
+    <td><input type="text" maxlength="10" class="f-start date-field" placeholder="20240401" oninput="onDateInput(this,'${id}')"></td>
+    <td><input type="text" maxlength="10" class="f-end date-field" placeholder="20241231" oninput="onDateInput(this,'${id}')"></td>
     <td><select class="f-tier" onchange="recalc('${id}')">${optionsHtml(category)}</select></td>
     <td class="col-pct f-pct">-</td>
     <td class="col-duration f-duration">-</td>
