@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>인사과 업무 통합 대시보드</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
@@ -474,7 +477,7 @@ tbody tr:hover{background:#FAFBFC}
   <div class="modal" style="width:460px">
     <h3 id="note-modal-title">메모 추가</h3>
     <input type="hidden" id="note-edit-id">
-    <div class="field"><label>제목</label><input type="text" id="note-title" placeholder="예: 급여 마감 전 체크순서"></div>
+    <div class="field"><label>제목</label><input type="text" id="note-title" placeholder="제목을 입력하세요"></div>
     <div class="field"><label>내용</label><textarea id="note-content" placeholder="내용을 자유롭게 적어주세요" style="height:220px;resize:vertical"></textarea></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeNoteForm()">취소</button>
