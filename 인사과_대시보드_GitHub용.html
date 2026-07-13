@@ -1227,7 +1227,7 @@ function printReport(){
   var today=new Date();
   var todayFmt=today.getFullYear()+"-"+String(today.getMonth()+1).padStart(2,"0")+"-"+String(today.getDate()).padStart(2,"0");
   // 이번주 날짜 범위
-  var thisWk=document.getElementById("week-select").value||getWeekKey(todayStr);
+  var thisWk=getWeekKey(todayStr);
   var prevWk=getPrevWeekKey(thisWk);
   var thisRange=getWeekRange(thisWk);
   var headcount=localStorage.getItem("hr_headcount")||"266";
