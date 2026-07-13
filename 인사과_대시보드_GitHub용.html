@@ -2075,7 +2075,7 @@ function showAlertPopup(type){
     order.forEach(function(lbl){
       if(!groups[lbl]||!groups[lbl].length) return;
       var gs=groupStyles[lbl]||{color:'#374151',icon:'•'};
-      rows+='<tr><td colspan="5" style="background:#f9fafb;font-weight:700;font-size:12px;padding:7px 10px;color:'+gs.color+';border-bottom:1px solid #e5e7eb">'+gs.icon+' '+lbl+' ('+groups[lbl].length+'명)</td></tr>';
+      rows+='<tr><td colspan="5" style="background:#f9fafb;font-weight:700;font-size:15px;padding:8px 10px;color:'+gs.color+';border-bottom:1px solid #e5e7eb">'+gs.icon+' '+lbl+' ('+groups[lbl].length+'명)</td></tr>';
       groups[lbl].forEach(function(a){
         var dLabel=a.diff===0?'<b style="color:#EF4444">[오늘]</b>':'D-'+a.diff;
         rows+='<tr style="border-bottom:1px solid #f3f4f6">'+
