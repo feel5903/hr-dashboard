@@ -2135,10 +2135,10 @@ function showAlertPopup(type){
       var dLabel=a.diff===0?'<b style="color:#EF4444">[오늘]</b>':'D-'+a.diff;
       var note=a.note||'';
       rows+='<tr style="border-bottom:1px solid #f3f4f6">'+
-        '<td style="padding:7px 10px;font-weight:600">'+a.s.name+'</td>'+
-        '<td style="padding:7px 10px;color:#6B7280;font-size:12px">'+a.s.dept+'</td>'+
-        '<td style="padding:7px 10px;text-align:center;font-size:12px">'+a.annDate+'</td>'+
-        '<td style="padding:7px 10px;text-align:center;color:#EF4444;font-weight:700">'+dLabel+'</td>'+
+        '<td style="padding:7px 10px;font-weight:600;white-space:nowrap">'+a.s.name+'</td>'+
+        '<td style="padding:7px 10px;color:#6B7280;font-size:12px;white-space:nowrap">'+a.s.dept+'</td>'+
+        '<td style="padding:7px 10px;text-align:center;font-size:12px;white-space:nowrap">'+a.annDate+'</td>'+
+        '<td style="padding:7px 10px;text-align:center;color:#EF4444;font-weight:700;white-space:nowrap">'+dLabel+'</td>'+
         (type==='contract'?'<td style="padding:7px 10px;font-size:11px;color:#6B7280">'+note+'</td>':'')+
         '<td style="padding:7px 4px;text-align:center">'+dismissBtn(a)+'</td>'+
       '</tr>';
@@ -2157,7 +2157,8 @@ function showAlertPopup(type){
   var modal=document.createElement('div');
   modal.id='alert-popup-modal';
   modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:flex;align-items:center;justify-content:center';
-  modal.innerHTML='<div style="background:#fff;border-radius:12px;padding:24px;width:580px;max-width:95vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)">'+
+  var modalWidth=type==='contract'?660:580;
+  modal.innerHTML='<div style="background:#fff;border-radius:12px;padding:24px;width:'+modalWidth+'px;max-width:95vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'+
       '<h3 style="font-size:15px;font-weight:700;color:#44546E">'+title+' ('+items.length+'명)</h3>'+
       '<button onclick="document.getElementById(&quot;alert-popup-modal&quot;).remove()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#aaa;line-height:1">✕</button>'+
