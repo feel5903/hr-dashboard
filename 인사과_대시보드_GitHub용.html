@@ -165,6 +165,7 @@ tbody tr:hover{background:#FAFBFC}
 
   <div class="nav-divider"></div>
   <div class="nav-item" onclick="switchNav('duties',this)"><span class="nav-icon">📋</span>업무분장</div>
+  <div class="nav-item" onclick="switchNav('annual',this)"><span class="nav-icon">📅</span>연간중요일정</div>
   <div class="nav-item" onclick="switchNav('staff',this)"><span class="nav-icon">👤</span>직원현황</div>
 
   <div class="nav-item" onclick="switchNav('dormitory',this)"><span class="nav-icon">🏠</span>기숙사 현황</div>
@@ -178,6 +179,7 @@ tbody tr:hover{background:#FAFBFC}
       <button id="btn-alert-award" onclick="showAlertPopup('award')" style="display:none;padding:6px 14px;background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;color:#92400E">🎖️ 포상 <span id="cnt-award"></span></button>
       <button id="btn-alert-sabbatical" onclick="showAlertPopup('sabbatical')" style="display:none;padding:6px 14px;background:#D1FAE5;border:1.5px solid #10B981;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;color:#065F46">🌿 안식 <span id="cnt-sabbatical"></span></button>
       <button id="btn-alert-contract" onclick="showAlertPopup('contract')" style="display:none;padding:6px 14px;background:#FEE2E2;border:1.5px solid #EF4444;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;color:#991B1B">📋 계약만료 <span id="cnt-contract"></span></button>
+      <button id="btn-alert-annual" onclick="showAnnualPopup()" style="display:none;padding:6px 14px;background:#EEF2FF;border:1.5px solid #6366F1;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;color:#3730A3">📅 <span id="annual-month-label"></span> 중요업무 <span id="cnt-annual"></span></button>
       <span id="no-alerts-msg" style="font-size:12px;color:#aaa">동기화 후 표시</span>
     </div>
   </div>
@@ -396,6 +398,18 @@ tbody tr:hover{background:#FAFBFC}
     </div>
   </div>
 
+  <div id="pane-annual" class="pane">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">📅 연간중요일정</span>
+        <div class="card-actions">
+          <span style="font-size:11px;color:var(--text-muted)">✏️ 아이콘을 눌러 각 월의 업무를 수정하세요</span>
+        </div>
+      </div>
+      <div id="annual-grid" style="padding:1rem"></div>
+    </div>
+  </div>
+
   <div id="pane-settings" class="pane">
     <div class="card" style="margin-bottom:12px">
       <div class="card-head"><span class="card-title">기본 설정</span></div>
@@ -524,7 +538,7 @@ var PALETTE=["#44546E","#2563EB","#5C8A1E","#7C3AED","#D97706","#DC2626","#0891B
 var members=JSON.parse(localStorage.getItem("hr_members")||"null")||[{name:"김재용",role:"인사과장",color:"#44546E"},{name:"배지은",role:"주임",color:"#2563EB"},{name:"공지현",role:"주임",color:"#5C8A1E"},{name:"최필상",role:"사원",color:"#7C3AED"}];
 var curMonth={y:TODAY.getFullYear(),m:TODAY.getMonth()};
 var curForm="daily",editMemberIdx=null,editIdx=null;
-var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[],duties:[],staff:[]};
+var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[],duties:[],staff:[],annual:[]};
 var dismissedAlerts=[];
 var isEditing=false; // 입력 중 동기화 방지 플래그
 (function(){try{var b=localStorage.getItem("hr_data_backup");if(b){var p=JSON.parse(b);if(p.daily)data.daily=p.daily;if(p.project)data.project=p.project;if(p.task)data.task=p.task;if(p.leave)data.leave=p.leave;if(p.recruit)data.recruit=p.recruit;if(p.dormitory)data.dormitory=p.dormitory;}}catch(e){}})();
@@ -630,7 +644,7 @@ async function deleteRowsSafe(tab,ids){
 async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동기화 대기)");return;}setSyncStatus("loading","⟳ 동기화 중...");try{var d=await callScript({tab:"daily"});var p=await callScript({tab:"project"});var lv=await callScript({tab:"leave"});var tk=await callScript({tab:"task"});
     var rc=await callScript({tab:"recruit"});
     var dm=await callScript({tab:"dormitory"});
-    var dt=await callScript({tab:"duties"});var st=await callScript({tab:"staff"});var ad=await callScript({tab:"alerts_dismissed"});var st=await callScript({tab:"staff"});var fd=filterRows(d).map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p).map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv).map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk).map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
+    var dt=await callScript({tab:"duties"});var st=await callScript({tab:"staff"});var ad=await callScript({tab:"alerts_dismissed"});var an=await callScript({tab:"annual"});var st=await callScript({tab:"staff"});var fd=filterRows(d).map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p).map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv).map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk).map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
     var frc=filterRows(rc).map(function(r){return normalizeRow(r,"recruit");});
     data.recruit=frc;
     var fdm=filterRows(dm).map(function(r){return normalizeRow(r,"dormitory");});
@@ -640,6 +654,8 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
     var fst=filterRows(st).map(function(r){return normalizeRow(r,"staff");});
     if(fst.length) data.staff=fst;
     if(ad&&ad.length) dismissedAlerts=ad;
+    var fan=(an||[]).filter(function(r){return r&&r.month;}).map(function(r){return normalizeRow(r,"annual");});
+    if(fan.length) data.annual=fan;
     var fst=filterRows(st).map(function(r){return normalizeRow(r,"staff");});
     if(fst.length) data.staff=fst;
     saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
@@ -1152,7 +1168,8 @@ async function saveForm(){var btn=document.getElementById("save-btn");if(btn.dis
 function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").forEach(function(n){n.classList.remove("active");});if(el)el.classList.add("active");document.querySelectorAll(".pane").forEach(function(p){p.classList.remove("active");});document.getElementById("pane-"+name).classList.add("active");if(name==="settings")renderMemberGrid();if(name==="staff")renderStaff();if(name==="staff")renderStaff();if(name==="workdays"&&typeof wdInit==='function')wdInit();if(name==="calendar")renderCalendar();
   if(name==="recruit")renderRecruit();
   if(name==="duties")renderDuties();
-  if(name==="dormitory")renderDormitory();if(name==="project")renderProject();if(name==="weekly"){renderWeeklySelect();renderWeekly();}}
+  if(name==="dormitory")renderDormitory();if(name==="project")renderProject();if(name==="weekly"){renderWeeklySelect();renderWeekly();}
+  if(name==="annual")renderAnnual();}
 
 
 function getWeekRange(wk){
@@ -2075,7 +2092,7 @@ function showAlertPopup(type){
     order.forEach(function(lbl){
       if(!groups[lbl]||!groups[lbl].length) return;
       var gs=groupStyles[lbl]||{color:'#374151',icon:'•'};
-      rows+='<tr><td colspan="5" style="background:#f9fafb;font-weight:700;font-size:15px;padding:8px 10px;color:'+gs.color+';border-bottom:1px solid #e5e7eb">'+gs.icon+' '+lbl+' ('+groups[lbl].length+'명)</td></tr>';
+      rows+='<tr><td colspan="5" style="background:#f9fafb;font-weight:700;font-size:13px;padding:7px 10px;color:'+gs.color+';border-bottom:1px solid #e5e7eb">'+gs.icon+' '+lbl+' ('+groups[lbl].length+'명)</td></tr>';
       groups[lbl].forEach(function(a){
         var dLabel=a.diff===0?'<b style="color:#EF4444">[오늘]</b>':'D-'+a.diff;
         rows+='<tr style="border-bottom:1px solid #f3f4f6">'+
@@ -2233,6 +2250,169 @@ function showFullDuties(){
   win.document.close();
 }
 
+// ── 연간중요일정 ──
+var MONTH_NAMES=["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+var ANNUAL_DEFAULT = {
+  1:["신년간담회","조직도","부양가족신고서 취합 및 병원장 결재","연말정산 공지","법인감사자료(기말결산)","부서관리비,회의비 확정","4분기 감사왕","4분기 친절왕"],
+  2:["임직원가족 졸업입학","원장님실 현판"],
+  3:["연말정산신고(3/10까지)","주민세신고(은평구청)","1분기퇴직연금","고용산재보수총액신고(3/15까지)","건강보험보수총액신고(3/10까지)","신입직원 문화OT"],
+  4:["운영규정 개정(필수)","인재양성계획수립","1분기 감사왕"],
+  5:["운영규정 개정(필수)_이월","간호인력정상화 관련 보고","창립기념 협력직원 표창(내년부터 4월)","휘닉스 성과추천"],
+  6:["2분기퇴직연금","간호사처우개선비","간호간병통합 성과자료제출","2분기 간식이벤트","직책임명면접 확인"],
+  7:["2분기 친절왕","직무기술서 공지 & 피드백제도 피드백","연차촉진제(1차, 7/10일까지)","승진전형 계획","의료기관인증심사","2분기 감사왕"],
+  8:["승진전형공지","승진면접","법인감사자료(중간결산)","구청지도점검"],
+  9:["3분기 간식이벤트","3분기퇴직연금","승진자교육","건강검진대상자 명단 등록","신입직원 문화OT"],
+  10:["승진식","연차사용계획서","3분기 친절왕","3분기 감사왕","휘닉스 성수기추첨"],
+  11:["사업평가서","사업계획서 - 승인 후 원장님까지 기안","24년도 인력요구도 완료","4분기 간식이벤트","전직원 만족도조사(행정처장님 협의)","직무능력피드백제도"],
+  12:["24년도 직원채용공고","4분기퇴직연금","간호사처우개선비","24년도 급여기준수립","차년도 연간계획수립","23년도 지표결과보고","인사위원회(연간계획 수립보고)","10.3 규정변경(피드백 결과물등)","직책임명면접 확인"]
+};
+
+function getAnnualData(){
+  if(data.annual && data.annual.length){
+    var obj={};
+    data.annual.forEach(function(row){
+      try{ obj[row.month]=JSON.parse(row.items||"[]"); }catch(e){ obj[row.month]=[]; }
+    });
+    for(var m=1;m<=12;m++){ if(!obj[m]) obj[m]=JSON.parse(JSON.stringify(ANNUAL_DEFAULT[m]||[])); }
+    return obj;
+  }
+  return JSON.parse(JSON.stringify(ANNUAL_DEFAULT));
+}
+
+async function saveAnnualData(annualData){
+  var rows=[];
+  for(var m=1;m<=12;m++){
+    rows.push({id:"am"+m,month:String(m),items:JSON.stringify(annualData[m]||[])});
+  }
+  data.annual=rows;
+  await overwriteTab("annual");
+}
+
+function renderAnnual(){
+  var annualData=getAnnualData();
+  var container=document.getElementById("annual-grid");
+  if(!container) return;
+  var curMonth=(new Date()).getMonth()+1;
+  var html="<div style='display:grid;grid-template-columns:repeat(6,1fr);gap:10px'>";
+  for(var m=1;m<=12;m++){
+    var items=annualData[m]||[];
+    var isCur=(m===curMonth);
+    html+="<div style='border-radius:var(--radius-lg);overflow:hidden;background:#fff;border:1px solid var(--gray-border);"+(isCur?"box-shadow:0 0 0 2px var(--lime-dark)":"")+"'>";
+    html+="<div style='display:flex;align-items:center;justify-content:space-between;background:"+(isCur?"var(--lime-dark)":"var(--navy)")+";padding:.45rem .7rem'>";
+    html+="<span style='color:#fff;font-weight:700;font-size:13px'>"+MONTH_NAMES[m-1]+(isCur?" · 이번달":"")+"</span>";
+    html+="<button onclick='openAnnualEdit("+m+")' title='수정' style='background:rgba(255,255,255,.25);border:none;border-radius:4px;color:#fff;font-size:11px;padding:2px 7px;cursor:pointer'>✏️</button>";
+    html+="</div>";
+    html+="<ul style='margin:0;padding:.6rem .9rem .7rem 1.3rem;font-size:12px;line-height:1.75;min-height:90px;color:var(--text)'>";
+    if(!items.length){ html+="<li style='list-style:none;margin-left:-1.3rem;color:#bbb'>등록된 일정 없음</li>"; }
+    else{ items.forEach(function(it){ html+="<li>"+it+"</li>"; }); }
+    html+="</ul></div>";
+  }
+  html+="</div>";
+  container.innerHTML=html;
+}
+
+function openAnnualEdit(month){
+  var annualData=getAnnualData();
+  var items=annualData[month]||[];
+  var win=window.open("","_blank","width=560,height=580");
+  win.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>"+MONTH_NAMES[month-1]+" 중요일정 수정</title>");
+  win.document.write("<style>body{font-family:'Noto Sans KR',sans-serif;padding:20px;font-size:14px}h2{color:#44546E;margin-bottom:12px}textarea{width:100%;height:400px;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;line-height:1.8;resize:vertical;outline:none}p{font-size:12px;color:#888;margin-bottom:8px}.btn{padding:8px 20px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-family:inherit}.save{background:#44546E;color:#fff;margin-right:8px}.cancel{background:#eee;color:#333}</style>");
+  win.document.write("</head><body>");
+  win.document.write("<h2>"+MONTH_NAMES[month-1]+" 중요일정 수정</h2>");
+  win.document.write("<p>한 줄에 하나씩 입력하세요. 빈 줄은 무시됩니다.</p>");
+  win.document.write("<textarea id='an-text'>"+items.join("\n")+"</textarea><br><br>");
+  win.document.write("<button class='btn save' onclick='saveEdit()'>💾 저장</button>");
+  win.document.write("<button class='btn cancel' onclick='window.close()'>취소</button>");
+  win.document.write("<script>function saveEdit(){");
+  win.document.write("var text=document.getElementById('an-text').value;");
+  win.document.write("var items=text.split('\\n').map(function(s){return s.trim();}).filter(function(s){return s.length>0;});");
+  win.document.write("window.opener.updateAnnualMonth("+month+",items);");
+  win.document.write("window.close();}");
+  win.document.write("<\/script></body></html>");
+  win.document.close();
+}
+
+async function updateAnnualMonth(month, items){
+  var annualData=getAnnualData();
+  annualData[month]=items;
+  await saveAnnualData(annualData);
+  renderAnnual();
+  renderAnnualAlertBtn();
+}
+
+// 이번달 체크(완료) 상태는 연도별로 localStorage에 저장 → 다음해엔 자동 초기화됨
+function getAnnualCheckedKey(month){
+  var year=(new Date()).getFullYear();
+  return "annual_chk_"+year+"_"+month;
+}
+function getAnnualChecked(month){
+  try{ return JSON.parse(localStorage.getItem(getAnnualCheckedKey(month))||"[]"); }catch(e){ return []; }
+}
+function setAnnualChecked(month, arr){
+  localStorage.setItem(getAnnualCheckedKey(month), JSON.stringify(arr));
+}
+
+function renderAnnualAlertBtn(){
+  var m=(new Date()).getMonth()+1;
+  var annualData=getAnnualData();
+  var items=annualData[m]||[];
+  var checked=getAnnualChecked(m);
+  var remaining=items.filter(function(it){return checked.indexOf(it)<0;}).length;
+  var lbl=document.getElementById("annual-month-label");if(lbl) lbl.textContent=MONTH_NAMES[m-1];
+  var cnt=document.getElementById("cnt-annual");if(cnt) cnt.textContent=items.length?remaining+"/"+items.length:"";
+  var btn=document.getElementById("btn-alert-annual");if(btn) btn.style.display=items.length?"":"none";
+}
+
+function showAnnualPopup(){
+  var m=(new Date()).getMonth()+1;
+  var annualData=getAnnualData();
+  var items=annualData[m]||[];
+  if(!items.length) return;
+  var checked=getAnnualChecked(m);
+  var existing=document.getElementById("annual-popup-modal");
+  if(existing) existing.remove();
+
+  var rows="";
+  items.forEach(function(it){
+    var isChecked=checked.indexOf(it)>=0;
+    rows+='<tr style="border-bottom:1px solid #f3f4f6'+(isChecked?';opacity:.45':'')+'">'+
+      '<td style="padding:8px 10px;'+(isChecked?'text-decoration:line-through;color:#9CA3AF':'')+'">'+it+'</td>'+
+      '<td style="padding:8px 10px;text-align:center"><input type="checkbox" '+(isChecked?'checked':'')+' onchange="toggleAnnualCheck('+m+',this)" data-item="'+it.replace(/"/g,'&quot;')+'" style="width:16px;height:16px;cursor:pointer;accent-color:var(--lime-dark)"></td>'+
+    '</tr>';
+  });
+
+  var modal=document.createElement("div");
+  modal.id="annual-popup-modal";
+  modal.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:flex;align-items:center;justify-content:center";
+  modal.innerHTML='<div style="background:#fff;border-radius:12px;padding:24px;width:480px;max-width:95vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'+
+      '<h3 style="font-size:15px;font-weight:700;color:#44546E">📅 '+MONTH_NAMES[m-1]+' 중요업무 ('+items.length+'건)</h3>'+
+      '<button onclick="document.getElementById(&quot;annual-popup-modal&quot;).remove()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#aaa;line-height:1">✕</button>'+
+    '</div>'+
+    '<table style="width:100%;border-collapse:collapse;font-size:13px">'+
+      '<thead><tr><th style="background:#44546E;color:#fff;padding:7px 10px;font-size:12px;text-align:left">업무</th><th style="background:#44546E;color:#fff;padding:7px 10px;font-size:12px;text-align:center;width:60px">완료</th></tr></thead>'+
+      '<tbody>'+rows+'</tbody>'+
+    '</table>'+
+  '</div>';
+  modal.onclick=function(e){if(e.target===modal)modal.remove();};
+  document.body.appendChild(modal);
+}
+
+function toggleAnnualCheck(month, cb){
+  var item=cb.dataset.item;
+  var checked=getAnnualChecked(month);
+  if(cb.checked){ if(checked.indexOf(item)<0) checked.push(item); }
+  else{ checked=checked.filter(function(x){return x!==item;}); }
+  setAnnualChecked(month, checked);
+  var row=cb.closest("tr");
+  if(row){
+    var td=row.querySelector("td");
+    row.style.opacity=cb.checked?".45":"";
+    if(td){ td.style.textDecoration=cb.checked?"line-through":""; td.style.color=cb.checked?"#9CA3AF":""; }
+  }
+  renderAnnualAlertBtn();
+}
+
 function addLinkInput(){
   var container=document.getElementById('link-inputs');
   if(!container) return;
@@ -2355,7 +2535,7 @@ function goToDueToday(){
   },150);
 }
 
-function renderAll(){updateStats();renderMemberUI();renderDaily();renderWeeklySelect();renderWeekly();renderProject();renderCalendar();renderRecruit();}
+function renderAll(){updateStats();renderMemberUI();renderDaily();renderWeeklySelect();renderWeekly();renderProject();renderCalendar();renderRecruit();renderAnnualAlertBtn();}
 loadHeadcount();renderAll();syncAll();setInterval(syncAll,60000);
 
 
