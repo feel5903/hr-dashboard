@@ -424,6 +424,15 @@ tbody tr:hover{background:#FAFBFC}
       </div>
       <div id="checklist-grid" style="padding:1rem"></div>
     </div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">📔 메모장 <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(업무 순서·주의사항 등을 자유롭게 적어두는 곳)</span></span>
+        <div class="card-actions">
+          <button class="btn lime" onclick="openNoteForm()">+ 메모 추가</button>
+        </div>
+      </div>
+      <div id="notes-grid" style="padding:1rem"></div>
+    </div>
   </div>
 
   <div id="pane-settings" class="pane">
@@ -459,6 +468,18 @@ tbody tr:hover{background:#FAFBFC}
       <button type="button" id="add-link-btn" onclick="addLinkInput()" style="font-size:11px;padding:3px 10px;border:1px solid var(--gray-border);border-radius:var(--radius);background:var(--white);cursor:pointer;color:var(--text-muted)">+ 링크 추가</button>
     </div>
     <div class="modal-actions"><button class="btn" onclick="closeOverlay()">취소</button><button class="btn primary" id="save-btn" onclick="saveForm()">저장</button></div>
+  </div>
+</div>
+<div class="overlay" id="note-overlay" onclick="if(event.target===this)closeNoteForm()">
+  <div class="modal" style="width:460px">
+    <h3 id="note-modal-title">메모 추가</h3>
+    <input type="hidden" id="note-edit-id">
+    <div class="field"><label>제목</label><input type="text" id="note-title" placeholder="예: 급여 마감 전 체크순서"></div>
+    <div class="field"><label>내용</label><textarea id="note-content" placeholder="내용을 자유롭게 적어주세요" style="height:220px;resize:vertical"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeNoteForm()">취소</button>
+      <button class="btn primary" onclick="saveNoteForm()">저장</button>
+    </div>
   </div>
 </div>
 <div class="overlay" id="leave-overlay" onclick="if(event.target===this)this.classList.remove('open')">
@@ -1186,7 +1207,7 @@ function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").f
   if(name==="duties")renderDuties();
   if(name==="dormitory")renderDormitory();if(name==="project")renderProject();if(name==="weekly"){renderWeeklySelect();renderWeekly();}
   if(name==="annual")renderAnnual();
-  if(name==="checklist")renderChecklist();}
+  if(name==="checklist"){renderChecklist();renderNotes();}}
 
 
 function getWeekRange(wk){
@@ -2547,7 +2568,7 @@ function deleteChecklistItem(catId,itemId){
 }
 
 function openAddChecklistCat(){
-  var name=prompt("추가할 카테고리 이름을 입력하세요 (예: 급여, 퇴직연금 등)");
+  var name=prompt("추가할 카테고리 이름을 입력하세요");
   if(!name||!name.trim()) return;
   var list=getChecklist();
   list.push({id:"cl"+Date.now(),name:name.trim(),items:[]});
@@ -2574,6 +2595,95 @@ function deleteChecklistCat(catId){
   list=list.filter(function(c){return c.id!==catId;});
   saveChecklist(list);
   renderChecklist();
+}
+
+// ── 개인 메모장 (이 브라우저에만 저장) ──
+function getNotes(){
+  try{
+    var saved=localStorage.getItem("personal_notes");
+    if(saved) return JSON.parse(saved);
+  }catch(e){}
+  return [];
+}
+function saveNotes(list){
+  localStorage.setItem("personal_notes", JSON.stringify(list));
+}
+
+function renderNotes(){
+  var list=getNotes();
+  var container=document.getElementById("notes-grid");
+  if(!container) return;
+  if(!list.length){
+    container.innerHTML="<div class='empty'>메모가 없습니다. 위의 '+ 메모 추가'로 시작해보세요.</div>";
+    return;
+  }
+  var html="<div style='display:grid;grid-template-columns:repeat(3,1fr);gap:12px'>";
+  list.forEach(function(note){
+    html+="<div style='border:1px solid var(--gray-border);border-radius:var(--radius-lg);overflow:hidden;background:#fff;display:flex;flex-direction:column'>";
+    html+="<div style='display:flex;align-items:center;justify-content:space-between;background:var(--amber);padding:.5rem .8rem'>";
+    html+="<span style='color:#fff;font-weight:700;font-size:13px;word-break:break-word'>"+escapeHtml(note.title||"(제목 없음)")+"</span>";
+    html+="<div style='display:flex;gap:4px;flex-shrink:0;margin-left:6px'>";
+    html+="<button onclick='openNoteForm(\""+note.id+"\")' title='수정' style='background:rgba(255,255,255,.3);border:none;border-radius:4px;color:#fff;font-size:11px;padding:2px 6px;cursor:pointer'>✏️</button>";
+    html+="<button onclick='deleteNote(\""+note.id+"\")' title='삭제' style='background:rgba(255,255,255,.3);border:none;border-radius:4px;color:#fff;font-size:11px;padding:2px 6px;cursor:pointer'>🗑️</button>";
+    html+="</div></div>";
+    html+="<div style='padding:.7rem .8rem;font-size:12.5px;color:var(--text);white-space:pre-wrap;line-height:1.6;flex:1;max-height:220px;overflow-y:auto'>"+(note.content?escapeHtml(note.content):"<span style='color:#bbb'>내용 없음</span>")+"</div>";
+    html+="</div>";
+  });
+  html+="</div>";
+  container.innerHTML=html;
+}
+
+function escapeHtml(s){
+  var div=document.createElement("div");
+  div.textContent=s;
+  return div.innerHTML;
+}
+
+function openNoteForm(id){
+  document.getElementById("note-edit-id").value=id||"";
+  if(id){
+    var note=getNotes().find(function(n){return n.id===id;});
+    if(!note) return;
+    document.getElementById("note-modal-title").textContent="메모 수정";
+    document.getElementById("note-title").value=note.title||"";
+    document.getElementById("note-content").value=note.content||"";
+  } else {
+    document.getElementById("note-modal-title").textContent="메모 추가";
+    document.getElementById("note-title").value="";
+    document.getElementById("note-content").value="";
+  }
+  document.getElementById("note-overlay").classList.add("open");
+}
+
+function closeNoteForm(){
+  document.getElementById("note-overlay").classList.remove("open");
+}
+
+function saveNoteForm(){
+  var id=document.getElementById("note-edit-id").value;
+  var title=document.getElementById("note-title").value.trim();
+  var content=document.getElementById("note-content").value.trim();
+  if(!title){ alert("제목을 입력해주세요"); return; }
+  var list=getNotes();
+  if(id){
+    var note=list.find(function(n){return n.id===id;});
+    if(note){ note.title=title; note.content=content; }
+  } else {
+    list.push({id:"nt"+Date.now(),title:title,content:content});
+  }
+  saveNotes(list);
+  closeNoteForm();
+  renderNotes();
+}
+
+function deleteNote(id){
+  var list=getNotes();
+  var note=list.find(function(n){return n.id===id;});
+  if(!note) return;
+  if(!confirm("'"+note.title+"' 메모를 삭제할까요?")) return;
+  list=list.filter(function(n){return n.id!==id;});
+  saveNotes(list);
+  renderNotes();
 }
 
 function addLinkInput(){
