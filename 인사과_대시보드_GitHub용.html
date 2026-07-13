@@ -1227,7 +1227,7 @@ function printReport(){
   var today=new Date();
   var todayFmt=today.getFullYear()+"-"+String(today.getMonth()+1).padStart(2,"0")+"-"+String(today.getDate()).padStart(2,"0");
   // 이번주 날짜 범위
-  var thisWk=getWeekKey(todayStr);
+  var thisWk=document.getElementById("week-select").value||getWeekKey(todayStr);
   var prevWk=getPrevWeekKey(thisWk);
   var thisRange=getWeekRange(thisWk);
   var headcount=localStorage.getItem("hr_headcount")||"266";
@@ -2011,6 +2011,7 @@ async function dismissMainAlert(staffId,alertType,alertYear,el){
   await callScript({action:'dismissAlert',staffId:staffId,alertType:alertType,alertYear:alertYear});
 }
 
+function fmtAnnDate(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 function renderMainAlerts(){
   if(!data.staff||!data.staff.length) return;
   var today=new Date(todayStr);
@@ -2021,12 +2022,12 @@ function renderMainAlerts(){
     [5,10].forEach(function(n){
       var ann=new Date(join); ann.setFullYear(join.getFullYear()+n);
       var diff=Math.floor((ann-today)/86400000);
-      if(diff>=0&&diff<=60){var atype='포상'+n+'주년',ayear=String(ann.getFullYear());if(!isDismissed(s.id,atype,ayear))awards.push({s:s,label:n+'주년 포상',type:atype,year:ayear,diff:diff});}
+      if(diff>=0&&diff<=60){var atype='포상'+n+'주년',ayear=String(ann.getFullYear());if(!isDismissed(s.id,atype,ayear))awards.push({s:s,label:n+'주년 포상',type:atype,year:ayear,diff:diff,annDate:fmtAnnDate(ann)});}
     });
     [7,20].forEach(function(n){
       var ann=new Date(join); ann.setFullYear(join.getFullYear()+n);
       var diff=Math.floor((ann-today)/86400000);
-      if(diff>=0&&diff<=60){var atype='안식'+n+'주년',ayear=String(ann.getFullYear());if(!isDismissed(s.id,atype,ayear))sabbaticals.push({s:s,label:n+'주년 안식',type:atype,year:ayear,diff:diff});}
+      if(diff>=0&&diff<=60){var atype='안식'+n+'주년',ayear=String(ann.getFullYear());if(!isDismissed(s.id,atype,ayear))sabbaticals.push({s:s,label:n+'주년 안식',type:atype,year:ayear,diff:diff,annDate:fmtAnnDate(ann)});}
     });
     var nurseTeams=['성인병동간호팀','소아청소년병동간호팀','외래간호팀'];
     var isNurseTeam=nurseTeams.indexOf(s.dept)>=0;
@@ -2034,9 +2035,9 @@ function renderMainAlerts(){
     var nurseExcluded=(s.dept==='성인병동간호팀'&&pos.indexOf('간호조무사')>=0);
     if(isNurseTeam&&!nurseExcluded){
       var isExpiring=s.contractEnd&&Math.floor((new Date(s.contractEnd)-today)/86400000)<=60;
-      if(!isExpiring){var thm=new Date(join);thm.setMonth(join.getMonth()+3);var diff=Math.floor((thm-today)/86400000);if(diff>=0&&diff<=30){var atype='간호조기정착',ayear=String(thm.getFullYear());if(!isDismissed(s.id,atype,ayear))awards.push({s:s,label:'간호사 조기정착',type:atype,year:ayear,diff:diff});}}
+      if(!isExpiring){var thm=new Date(join);thm.setMonth(join.getMonth()+3);var diff=Math.floor((thm-today)/86400000);if(diff>=0&&diff<=30){var atype='간호조기정착',ayear=String(thm.getFullYear());if(!isDismissed(s.id,atype,ayear))awards.push({s:s,label:'간호사 조기정착',type:atype,year:ayear,diff:diff,annDate:fmtAnnDate(thm)});}}
     }
-    if(s.contractEnd){var ce=new Date(s.contractEnd),diff=Math.floor((ce-today)/86400000);if(diff>=0&&diff<=60){var atype='계약만료',ayear=s.contractEnd;if(!isDismissed(s.id,atype,ayear))contracts.push({s:s,label:'계약만료',type:atype,year:ayear,diff:diff,note:s.note||''});}}
+    if(s.contractEnd){var ce=new Date(s.contractEnd),diff=Math.floor((ce-today)/86400000);if(diff>=0&&diff<=60){var atype='계약만료',ayear=s.contractEnd;if(!isDismissed(s.id,atype,ayear))contracts.push({s:s,label:'계약만료',type:atype,year:ayear,diff:diff,note:s.note||'',annDate:s.contractEnd});}}
   });
   window._alertData={award:awards,sabbatical:sabbaticals,contract:contracts};
   var hasAny=awards.length||sabbaticals.length||contracts.length;
@@ -2063,7 +2064,7 @@ function showAlertPopup(type){
   };
 
   function dismissBtn(a){
-    return '<button onclick="dismissFromPopup(this)" data-sid="'+a.s.id+'" data-atype="'+a.type+'" data-ayear="'+a.year+'" data-ptype="'+type+'" style="background:#FEE2E2;border:none;border-radius:4px;width:22px;height:22px;cursor:pointer;color:#DC2626;font-size:12px;line-height:1">✕</button>';
+    return '<input type="checkbox" onchange="dismissFromPopup(this)" data-sid="'+a.s.id+'" data-atype="'+a.type+'" data-ayear="'+a.year+'" data-ptype="'+type+'" style="width:16px;height:16px;cursor:pointer;accent-color:var(--lime-dark)" title="처리 완료">';
   }
 
   var rows='';
@@ -2126,11 +2127,11 @@ function showAlertPopup(type){
   document.body.appendChild(modal);
 }
 
-async function dismissFromPopup(btn){
-  var staffId=btn.dataset.sid,alertType=btn.dataset.atype,alertYear=btn.dataset.ayear,popupType=btn.dataset.ptype;
-  // 해당 행 제거
-  var row=btn.closest('tr');
-  if(row) row.remove();
+async function dismissFromPopup(cb){
+  var staffId=cb.dataset.sid,alertType=cb.dataset.atype,alertYear=cb.dataset.ayear,popupType=cb.dataset.ptype;
+  // 체크 시 살짝 표시했다가 행 제거
+  var row=cb.closest('tr');
+  if(row){row.style.opacity='.4';row.style.textDecoration='line-through';setTimeout(function(){row.remove();},250);}
 
   // 전역 데이터에서 제거
   dismissedAlerts.push({staffId:staffId,alertType:alertType,alertYear:alertYear});
