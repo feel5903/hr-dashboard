@@ -2077,7 +2077,7 @@ function renderMainAlerts(){
   data.staff.forEach(function(s){
     if(!s.joinDate) return;
     var join=new Date(s.joinDate);
-    [5,10].forEach(function(n){
+    [5,10,15].forEach(function(n){
       var ann=new Date(join); ann.setFullYear(join.getFullYear()+n);
       var diff=Math.floor((ann-today)/86400000);
       if(diff>=0&&diff<=60){var atype='포상'+n+'주년',ayear=String(ann.getFullYear());if(!isDismissed(s.id,atype,ayear))awards.push({s:s,label:n+'주년 포상',type:atype,year:ayear,diff:diff,annDate:fmtAnnDate(ann)});}
@@ -2121,6 +2121,7 @@ function showAlertPopup(type){
   var groupStyles={
     '5주년 포상':      {color:'#1D4ED8', icon:'🎖️'},
     '10주년 포상':     {color:'#7C3AED', icon:'🏅'},
+    '15주년 포상':     {color:'#B45309', icon:'🏆'},
     '간호사 조기정착': {color:'#065F46', icon:'🌱'},
     '7주년 안식':      {color:'#0F766E', icon:'🌿'},
     '20주년 안식':     {color:'#7C3AED', icon:'🌳'}
@@ -2132,14 +2133,14 @@ function showAlertPopup(type){
 
   var rows='';
   if(type==='award'){
-    var order=['5주년 포상','10주년 포상','간호사 조기정착'];
+    var order=['5주년 포상','10주년 포상','15주년 포상','간호사 조기정착'];
     var groups={};
     items.forEach(function(a){if(!groups[a.label])groups[a.label]=[];groups[a.label].push(a);});
     order.forEach(function(lbl){
-      if(!groups[lbl]||!groups[lbl].length) return;
       var gs=groupStyles[lbl]||{color:'#374151',icon:'•'};
-      rows+='<tr><td colspan="5" style="background:#f9fafb;font-weight:700;font-size:13px;padding:7px 10px;color:'+gs.color+';border-bottom:1px solid #e5e7eb">'+gs.icon+' '+lbl+' ('+groups[lbl].length+'명)</td></tr>';
-      groups[lbl].forEach(function(a){
+      var cnt=(groups[lbl]||[]).length;
+      rows+='<tr><td colspan="5" style="background:#f9fafb;font-weight:700;font-size:13px;padding:7px 10px;color:'+gs.color+';border-bottom:1px solid #e5e7eb">'+gs.icon+' '+lbl+' ('+cnt+'명)</td></tr>';
+      (groups[lbl]||[]).forEach(function(a){
         var dLabel=a.diff===0?'<b style="color:#EF4444">[오늘]</b>':'D-'+a.diff;
         rows+='<tr style="border-bottom:1px solid #f3f4f6">'+
           '<td style="padding:7px 10px;font-weight:600">'+a.s.name+'</td>'+
@@ -2155,10 +2156,10 @@ function showAlertPopup(type){
     var groups2={};
     items.forEach(function(a){if(!groups2[a.label])groups2[a.label]=[];groups2[a.label].push(a);});
     order2.forEach(function(lbl){
-      if(!groups2[lbl]||!groups2[lbl].length) return;
       var gs=groupStyles[lbl]||{color:'#374151',icon:'•'};
-      rows+='<tr><td colspan="6" style="background:#f9fafb;font-weight:700;font-size:13px;padding:7px 10px;color:'+gs.color+';border-bottom:1px solid #e5e7eb">'+gs.icon+' '+lbl+' ('+groups2[lbl].length+'명)</td></tr>';
-      groups2[lbl].forEach(function(a){
+      var cnt2=(groups2[lbl]||[]).length;
+      rows+='<tr><td colspan="6" style="background:#f9fafb;font-weight:700;font-size:13px;padding:7px 10px;color:'+gs.color+';border-bottom:1px solid #e5e7eb">'+gs.icon+' '+lbl+' ('+cnt2+'명)</td></tr>';
+      (groups2[lbl]||[]).forEach(function(a){
         var urgent=a.diff<=60;
         var dLabel=a.diff===0?'<b style="color:#EF4444">[오늘마감]</b>':(urgent?'<b style="color:#EF4444">D-'+a.diff+'</b>':'D-'+a.diff);
         rows+='<tr style="border-bottom:1px solid #f3f4f6">'+
