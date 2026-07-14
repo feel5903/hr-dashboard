@@ -2103,7 +2103,8 @@ function renderMainAlerts(){
     [5,10,15].forEach(function(n){
       var ann=new Date(join); ann.setFullYear(join.getFullYear()+n);
       var diff=Math.floor((ann-today)/86400000);
-      if(diff>=0&&diff<=60){var atype='포상'+n+'주년',ayear=String(ann.getFullYear());if(!isDismissed(s.id,atype,ayear))awards.push({s:s,label:n+'주년 포상',type:atype,year:ayear,diff:diff,annDate:fmtAnnDate(ann)});}
+      // 해당일 2개월 전 ~ 해당일 1개월 후까지 노출 (이미 지났어도 한동안 계속 챙길 수 있게)
+      if(diff>=-30&&diff<=60){var atype='포상'+n+'주년',ayear=String(ann.getFullYear());if(!isDismissed(s.id,atype,ayear))awards.push({s:s,label:n+'주년 포상',type:atype,year:ayear,diff:diff,annDate:fmtAnnDate(ann)});}
     });
     [7,20].forEach(function(n){
       var ann=new Date(join); ann.setFullYear(join.getFullYear()+n);
@@ -2164,7 +2165,7 @@ function showAlertPopup(type){
       var cnt=(groups[lbl]||[]).length;
       rows+='<tr><td colspan="5" style="background:#f9fafb;font-weight:700;font-size:13px;padding:7px 10px;color:'+gs.color+';border-bottom:1px solid #e5e7eb">'+gs.icon+' '+lbl+' ('+cnt+'명)</td></tr>';
       (groups[lbl]||[]).forEach(function(a){
-        var dLabel=a.diff===0?'<b style="color:#EF4444">[오늘]</b>':'D-'+a.diff;
+        var dLabel=a.diff===0?'<b style="color:#EF4444">[오늘]</b>':(a.diff<0?'<b style="color:#DC2626">지난 '+(-a.diff)+'일</b>':'D-'+a.diff);
         rows+='<tr style="border-bottom:1px solid #f3f4f6">'+
           '<td style="padding:7px 10px;font-weight:600">'+a.s.name+'</td>'+
           '<td style="padding:7px 10px;color:#6B7280;font-size:12px">'+a.s.dept+'</td>'+
