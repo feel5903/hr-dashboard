@@ -2975,17 +2975,20 @@ function showLeavesByType(){
   win.document.write("@media print{button{display:none}}");
   win.document.write("</style></head><body>");
   win.document.write("<h1>서울재활병원 휴가별 직원현황</h1>");
-  win.document.write("<div class='subtitle'>기준일: "+todayStr+"</div>");
+  win.document.write("<div class='subtitle'>기준일: "+todayStr+" · 제목 옆 (숫자)는 진행중/예정 인원수예요</div>");
 
   allTypes.forEach(function(t){
     var list=groups[t]||[];
     if(!list.length) return;
     list.sort(function(a,b){return (a.start||"").localeCompare(b.start||"");});
-    win.document.write("<div class='sub-title'>"+t+" ("+list.length+"명)</div>");
+    list.forEach(function(l){ l.status=todayStr<l.start?"예정":(todayStr>l.end?"종료":"진행중"); });
+    var inProgCnt=list.filter(function(l){return l.status==="진행중";}).length;
+    var upcomingCnt=list.filter(function(l){return l.status==="예정";}).length;
+    win.document.write("<div class='sub-title'>"+t+" ("+inProgCnt+"/"+upcomingCnt+") <span style='font-size:11px;font-weight:400;color:#9CA3AF'>전체 "+list.length+"건</span></div>");
     win.document.write("<table><thead><tr><th>이름</th><th>부서</th><th>기간</th><th>일수</th><th>상태</th></tr></thead><tbody>");
     list.forEach(function(l){
       var days=calcLeaveDays(l.start,l.end);
-      var status=todayStr<l.start?"예정":(todayStr>l.end?"종료":"진행중");
+      var status=l.status;
       var statusColor=status==="진행중"?"#92400E":status==="예정"?"#1D4ED8":"#9CA3AF";
       win.document.write("<tr><td style='font-weight:600'>"+l.name+"</td><td>"+(l.dept||"")+"</td><td>"+(l.start||"")+" ~ "+(l.end||"")+"</td><td style='text-align:center'>"+(days?days+"일":"-")+"</td><td style='text-align:center;color:"+statusColor+";font-weight:600'>"+status+"</td></tr>");
     });
