@@ -611,22 +611,25 @@ async function overwriteTab(tab){var rows=data[tab]||[];if(tab!=="duties"){var s
   if(rows.length){
     var headers=Object.keys(rows[0]);
     var dataRows=rows.map(function(r){return headers.map(function(h){return r[h]||"";});});
-    var result=null;
+    var result=null,errMsg="";
     try{
       var resp=await fetch(SHEET_URL,{method:"POST",mode:"cors",redirect:"follow",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"overwrite",tab:tab,rows:dataRows})});
-      result=await resp.json().catch(function(){return null;});
+      var txt=await resp.text();
+      try{ result=JSON.parse(txt); }catch(e0){ errMsg="응답이 JSON이 아님: "+txt.slice(0,200); }
     }catch(e){
-      try{ result=await callScript({action:"overwrite",tab:tab,rows:dataRows}); }catch(e2){ result=null; }
+      errMsg="네트워크/CORS 오류: "+e.message;
+      try{ result=await callScript({action:"overwrite",tab:tab,rows:dataRows}); if(result) errMsg=""; }catch(e2){}
     }
     if(!result||result.status!=="ok"){
-      setSyncStatus("err","⚠ 저장 실패: "+(result&&result.message?result.message:"응답 없음 ("+tab+")"));
-      return false;
+      var finalMsg=errMsg||(result&&result.message?result.message:"알 수 없는 오류 (탭: "+tab+")");
+      setSyncStatus("err","⚠ 저장 실패: "+finalMsg);
+      return {ok:false,message:finalMsg};
     }
   }else{
     try{var url2=SHEET_URL+"?action=overwrite&tab="+tab+"&rows="+encodeURIComponent("[]")+"&t="+Date.now();await fetch(url2,{redirect:"follow",mode:"cors"});}catch(e){}
   }
   setSyncStatus("ok","● 저장됨");
-  return true;
+  return {ok:true,message:""};
 }
 async function saveRow(tab,row){saveLocalBackup();try{await fetch(SHEET_URL,{method:"POST",mode:"cors",redirect:"follow",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"append",tab:tab,row:row})});}catch(e){try{await callScript({action:"append",tab:tab,row:row});}catch(e2){}}setSyncStatus("ok","● 저장됨");}
 
@@ -2375,9 +2378,9 @@ async function saveAnnualData(annualData){
     rows.push({id:"am"+m,month:String(m),items:JSON.stringify(annualData[m]||[])});
   }
   data.annual=rows;
-  var ok=await overwriteTab("annual");
-  if(!ok){ alert("저장에 실패했어요. 구글시트에 'annual' 탭이 정확히 만들어졌는지 확인해주세요 (탭 이름 오탈자/공백/대소문자 확인).\n\n화면에는 방금 수정한 내용이 남아있지만, 새로고침하면 사라질 수 있어요."); }
-  return ok;
+  var res=await overwriteTab("annual");
+  if(!res.ok){ alert("저장에 실패했어요.\n\n[상세 원인]\n"+res.message+"\n\n화면에는 방금 수정한 내용이 남아있지만, 새로고침하면 사라질 수 있어요."); }
+  return res.ok;
 }
 
 function renderAnnual(){
