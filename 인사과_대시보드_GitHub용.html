@@ -349,6 +349,7 @@ tbody tr:hover{background:#FAFBFC}
         </select>
         <button class="btn lime" onclick="openStaffForm()">+ 직원 추가</button>
         <button class="btn" onclick="openOthersModal()" style="border-color:#6366F1;color:#4338CA">🧑‍💼 기타인력</button>
+        <button class="btn" onclick="showLeavesByType()" style="border-color:#B45309;color:#92400E">🏖️ 휴가별 현황</button>
         <button class="btn primary" onclick="showDeptStats()">📊 부서별 인원통계</button>
       </div>
     </div>
@@ -407,7 +408,7 @@ tbody tr:hover{background:#FAFBFC}
         <div class="field" style="margin:0"><label>시작일</label><input type="date" id="sl-start"></div>
         <div class="field" style="margin:0"><label>종료일</label><input type="date" id="sl-end"></div>
       </div>
-      <button class="btn lime" onclick="addStaffLeave()" style="width:100%">+ 추가</button>
+      <button class="btn lime" onclick="addStaffLeave()" style="width:100%">💾 이 휴가 저장</button>
     </div>
     <div class="modal-actions"><button class="btn" onclick="closeStaffLeaveModal()">닫기</button></div>
   </div>
@@ -2823,16 +2824,24 @@ function openStaffLeaves(staffId){
 function closeStaffLeaveModal(){
   document.getElementById("staff-leave-overlay").classList.remove("open");
 }
+function calcLeaveDays(start,end){
+  if(!start||!end) return null;
+  var s=new Date(start),e=new Date(end);
+  if(isNaN(s.getTime())||isNaN(e.getTime())) return null;
+  return Math.round((e-s)/86400000)+1;
+}
 function renderStaffLeaveList(staffId){
   var list=(data.staffLeaves||[]).filter(function(l){return l.staffId===staffId;});
-  list.sort(function(a,b){return (b.start||"").localeCompare(a.start||"");});
+  list.sort(function(a,b){return (a.start||"").localeCompare(b.start||"");});
   var el=document.getElementById("staff-leave-list");
   if(!list.length){ el.innerHTML="<div style='font-size:12px;color:#aaa;padding:8px 0'>등록된 휴가가 없습니다</div>"; return; }
   el.innerHTML=list.map(function(l){
-    var isCurrent=todayStr>=l.start&&todayStr<=l.end;
+    var start=l.start||"",end=l.end||"";
+    var isCurrent=todayStr>=start&&todayStr<=end;
+    var days=calcLeaveDays(start,end);
     return "<div style='display:flex;align-items:center;gap:8px;padding:.4rem .2rem;border-bottom:1px solid #f3f4f6'>"+
       "<span style='font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:"+(isCurrent?"#FEF3C7":"#F3F4F6")+";color:"+(isCurrent?"#92400E":"#6B7280")+";white-space:nowrap'>"+l.type+(isCurrent?" · 진행중":"")+"</span>"+
-      "<span style='flex:1;font-size:12px;color:var(--text)'>"+l.start+" ~ "+l.end+"</span>"+
+      "<span style='flex:1;font-size:12px;color:var(--text)'>"+start+" ~ "+end+(days?" <span style='color:#9CA3AF'>("+days+"일)</span>":"")+"</span>"+
       "<button onclick='deleteStaffLeave(\""+l.id+"\")' style='background:none;border:none;color:#DC2626;cursor:pointer;font-size:12px'>✕</button>"+
     "</div>";
   }).join("");
@@ -2943,6 +2952,51 @@ async function deleteOther(id){
 }
 
 // ── 부서별 인원통계 (인쇄 가능) ──
+// ── 휴가별 직원현황 (출산/육아/안식 등 종류별로 전체 보기) ──
+function showLeavesByType(){
+  var all=(data.staffLeaves||[]).map(function(l){
+    var s=(data.staff||[]).find(function(x){return x.id===l.staffId;});
+    return {name:l.staffName||(s?s.name:""),dept:s?s.dept:"",type:l.type,start:l.start,end:l.end};
+  });
+  var typeOrder=['출산휴가','육아휴직','안식휴가','병가','기타'];
+  var groups={};
+  all.forEach(function(l){ if(!groups[l.type]) groups[l.type]=[]; groups[l.type].push(l); });
+  var allTypes=typeOrder.concat(Object.keys(groups).filter(function(t){return typeOrder.indexOf(t)<0;}));
+
+  var win=window.open("","_blank");
+  win.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>휴가별 직원현황</title><style>");
+  win.document.write("body{font-family:'Noto Sans KR',sans-serif;font-size:13px;padding:20px 30px;color:#1F2937}");
+  win.document.write("h1{text-align:center;font-size:18px;color:#44546E;margin-bottom:4px}");
+  win.document.write(".subtitle{text-align:center;font-size:12px;color:#888;margin-bottom:20px}");
+  win.document.write("table{width:100%;border-collapse:collapse;margin-bottom:20px}");
+  win.document.write("th{background:#44546E;color:#fff;padding:7px 10px;font-size:12px;text-align:center}");
+  win.document.write("td{padding:6px 10px;border:1px solid #ddd;font-size:13px}");
+  win.document.write(".sub-title{font-size:14px;font-weight:700;color:#44546E;margin:20px 0 8px;border-left:4px solid #A5D861;padding-left:8px}");
+  win.document.write("@media print{button{display:none}}");
+  win.document.write("</style></head><body>");
+  win.document.write("<h1>서울재활병원 휴가별 직원현황</h1>");
+  win.document.write("<div class='subtitle'>기준일: "+todayStr+"</div>");
+
+  allTypes.forEach(function(t){
+    var list=groups[t]||[];
+    if(!list.length) return;
+    list.sort(function(a,b){return (a.start||"").localeCompare(b.start||"");});
+    win.document.write("<div class='sub-title'>"+t+" ("+list.length+"명)</div>");
+    win.document.write("<table><thead><tr><th>이름</th><th>부서</th><th>기간</th><th>일수</th><th>상태</th></tr></thead><tbody>");
+    list.forEach(function(l){
+      var days=calcLeaveDays(l.start,l.end);
+      var status=todayStr<l.start?"예정":(todayStr>l.end?"종료":"진행중");
+      var statusColor=status==="진행중"?"#92400E":status==="예정"?"#1D4ED8":"#9CA3AF";
+      win.document.write("<tr><td style='font-weight:600'>"+l.name+"</td><td>"+(l.dept||"")+"</td><td>"+(l.start||"")+" ~ "+(l.end||"")+"</td><td style='text-align:center'>"+(days?days+"일":"-")+"</td><td style='text-align:center;color:"+statusColor+";font-weight:600'>"+status+"</td></tr>");
+    });
+    win.document.write("</tbody></table>");
+  });
+
+  win.document.write("<div style='text-align:center;margin-top:20px'><button onclick='window.print()' style='background:#44546E;color:#fff;border:none;padding:8px 24px;border-radius:6px;font-size:13px;cursor:pointer'>🖨️ 인쇄</button></div>");
+  win.document.write("</body></html>");
+  win.document.close();
+}
+
 function showDeptStats(){
   var deptMap={};
   (data.staff||[]).forEach(function(s){
@@ -3002,7 +3056,7 @@ function showDeptStats(){
   win.document.write("</style></head><body>");
   win.document.write("<h1>서울재활병원 부서별 인원통계</h1>");
   win.document.write("<div class='subtitle'>기준일: "+todayStr+"</div>");
-  win.document.write("<table><thead><tr><th>부서</th><th>정직원</th><th>휴가중</th><th>실근무인원</th><th>기타인력</th><th>합계</th></tr></thead><tbody>");
+  win.document.write("<table><thead><tr><th>부서</th><th>직원</th><th>휴가중</th><th>실근무인원</th><th>기타인력</th><th>합계</th></tr></thead><tbody>");
   win.document.write(rowsHtml);
   win.document.write("<tr class='total-row'><td>전체 합계</td><td style='text-align:center'>"+totalStaff+"</td><td style='text-align:center'>"+totalLeave+"</td><td style='text-align:center'>"+totalWork+"</td><td style='text-align:center'>"+totalOthers+"</td><td style='text-align:center'>"+totalSum+"</td></tr>");
   win.document.write("</tbody></table>");
@@ -3013,7 +3067,8 @@ function showDeptStats(){
   } else {
     win.document.write("<table><thead><tr><th>이름</th><th>부서</th><th>휴가종류</th><th>기간</th></tr></thead><tbody>");
     onLeaveList.forEach(function(l){
-      win.document.write("<tr><td style='font-weight:600'>"+l.name+"</td><td>"+(l.dept||"")+"</td><td>"+l.type+"</td><td>"+l.start+" ~ "+l.end+"</td></tr>");
+      var days=calcLeaveDays(l.start,l.end);
+      win.document.write("<tr><td style='font-weight:600'>"+l.name+"</td><td>"+(l.dept||"")+"</td><td>"+l.type+"</td><td>"+(l.start||"")+" ~ "+(l.end||"")+(days?" ("+days+"일)":"")+"</td></tr>");
     });
     win.document.write("</tbody></table>");
   }
