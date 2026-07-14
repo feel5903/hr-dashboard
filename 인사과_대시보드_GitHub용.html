@@ -2214,10 +2214,11 @@ function showAlertPopup(type){
         var urgent=a.diff<=60;
         var dLabel=a.diff===0?'<b style="color:#EF4444">[오늘마감]</b>':(urgent?'<b style="color:#EF4444">D-'+a.diff+'</b>':'D-'+a.diff);
         var grade=a.grade||getSabbaticalGrade(a.s);
+        var gradeCell='<span style="background:#F3F4F6;color:#374151;padding:2px 7px;border-radius:10px;font-weight:600">'+grade.label+'</span>'+(lbl==='20주년 안식'?'<br><span style="color:#9CA3AF;font-size:10px">'+grade.duration+'</span>':'');
         rows+='<tr style="border-bottom:1px solid #f3f4f6">'+
           '<td style="padding:7px 10px;font-weight:600;white-space:nowrap">'+a.s.name+'</td>'+
           '<td style="padding:7px 10px;color:#6B7280;font-size:12px;white-space:nowrap">'+a.s.dept+'</td>'+
-          '<td style="padding:7px 10px;text-align:center;font-size:11px;white-space:nowrap"><span style="background:#F3F4F6;color:#374151;padding:2px 7px;border-radius:10px;font-weight:600">'+grade.label+'</span><br><span style="color:#9CA3AF;font-size:10px">'+grade.duration+'</span></td>'+
+          '<td style="padding:7px 10px;text-align:center;font-size:11px;white-space:nowrap">'+gradeCell+'</td>'+
           '<td style="padding:7px 10px;text-align:center;font-size:12px">'+a.annDate+'</td>'+
           '<td style="padding:7px 10px;text-align:center;font-size:12px;color:'+(urgent?'#DC2626':'#6B7280')+';font-weight:'+(urgent?'700':'400')+'">'+a.deadlineDate+'</td>'+
           '<td style="padding:7px 10px;text-align:center;font-weight:700">'+dLabel+'</td>'+
@@ -2243,7 +2244,7 @@ function showAlertPopup(type){
   var thStyle='background:#44546E;color:#fff;padding:7px 10px;font-size:12px;';
   var headers='<th style="'+thStyle+'text-align:left">이름</th>'+
     '<th style="'+thStyle+'text-align:left">부서</th>'+
-    (type==='sabbatical'?'<th style="'+thStyle+'text-align:center">휴가기준</th>':'')+
+    (type==='sabbatical'?'<th style="'+thStyle+'text-align:center">직책</th>':'')+
     '<th style="'+thStyle+'text-align:center">해당일</th>'+
     (type==='sabbatical'?'<th style="'+thStyle+'text-align:center">사용기한</th>':'')+
     '<th style="'+thStyle+'text-align:center">D-day</th>'+
