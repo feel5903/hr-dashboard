@@ -607,7 +607,27 @@ function normalizeRow(row,tab){var df=["end","start","created","date","joinDate"
 function filterRows(rows){var seen={};return(rows||[]).filter(function(r){if(!r.id||r.id==="id"||r.id==="")return false;if(seen[r.id])return false;seen[r.id]=true;return true;});}
 function setSyncStatus(t,txt){var b=document.getElementById("sync-btn");b.style.color=t==="ok"?"var(--lime)":t==="err"?"#FCA5A5":"var(--navy-mid)";b.textContent=txt;}
 async function callScript(params){try{var url=SHEET_URL+"?";Object.keys(params).forEach(function(k){url+=k+"="+encodeURIComponent(typeof params[k]==="object"?JSON.stringify(params[k]):params[k])+"&";});url+="t="+Date.now();var r=await fetch(url,{redirect:"follow",mode:"cors"});if(!r.ok)return null;var txt=await r.text();try{return JSON.parse(txt);}catch(e){return null;}}catch(e){return null;}}
-async function overwriteTab(tab){var rows=data[tab]||[];if(tab!=="duties"){var seen={};rows=rows.filter(function(r){if(!r.id||seen[r.id])return false;seen[r.id]=true;return true;});}var df=["end","start","created","date"];rows=rows.map(function(r){var out={};Object.keys(r).forEach(function(k){out[k]=df.indexOf(k)>=0?formatDateVal(r[k]):r[k];});return out;});data[tab]=rows;saveLocalBackup();if(rows.length){var headers=Object.keys(rows[0]);var dataRows=rows.map(function(r){return headers.map(function(h){return r[h]||"";});});try{await fetch(SHEET_URL,{method:"POST",mode:"cors",redirect:"follow",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"overwrite",tab:tab,rows:dataRows})});}catch(e){try{await callScript({action:"overwrite",tab:tab,rows:dataRows});}catch(e2){}}}else{try{var url2=SHEET_URL+"?action=overwrite&tab="+tab+"&rows="+encodeURIComponent("[]")+"&t="+Date.now();await fetch(url2,{redirect:"follow",mode:"cors"});}catch(e){}}setSyncStatus("ok","● 저장됨");}
+async function overwriteTab(tab){var rows=data[tab]||[];if(tab!=="duties"){var seen={};rows=rows.filter(function(r){if(!r.id||seen[r.id])return false;seen[r.id]=true;return true;});}var df=["end","start","created","date"];rows=rows.map(function(r){var out={};Object.keys(r).forEach(function(k){out[k]=df.indexOf(k)>=0?formatDateVal(r[k]):r[k];});return out;});data[tab]=rows;saveLocalBackup();
+  if(rows.length){
+    var headers=Object.keys(rows[0]);
+    var dataRows=rows.map(function(r){return headers.map(function(h){return r[h]||"";});});
+    var result=null;
+    try{
+      var resp=await fetch(SHEET_URL,{method:"POST",mode:"cors",redirect:"follow",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"overwrite",tab:tab,rows:dataRows})});
+      result=await resp.json().catch(function(){return null;});
+    }catch(e){
+      try{ result=await callScript({action:"overwrite",tab:tab,rows:dataRows}); }catch(e2){ result=null; }
+    }
+    if(!result||result.status!=="ok"){
+      setSyncStatus("err","⚠ 저장 실패: "+(result&&result.message?result.message:"응답 없음 ("+tab+")"));
+      return false;
+    }
+  }else{
+    try{var url2=SHEET_URL+"?action=overwrite&tab="+tab+"&rows="+encodeURIComponent("[]")+"&t="+Date.now();await fetch(url2,{redirect:"follow",mode:"cors"});}catch(e){}
+  }
+  setSyncStatus("ok","● 저장됨");
+  return true;
+}
 async function saveRow(tab,row){saveLocalBackup();try{await fetch(SHEET_URL,{method:"POST",mode:"cors",redirect:"follow",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"append",tab:tab,row:row})});}catch(e){try{await callScript({action:"append",tab:tab,row:row});}catch(e2){}}setSyncStatus("ok","● 저장됨");}
 
 // 안전한 행 수정: 해당 id 행만 정확히 찾아서 업데이트 (전체 덮어쓰기 없음)
@@ -2355,7 +2375,9 @@ async function saveAnnualData(annualData){
     rows.push({id:"am"+m,month:String(m),items:JSON.stringify(annualData[m]||[])});
   }
   data.annual=rows;
-  await overwriteTab("annual");
+  var ok=await overwriteTab("annual");
+  if(!ok){ alert("저장에 실패했어요. 구글시트에 'annual' 탭이 정확히 만들어졌는지 확인해주세요 (탭 이름 오탈자/공백/대소문자 확인).\n\n화면에는 방금 수정한 내용이 남아있지만, 새로고침하면 사라질 수 있어요."); }
+  return ok;
 }
 
 function renderAnnual(){
