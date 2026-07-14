@@ -2093,6 +2093,23 @@ async function dismissMainAlert(staffId,alertType,alertYear,el){
 }
 
 function fmtAnnDate(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+
+// 2025.4.21 안식휴가 개편으로 20주년 소급 대상이 된 인원 (주임 시절엔 대상이 아니었다가 새로 대상이 된 경우)
+var SABBATICAL_RETRO_NAMES=['이지혜','노영금','오영임'];
+var SABBATICAL_POLICY_DATE=new Date('2025-04-21');
+
+// 직책/직급에 따른 안식휴가 기준 분류
+function getSabbaticalGrade(s){
+  var txt=(s.position||'')+' '+(s.title||'');
+  var staffExceptions=['파트장','조리실장','간호조무장'];
+  if(staffExceptions.some(function(k){return txt.indexOf(k)>=0;})) return {label:'사원',duration:'유급 1주'};
+  var leadKeywords=['팀장','과장','처장','센터장','실장'];
+  if(leadKeywords.some(function(k){return txt.indexOf(k)>=0;})) return {label:'팀장급',duration:'유급 1개월+무급 2개월'};
+  var jrKeywords=['주임','수간호사'];
+  if(jrKeywords.some(function(k){return txt.indexOf(k)>=0;})) return {label:'주임',duration:'유급 2주'};
+  return {label:'사원',duration:'유급 1주'};
+}
+
 function renderMainAlerts(){
   if(!data.staff||!data.staff.length) return;
   var today=new Date(todayStr);
@@ -2112,8 +2129,18 @@ function renderMainAlerts(){
       var diffAnn=Math.floor((ann-today)/86400000);
       var diffDeadline=Math.floor((deadline-today)/86400000);
       // 해당일 2개월 전부터 ~ 사용기한(해당일+2년)까지 계속 노출
-      if(diffDeadline>=0&&diffAnn<=60){var atype='안식'+n+'주년',ayear=String(ann.getFullYear());if(!isDismissed(s.id,atype,ayear))sabbaticals.push({s:s,label:n+'주년 안식',type:atype,year:ayear,diff:diffDeadline,annDate:fmtAnnDate(ann),deadlineDate:fmtAnnDate(deadline)});}
+      if(diffDeadline>=0&&diffAnn<=60){var atype='안식'+n+'주년',ayear=String(ann.getFullYear());if(!isDismissed(s.id,atype,ayear))sabbaticals.push({s:s,label:n+'주년 안식',type:atype,year:ayear,diff:diffDeadline,annDate:fmtAnnDate(ann),deadlineDate:fmtAnnDate(deadline),grade:getSabbaticalGrade(s)});}
     });
+    // 2025.4.21 개편 소급대상자 (20주년 지난 지 오래됐지만 이번 개편으로 새로 대상이 된 인원)
+    if(SABBATICAL_RETRO_NAMES.indexOf(s.name)>=0){
+      var pAnn=SABBATICAL_POLICY_DATE;
+      var pDeadline=new Date(pAnn); pDeadline.setFullYear(pAnn.getFullYear()+2);
+      var pDiffDeadline=Math.floor((pDeadline-today)/86400000);
+      if(pDiffDeadline>=0){
+        var patype='안식20주년_소급',payear='2025소급';
+        if(!isDismissed(s.id,patype,payear))sabbaticals.push({s:s,label:'20주년 안식',type:patype,year:payear,diff:pDiffDeadline,annDate:fmtAnnDate(pAnn),deadlineDate:fmtAnnDate(pDeadline),grade:getSabbaticalGrade(s)});
+      }
+    }
     var nurseTeams=['성인병동간호팀','소아청소년병동간호팀','외래간호팀'];
     var isNurseTeam=nurseTeams.indexOf(s.dept)>=0;
     var pos=s.position||'';
@@ -2182,13 +2209,15 @@ function showAlertPopup(type){
     order2.forEach(function(lbl){
       var gs=groupStyles[lbl]||{color:'#374151',icon:'•'};
       var cnt2=(groups2[lbl]||[]).length;
-      rows+='<tr><td colspan="6" style="background:#f9fafb;font-weight:700;font-size:13px;padding:7px 10px;color:'+gs.color+';border-bottom:1px solid #e5e7eb">'+gs.icon+' '+lbl+' ('+cnt2+'명)</td></tr>';
+      rows+='<tr><td colspan="7" style="background:#f9fafb;font-weight:700;font-size:13px;padding:7px 10px;color:'+gs.color+';border-bottom:1px solid #e5e7eb">'+gs.icon+' '+lbl+' ('+cnt2+'명)</td></tr>';
       (groups2[lbl]||[]).forEach(function(a){
         var urgent=a.diff<=60;
         var dLabel=a.diff===0?'<b style="color:#EF4444">[오늘마감]</b>':(urgent?'<b style="color:#EF4444">D-'+a.diff+'</b>':'D-'+a.diff);
+        var grade=a.grade||getSabbaticalGrade(a.s);
         rows+='<tr style="border-bottom:1px solid #f3f4f6">'+
-          '<td style="padding:7px 10px;font-weight:600">'+a.s.name+'</td>'+
-          '<td style="padding:7px 10px;color:#6B7280;font-size:12px">'+a.s.dept+'</td>'+
+          '<td style="padding:7px 10px;font-weight:600;white-space:nowrap">'+a.s.name+'</td>'+
+          '<td style="padding:7px 10px;color:#6B7280;font-size:12px;white-space:nowrap">'+a.s.dept+'</td>'+
+          '<td style="padding:7px 10px;text-align:center;font-size:11px;white-space:nowrap"><span style="background:#F3F4F6;color:#374151;padding:2px 7px;border-radius:10px;font-weight:600">'+grade.label+'</span><br><span style="color:#9CA3AF;font-size:10px">'+grade.duration+'</span></td>'+
           '<td style="padding:7px 10px;text-align:center;font-size:12px">'+a.annDate+'</td>'+
           '<td style="padding:7px 10px;text-align:center;font-size:12px;color:'+(urgent?'#DC2626':'#6B7280')+';font-weight:'+(urgent?'700':'400')+'">'+a.deadlineDate+'</td>'+
           '<td style="padding:7px 10px;text-align:center;font-weight:700">'+dLabel+'</td>'+
@@ -2214,6 +2243,7 @@ function showAlertPopup(type){
   var thStyle='background:#44546E;color:#fff;padding:7px 10px;font-size:12px;';
   var headers='<th style="'+thStyle+'text-align:left">이름</th>'+
     '<th style="'+thStyle+'text-align:left">부서</th>'+
+    (type==='sabbatical'?'<th style="'+thStyle+'text-align:center">휴가기준</th>':'')+
     '<th style="'+thStyle+'text-align:center">해당일</th>'+
     (type==='sabbatical'?'<th style="'+thStyle+'text-align:center">사용기한</th>':'')+
     '<th style="'+thStyle+'text-align:center">D-day</th>'+
@@ -2223,7 +2253,7 @@ function showAlertPopup(type){
   var modal=document.createElement('div');
   modal.id='alert-popup-modal';
   modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:flex;align-items:center;justify-content:center';
-  var modalWidth=type==='contract'?660:580;
+  var modalWidth=type==='contract'?660:(type==='sabbatical'?660:580);
   modal.innerHTML='<div style="background:#fff;border-radius:12px;padding:24px;width:'+modalWidth+'px;max-width:95vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'+
       '<h3 style="font-size:15px;font-weight:700;color:#44546E">'+title+' ('+items.length+'명)</h3>'+
