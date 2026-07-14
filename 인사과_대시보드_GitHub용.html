@@ -1373,7 +1373,7 @@ function printReport(){
   var thisWk=document.getElementById("week-select").value||getWeekKey(todayStr);
   var prevWk=getPrevWeekKey(thisWk);
   var thisRange=getWeekRange(thisWk);
-  var headcount=localStorage.getItem("hr_headcount")||"266";
+  var headcount=(data.staff&&data.staff.length)?data.staff.length:(localStorage.getItem("hr_headcount")||"266");
 
   var win=window.open("","_blank");
   win.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>인사과 주간업무 회의록</title><style>");
