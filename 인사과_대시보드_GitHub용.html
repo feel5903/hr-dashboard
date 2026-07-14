@@ -437,7 +437,7 @@ tbody tr:hover{background:#FAFBFC}
     <div class="field"><label>이름</label><input type="text" id="ot-name"></div>
     <div class="field"><label>근무부서</label><input type="text" id="ot-dept"></div>
     <div class="field"><label>구분</label>
-      <select id="ot-category"><option>일자리사업</option><option>사회복무요원</option><option>자활근로</option><option>기타</option></select>
+      <select id="ot-category"><option>일자리사업</option><option>사회복무요원</option><option>자활근로</option><option>미화</option><option>기타</option></select>
     </div>
     <div class="field"><label>시작일</label><input type="date" id="ot-start"></div>
     <div class="field"><label>종료일</label><input type="date" id="ot-end"></div>
@@ -2985,12 +2985,12 @@ function showLeavesByType(){
     var inProgCnt=list.filter(function(l){return l.status==="진행중";}).length;
     var upcomingCnt=list.filter(function(l){return l.status==="예정";}).length;
     win.document.write("<div class='sub-title'>"+t+" ("+inProgCnt+"/"+upcomingCnt+") <span style='font-size:11px;font-weight:400;color:#9CA3AF'>전체 "+list.length+"건</span></div>");
-    win.document.write("<table><thead><tr><th>이름</th><th>부서</th><th>기간</th><th>일수</th><th>상태</th></tr></thead><tbody>");
+    win.document.write("<table style='table-layout:fixed'><colgroup><col style='width:15%'><col style='width:20%'><col style='width:33%'><col style='width:12%'><col style='width:20%'></colgroup><thead><tr><th>이름</th><th>부서</th><th>기간</th><th>일수</th><th>상태</th></tr></thead><tbody>");
     list.forEach(function(l){
       var days=calcLeaveDays(l.start,l.end);
       var status=l.status;
       var statusColor=status==="진행중"?"#92400E":status==="예정"?"#1D4ED8":"#9CA3AF";
-      win.document.write("<tr><td style='font-weight:600'>"+l.name+"</td><td>"+(l.dept||"")+"</td><td>"+(l.start||"")+" ~ "+(l.end||"")+"</td><td style='text-align:center'>"+(days?days+"일":"-")+"</td><td style='text-align:center;color:"+statusColor+";font-weight:600'>"+status+"</td></tr>");
+      win.document.write("<tr><td style='font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+l.name+"</td><td style='white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+(l.dept||"")+"</td><td style='white-space:nowrap'>"+(l.start||"")+" ~ "+(l.end||"")+"</td><td style='text-align:center'>"+(days?days+"일":"-")+"</td><td style='text-align:center;color:"+statusColor+";font-weight:600'>"+status+"</td></tr>");
     });
     win.document.write("</tbody></table>");
   });
