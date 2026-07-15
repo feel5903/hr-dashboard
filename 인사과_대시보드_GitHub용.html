@@ -416,12 +416,13 @@ tbody tr:hover{background:#FAFBFC}
 
 <!-- 기타인력 목록 모달 -->
 <div class="overlay" id="others-overlay">
-  <div class="modal" style="width:680px;max-height:85vh;overflow-y:auto">
+  <div class="modal" style="width:740px;max-height:85vh;overflow-y:auto">
     <h3>🧑‍💼 기타인력 관리 <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(일자리사업·사회복무요원 등)</span></h3>
     <div style="display:flex;justify-content:flex-end;margin:10px 0">
       <button class="btn lime" onclick="openOtherForm()">+ 추가</button>
     </div>
-    <table>
+    <table style="table-layout:fixed">
+      <colgroup><col style="width:14%"><col style="width:18%"><col style="width:14%"><col style="width:13%"><col style="width:13%"><col style="width:18%"><col style="width:10%"></colgroup>
       <thead><tr><th>이름</th><th>근무부서</th><th>구분</th><th>시작일</th><th>종료일</th><th>비고</th><th>관리</th></tr></thead>
       <tbody id="others-tbody"></tbody>
     </table>
@@ -2881,12 +2882,12 @@ function renderOthersTable(){
   tbody.innerHTML=list.map(function(o){
     var isActive=(!o.end||todayStr<=o.end)&&(!o.start||todayStr>=o.start);
     return "<tr>"+
-      "<td style='font-weight:600'>"+(o.name||"")+"</td>"+
-      "<td style='font-size:12px'>"+(o.dept||"")+"</td>"+
-      "<td><span style='font-size:11px;padding:2px 8px;border-radius:10px;background:#EEF2FF;color:#4338CA'>"+(o.category||"")+"</span></td>"+
-      "<td style='font-size:12px'>"+(o.start||"")+"</td>"+
-      "<td style='font-size:12px;color:"+(isActive?"inherit":"#DC2626")+"'>"+(o.end||"-")+"</td>"+
-      "<td style='font-size:12px;color:var(--text-muted)'>"+(o.note||"")+"</td>"+
+      "<td style='font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+(o.name||"")+"</td>"+
+      "<td style='font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+(o.dept||"")+"</td>"+
+      "<td style='white-space:nowrap'><span style='font-size:11px;padding:2px 7px;border-radius:10px;background:#EEF2FF;color:#4338CA'>"+(o.category||"")+"</span></td>"+
+      "<td style='font-size:12px;white-space:nowrap'>"+(o.start||"")+"</td>"+
+      "<td style='font-size:12px;white-space:nowrap;color:"+(isActive?"inherit":"#DC2626")+"'>"+(o.end||"-")+"</td>"+
+      "<td style='font-size:12px;color:var(--text-muted);white-space:pre-wrap'>"+(o.note||"")+"</td>"+
       "<td><div class='action-btns'>"+
         "<button class='edit-btn' onclick='openOtherForm(\""+o.id+"\")'>✏️</button>"+
         "<button class='del-btn' onclick='deleteOther(\""+o.id+"\")'>🗑️</button>"+
