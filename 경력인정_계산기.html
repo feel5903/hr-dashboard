@@ -274,6 +274,11 @@
           <option value="고용직">고용직 (미화·취사·수위 등)</option>
         </optgroup>
       </select>
+      <select id="degreeType" onchange="updateHobongDisplay()">
+        <option value="0">학위가산 없음</option>
+        <option value="1">전문학사 (+1호봉)</option>
+        <option value="2">학사 (+2호봉)</option>
+      </select>
       <div class="hint">
         기관 종별(종합병원/일반병원/의원급)은 <a href="https://www.hira.or.kr/ra/hosp/getHealthMap.do?pgmid=HIRAA030002010000" target="_blank" rel="noopener">건강보험심사평가원 병원·약국찾기</a>에서 확인 후 각 행의 "구분"에서 선택하세요.
       </div>
@@ -354,6 +359,10 @@
       <div class="stat total">
         <div class="label">합계 인정경력 (인정비율 적용 후)</div>
         <div class="value" id="sumRecognized">0개월</div>
+      </div>
+      <div class="stat total">
+        <div class="label">호봉</div>
+        <div class="value" id="hobongResult">-</div>
       </div>
     </div>
   </div>
@@ -558,6 +567,8 @@ function recalc(id){
   recalcAll(false);
 }
 
+let currentRecognizedTotalMonths = 0;
+
 function recalcAll(){
   const rows = document.querySelectorAll('#tbody tr');
   let sumRecognized = 0;
@@ -568,6 +579,24 @@ function recalcAll(){
   });
   document.getElementById('sumRecognized').textContent = monthsToStr(sumRecognized);
   document.getElementById('sumRawMonths').textContent = monthsToStr(sumRaw);
+  currentRecognizedTotalMonths = sumRecognized;
+  updateHobongDisplay();
+}
+
+// 호봉 = 인정경력 연수(개월 버림) + 학위가산(전문학사 +1, 학사 +2), 최대 30호봉
+// 표시: 일반기능직이면 "기능직", 그 외는 "4급" + 호봉 + "(경과개월)"
+function updateHobongDisplay(){
+  const category = document.getElementById('jobCategory').value;
+  const degree = Number(document.getElementById('degreeType').value || 0);
+  const years = Math.floor(currentRecognizedTotalMonths / 12);
+  const remMonths = currentRecognizedTotalMonths % 12;
+
+  let ho = years + degree;
+  if(ho > 30) ho = 30;
+  if(ho < 1) ho = 1;
+
+  const prefix = category === '일반기능직' ? '기능직' : '4급';
+  document.getElementById('hobongResult').textContent = `${prefix} ${ho}호(${remMonths})`;
 }
 
 function onCategoryChange(){
@@ -584,6 +613,7 @@ function onCategoryChange(){
     }
   });
   document.querySelectorAll('#tbody tr').forEach(r=>recalc(r.id));
+  updateHobongDisplay();
 }
 
 function clearForm(){
@@ -622,6 +652,7 @@ function escapeHtml(str){
 function gatherCurrentState(){
   const jobCategory = document.getElementById('jobCategory').value;
   const candidateName = document.getElementById('candidateName').value.trim();
+  const degreeType = document.getElementById('degreeType').value;
   const rows = [];
   document.querySelectorAll('#tbody tr').forEach(tr=>{
     const tierSelect = tr.querySelector('.f-tier');
@@ -633,7 +664,7 @@ function gatherCurrentState(){
       tierPct: tierSelect.value,
     });
   });
-  return {jobCategory, candidateName, rows};
+  return {jobCategory, candidateName, degreeType, rows};
 }
 
 function saveCurrent(){
@@ -701,6 +732,7 @@ function loadRecord(id){
   if(!record) return;
   document.getElementById('candidateName').value = record.candidateName;
   document.getElementById('jobCategory').value = record.jobCategory;
+  if(record.degreeType !== undefined){ document.getElementById('degreeType').value = record.degreeType; }
   document.getElementById('tbody').innerHTML = '';
   record.rows.forEach(rowData=>{
     addRow();
@@ -717,6 +749,7 @@ function loadRecord(id){
     recalc(tr.id);
   });
   if(record.rows.length === 0){ addRow(); addRow(); }
+  updateHobongDisplay();
   closeHistoryModal();
   window.scrollTo({top:0, behavior:'smooth'});
 }
