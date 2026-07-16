@@ -3216,12 +3216,11 @@ function showDeptStats(){
     if(v.annexOthers>0) annexDetail.push("기타 "+v.annexOthers);
     if(rotation>0) annexDetail.push("지정 "+rotation);
     var annexCell=annexTotal>0?(annexTotal+"<div style=\"font-size:9.5px;color:#9CA3AF;font-weight:400;margin-top:1px\">"+annexDetail.join(" · ")+"</div>"):"-";
-    var othersDetail=Object.keys(v.othersByCat).map(function(c){return c+" "+v.othersByCat[c];}).join(" · ");
-    var othersCell=v.others>0?(v.others+"<div style=\"font-size:9.5px;color:#9CA3AF;font-weight:400;margin-top:1px\">"+othersDetail+"</div>"):"-";
+    var othersCell=v.others>0?v.others:"-";
     rowsHtml+="<tr><td style='font-weight:600'>"+d+"</td>"+
       "<td style='text-align:center'>"+v.total+"</td>"+
       "<td style='text-align:center;color:"+(v.onLeave>0?"#DC2626":"#9CA3AF")+"'>"+v.onLeave+"</td>"+
-      "<td style='text-align:center;font-weight:700;color:"+(annexTotal>0?"#4338CA":"#9CA3AF")+"'>"+annexCell+"</td>"+
+      "<td style='text-align:center;font-weight:700'>"+annexCell+"</td>"+
       "<td style='text-align:center;font-weight:700;color:#44546E;background:#EEF7DC'>"+work+"</td>"+
       "<td style='text-align:center;background:#EEF7DC'>"+othersCell+"</td>"+
       "<td style='text-align:center;font-weight:700;background:#DCEEB3'>"+sum+"</td></tr>";
