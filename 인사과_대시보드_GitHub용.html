@@ -382,6 +382,9 @@ tbody tr:hover{background:#FAFBFC}
       <div class="field"><label>구분</label>
         <select id="sf-contractType"><option>정규직</option><option>계약직</option></select>
       </div>
+      <div class="field"><label>근무위치</label>
+        <select id="sf-location"><option>본관</option><option>별관</option></select>
+      </div>
     </div>
     <div class="field"><label>계약종료일 (계약직만)</label><input type="date" id="sf-contractEnd"></div>
     <div class="field"><label>비고</label><input type="text" id="sf-note" placeholder="예: 정규직 전환 예정, 재계약 가능 등"></div>
@@ -2119,7 +2122,7 @@ function renderStaff() {
     var ce=s.contractEnd||'';
     return '<tr>'+
       '<td style="font-weight:600">'+(s.name||'')+'</td>'+
-      '<td style="font-size:12px">'+(s.dept||'')+'</td>'+
+      '<td style="font-size:12px">'+(s.dept||'')+' <button onclick="toggleStaffLocation(\''+s.id+'\')" title="클릭하면 본관/별관 전환됩니다" style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:8px;border:none;cursor:pointer;background:'+(s.location==='별관'?'#E0E7FF':'#F3F4F6')+';color:'+(s.location==='별관'?'#4338CA':'#9CA3AF')+'">'+(s.location==='별관'?'별관':'본관')+'</button></td>'+
       '<td style="text-align:center;font-size:12px">'+(s.position||'')+'</td>'+
       '<td style="text-align:center;font-size:12px">'+(s.title||'')+'</td>'+
       '<td style="text-align:center;font-size:12px">'+(s.joinDate||'')+'</td>'+
@@ -2143,6 +2146,7 @@ function openStaffForm(){
   ['sf-name','sf-dept','sf-position','sf-title','sf-note'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('sf-joinDate').value=todayStr;
   document.getElementById('sf-contractType').value='정규직';
+  document.getElementById('sf-location').value='본관';
   document.getElementById('sf-contractEnd').value='';
   document.getElementById('sf-note').value='';
   document.getElementById('staff-overlay').classList.add('open');
@@ -2159,6 +2163,7 @@ function editStaff(id){
   document.getElementById('sf-title').value=s.title||'';
   document.getElementById('sf-joinDate').value=s.joinDate||'';
   document.getElementById('sf-contractType').value=s.contractType||'정규직';
+  document.getElementById('sf-location').value=s.location||'본관';
   document.getElementById('sf-contractEnd').value=s.contractEnd||'';
   document.getElementById('sf-note').value=s.note||'';
   document.getElementById('staff-overlay').classList.add('open');
@@ -2168,10 +2173,10 @@ function closeStaffModal(){document.getElementById('staff-overlay').classList.re
 
 async function saveStaff(){
   var eid=document.getElementById('staff-edit-id').value;
-  var nr={id:eid||('st'+Date.now()),name:document.getElementById('sf-name').value.trim(),dept:document.getElementById('sf-dept').value.trim(),position:document.getElementById('sf-position').value.trim(),title:document.getElementById('sf-title').value.trim(),joinDate:document.getElementById('sf-joinDate').value,contractType:document.getElementById('sf-contractType').value,contractEnd:document.getElementById('sf-contractEnd').value,note:document.getElementById('sf-note').value.trim()};
+  var nr={id:eid||('st'+Date.now()),name:document.getElementById('sf-name').value.trim(),dept:document.getElementById('sf-dept').value.trim(),position:document.getElementById('sf-position').value.trim(),title:document.getElementById('sf-title').value.trim(),joinDate:document.getElementById('sf-joinDate').value,contractType:document.getElementById('sf-contractType').value,contractEnd:document.getElementById('sf-contractEnd').value,note:document.getElementById('sf-note').value.trim(),location:document.getElementById('sf-location').value};
   if(!nr.name){alert('이름을 입력해주세요');return;}
   if(!data.staff) data.staff=[];
-  var row=[nr.id,nr.name,nr.dept,nr.position,nr.title,nr.joinDate,nr.contractType,nr.contractEnd,nr.note||''];
+  var row=[nr.id,nr.name,nr.dept,nr.position,nr.title,nr.joinDate,nr.contractType,nr.contractEnd,nr.note||'',nr.location];
   if(eid){var idx=data.staff.findIndex(function(x){return x.id===eid;});if(idx>=0)data.staff[idx]=nr;await updateRowSafe('staff',eid,row);}
   else{data.staff.push(nr);await saveRow('staff',row);}
   closeStaffModal();renderStaff();
@@ -2182,6 +2187,15 @@ async function deleteStaff(id){
   if(!s||!confirm(s.name+'을 삭제할까요?')) return;
   data.staff=data.staff.filter(function(x){return x.id!==id;});
   await deleteRowSafe('staff',id);renderStaff();
+}
+
+async function toggleStaffLocation(id){
+  var s=(data.staff||[]).find(function(x){return x.id===id;});
+  if(!s) return;
+  s.location=(s.location==='별관')?'본관':'별관';
+  renderStaff();
+  var row=[s.id,s.name,s.dept,s.position,s.title,s.joinDate,s.contractType,s.contractEnd,s.note||'',s.location];
+  await updateRowSafe('staff',s.id,row);
 }
 
 // ════════ 메인 알림 ════════
@@ -3081,7 +3095,7 @@ function showDeptStats(){
   var deptMap={};
   (data.staff||[]).forEach(function(s){
     var d=s.dept||"미지정";
-    if(!deptMap[d]) deptMap[d]={total:0,onLeave:0,others:0};
+    if(!deptMap[d]) deptMap[d]={total:0,onLeave:0,others:0,annex:0};
     deptMap[d].total++;
   });
   (data.staffLeaves||[]).forEach(function(l){
@@ -3091,28 +3105,36 @@ function showDeptStats(){
       if(d&&deptMap[d]) deptMap[d].onLeave++;
     }
   });
+  // 별관근무자: 오늘 기준 휴가중이 아닌 별관 근무자만 카운트 (실제 별관에 있는 인원)
+  (data.staff||[]).forEach(function(s){
+    if(s.location!=="별관") return;
+    var d=s.dept||"미지정";
+    var onLeaveToday=(data.staffLeaves||[]).some(function(l){return l.staffId===s.id&&todayStr>=l.start&&todayStr<=l.end;});
+    if(!onLeaveToday&&deptMap[d]) deptMap[d].annex++;
+  });
   (data.others||[]).forEach(function(o){
     var activeStart=!o.start||todayStr>=o.start;
     var activeEnd=!o.end||todayStr<=o.end;
     if(activeStart&&activeEnd){
       var d=o.dept||"미지정";
-      if(!deptMap[d]) deptMap[d]={total:0,onLeave:0,others:0};
+      if(!deptMap[d]) deptMap[d]={total:0,onLeave:0,others:0,annex:0};
       deptMap[d].others+=(o.count?parseInt(o.count):1);
     }
   });
 
   var depts=Object.keys(deptMap).sort();
-  var totalStaff=0,totalLeave=0,totalWork=0,totalOthers=0,totalSum=0;
+  var totalStaff=0,totalLeave=0,totalWork=0,totalOthers=0,totalSum=0,totalAnnex=0;
   var rowsHtml="";
   depts.forEach(function(d){
     var v=deptMap[d];
     var work=v.total-v.onLeave;
     var sum=work+v.others;
-    totalStaff+=v.total; totalLeave+=v.onLeave; totalWork+=work; totalOthers+=v.others; totalSum+=sum;
+    totalStaff+=v.total; totalLeave+=v.onLeave; totalWork+=work; totalOthers+=v.others; totalSum+=sum; totalAnnex+=v.annex;
     rowsHtml+="<tr><td style='font-weight:600'>"+d+"</td>"+
       "<td style='text-align:center'>"+v.total+"</td>"+
       "<td style='text-align:center;color:"+(v.onLeave>0?"#DC2626":"#9CA3AF")+"'>"+v.onLeave+"</td>"+
       "<td style='text-align:center;font-weight:700;color:#44546E'>"+work+"</td>"+
+      "<td style='text-align:center;color:"+(v.annex>0?"#4338CA":"#9CA3AF")+"'>"+(v.annex>0?v.annex:"-")+"</td>"+
       "<td style='text-align:center'>"+(v.others>0?v.others+" <span style=\"font-size:10px;color:#6B7280\">(기타)</span>":"-")+"</td>"+
       "<td style='text-align:center;font-weight:700;background:#F9FAFB'>"+sum+"</td></tr>";
   });
@@ -3124,26 +3146,26 @@ function showDeptStats(){
 
   var win=window.open("","_blank");
   win.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>부서별 인원통계</title><style>");
-  win.document.write("body{font-family:'Noto Sans KR',sans-serif;font-size:13px;padding:20px 30px;color:#1F2937}");
+  win.document.write("body{font-family:'Noto Sans KR',sans-serif;font-size:13px;padding:20px 60px;color:#1F2937}");
   win.document.write("h1{text-align:center;font-size:18px;color:#44546E;margin-bottom:4px}");
   win.document.write(".subtitle{text-align:center;font-size:12px;color:#888;margin-bottom:20px}");
-  win.document.write("table{width:100%;border-collapse:collapse;margin-bottom:20px}");
+  win.document.write("table{width:100%;max-width:880px;margin:0 auto 20px;border-collapse:collapse}");
   win.document.write("th{background:#44546E;color:#fff;padding:7px 10px;font-size:12px;text-align:center}");
   win.document.write("td{padding:6px 10px;border:1px solid #ddd;font-size:13px}");
   win.document.write(".total-row td{background:#FEF3DC;font-weight:700}");
-  win.document.write(".sub-title{font-size:14px;font-weight:700;color:#44546E;margin:20px 0 8px;border-left:4px solid #A5D861;padding-left:8px}");
+  win.document.write(".sub-title{font-size:14px;font-weight:700;color:#44546E;margin:20px auto 8px;max-width:880px;border-left:4px solid #A5D861;padding-left:8px}");
   win.document.write("@media print{button{display:none}}");
   win.document.write("</style></head><body>");
   win.document.write("<h1>서울재활병원 부서별 인원통계</h1>");
-  win.document.write("<div class='subtitle'>기준일: "+todayStr+"</div>");
-  win.document.write("<table><thead><tr><th>부서</th><th>직원</th><th>휴가중</th><th>실근무인원</th><th>기타인력</th><th>합계</th></tr></thead><tbody>");
+  win.document.write("<div class='subtitle'>기준일: "+todayStr+" · 별관근무는 실근무인원 중 별관 소속 인원수예요</div>");
+  win.document.write("<table><colgroup><col style='width:26%'><col style='width:10%'><col style='width:10%'><col style='width:14%'><col style='width:14%'><col style='width:14%'><col style='width:12%'></colgroup><thead><tr><th>부서</th><th>직원</th><th>휴가중</th><th>실근무인원</th><th>별관근무</th><th>기타인력</th><th>합계</th></tr></thead><tbody>");
   win.document.write(rowsHtml);
-  win.document.write("<tr class='total-row'><td>전체 합계</td><td style='text-align:center'>"+totalStaff+"</td><td style='text-align:center'>"+totalLeave+"</td><td style='text-align:center'>"+totalWork+"</td><td style='text-align:center'>"+totalOthers+"</td><td style='text-align:center'>"+totalSum+"</td></tr>");
+  win.document.write("<tr class='total-row'><td>전체 합계</td><td style='text-align:center'>"+totalStaff+"</td><td style='text-align:center'>"+totalLeave+"</td><td style='text-align:center'>"+totalWork+"</td><td style='text-align:center'>"+totalAnnex+"</td><td style='text-align:center'>"+totalOthers+"</td><td style='text-align:center'>"+totalSum+"</td></tr>");
   win.document.write("</tbody></table>");
 
   win.document.write("<div class='sub-title'>🏖️ 현재 휴직/휴가중 인원 ("+onLeaveList.length+"명)</div>");
   if(!onLeaveList.length){
-    win.document.write("<p style='color:#888;font-size:12px'>현재 휴가중인 인원이 없습니다</p>");
+    win.document.write("<p style='color:#888;font-size:12px;max-width:880px;margin:0 auto'>현재 휴가중인 인원이 없습니다</p>");
   } else {
     win.document.write("<table><thead><tr><th>이름</th><th>부서</th><th>휴가종류</th><th>기간</th></tr></thead><tbody>");
     onLeaveList.forEach(function(l){
