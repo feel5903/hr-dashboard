@@ -350,7 +350,6 @@ tbody tr:hover{background:#FAFBFC}
         <button class="btn lime" onclick="openStaffForm()">+ 직원 추가</button>
         <button class="btn" onclick="openOthersModal()" style="border-color:#6366F1;color:#4338CA">🧑‍💼 기타인력</button>
         <button class="btn" onclick="showLeavesByType()" style="border-color:#B45309;color:#92400E">🏖️ 휴가별 현황</button>
-        <button class="btn" onclick="openDeptAnnexModal()" style="border-color:#4338CA;color:#4338CA">🏢 부서 별관설정</button>
         <button class="btn primary" onclick="showDeptStats()">📊 부서별 인원통계</button>
       </div>
     </div>
@@ -419,16 +418,6 @@ tbody tr:hover{background:#FAFBFC}
 </div>
 
 <!-- 기타인력 목록 모달 -->
-<!-- 부서 별관설정 모달 -->
-<div class="overlay" id="dept-annex-overlay">
-  <div class="modal" style="width:520px;max-height:80vh;overflow-y:auto">
-    <h3>🏢 부서별 별관인원 설정 <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(로테이션 등으로 개별 직원 표시가 어려운 경우)</span></h3>
-    <div style="font-size:12px;color:var(--text-muted);margin:8px 0 14px">숫자를 입력해두면, 그 부서는 개별 직원 별관표시 대신 <b>이 숫자로 고정</b>돼서 통계에 반영돼요. 비워두면 자동계산(개별 직원 별관표시 기준)으로 돌아가요.</div>
-    <div id="dept-annex-list"></div>
-    <div class="modal-actions"><button class="btn primary" onclick="document.getElementById('dept-annex-overlay').classList.remove('open')">닫기</button></div>
-  </div>
-</div>
-
 <div class="overlay" id="others-overlay">
   <div class="modal" style="width:740px;max-height:85vh;overflow-y:auto">
     <h3>🧑‍💼 기타인력 관리 <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(일자리사업·사회복무요원 등)</span></h3>
@@ -658,7 +647,7 @@ var PALETTE=["#44546E","#2563EB","#5C8A1E","#7C3AED","#D97706","#DC2626","#0891B
 var members=JSON.parse(localStorage.getItem("hr_members")||"null")||[{name:"김재용",role:"인사과장",color:"#44546E"},{name:"배지은",role:"주임",color:"#2563EB"},{name:"공지현",role:"주임",color:"#5C8A1E"},{name:"최필상",role:"사원",color:"#7C3AED"}];
 var curMonth={y:TODAY.getFullYear(),m:TODAY.getMonth()};
 var curForm="daily",editMemberIdx=null,editIdx=null;
-var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[],duties:[],staff:[],annual:[],staffLeaves:[],others:[],deptAnnex:[]};
+var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[],duties:[],staff:[],annual:[],staffLeaves:[],others:[]};
 var dismissedAlerts=[];
 var isEditing=false; // 입력 중 동기화 방지 플래그
 (function(){try{var b=localStorage.getItem("hr_data_backup");if(b){var p=JSON.parse(b);if(p.daily)data.daily=p.daily;if(p.project)data.project=p.project;if(p.task)data.task=p.task;if(p.leave)data.leave=p.leave;if(p.recruit)data.recruit=p.recruit;if(p.dormitory)data.dormitory=p.dormitory;}}catch(e){}})();
@@ -787,7 +776,7 @@ async function deleteRowsSafe(tab,ids){
 async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동기화 대기)");return;}setSyncStatus("loading","⟳ 동기화 중...");try{var d=await callScript({tab:"daily"});var p=await callScript({tab:"project"});var lv=await callScript({tab:"leave"});var tk=await callScript({tab:"task"});
     var rc=await callScript({tab:"recruit"});
     var dm=await callScript({tab:"dormitory"});
-    var dt=await callScript({tab:"duties"});var st=await callScript({tab:"staff"});var ad=await callScript({tab:"alerts_dismissed"});var an=await callScript({tab:"annual"});var sl=await callScript({tab:"staff_leaves"});var ot=await callScript({tab:"others"});var da=await callScript({tab:"dept_annex"});var fd=filterRows(d).map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p).map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv).map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk).map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
+    var dt=await callScript({tab:"duties"});var st=await callScript({tab:"staff"});var ad=await callScript({tab:"alerts_dismissed"});var an=await callScript({tab:"annual"});var sl=await callScript({tab:"staff_leaves"});var ot=await callScript({tab:"others"});var fd=filterRows(d).map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p).map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv).map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk).map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
     var frc=filterRows(rc).map(function(r){return normalizeRow(r,"recruit");});
     data.recruit=frc;
     var fdm=filterRows(dm).map(function(r){return normalizeRow(r,"dormitory");});
@@ -803,8 +792,6 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
     data.staffLeaves=fsl;
     var fot=filterRows(ot).map(function(r){return normalizeRow(r,"others");});
     data.others=fot;
-    var fda=filterRows(da).map(function(r){return normalizeRow(r,"dept_annex");});
-    data.deptAnnex=fda;
     saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
 function updateStats(){
   document.getElementById("s-due").textContent=data.daily.filter(function(x){return isToday(x.end)&&x.status!=="완료";}).length;
@@ -3125,54 +3112,6 @@ function showLeavesByType(){
   win.document.close();
 }
 
-// ── 부서별 별관인원 수동설정 ──
-function getAllKnownDepts(){
-  var set={};
-  (data.staff||[]).forEach(function(s){ if(s.dept) set[s.dept]=true; });
-  (data.others||[]).forEach(function(o){ if(o.dept) set[o.dept]=true; });
-  return Object.keys(set).sort();
-}
-function getDeptAnnexOverride(dept){
-  var row=(data.deptAnnex||[]).find(function(x){return x.dept===dept;});
-  if(!row||row.annexCount===""||row.annexCount===undefined||row.annexCount===null) return null;
-  var n=parseInt(row.annexCount);
-  return isNaN(n)?null:n;
-}
-function openDeptAnnexModal(){
-  var depts=getAllKnownDepts();
-  var el=document.getElementById("dept-annex-list");
-  if(!depts.length){ el.innerHTML="<div class='empty'>등록된 부서가 없습니다</div>"; }
-  else {
-    el.innerHTML=depts.map(function(d){
-      var cur=getDeptAnnexOverride(d);
-      return "<div style='display:flex;align-items:center;gap:8px;padding:.4rem .2rem;border-bottom:1px solid #f3f4f6'>"+
-        "<span style='flex:1;font-size:13px;font-weight:600'>"+d+"</span>"+
-        "<input type='number' min='0' placeholder='자동계산' value='"+(cur===null?"":cur)+"' id='da-input-"+encodeURIComponent(d)+"' style='width:90px;padding:.3rem .5rem;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:12px;text-align:center'>"+
-        "<span style='font-size:11px;color:var(--text-muted)'>명</span>"+
-        "<button onclick='saveDeptAnnexOverride(\""+d.replace(/"/g,'&quot;')+"\")' style='font-size:11px;padding:4px 10px;border:none;border-radius:6px;background:var(--navy);color:#fff;cursor:pointer'>저장</button>"+
-      "</div>";
-    }).join("");
-  }
-  document.getElementById("dept-annex-overlay").classList.add("open");
-}
-async function saveDeptAnnexOverride(dept){
-  var input=document.getElementById("da-input-"+encodeURIComponent(dept));
-  if(!input) return;
-  var val=input.value.trim();
-  var annexCount=val===""?"":parseInt(val);
-  if(!data.deptAnnex) data.deptAnnex=[];
-  var idx=data.deptAnnex.findIndex(function(x){return x.dept===dept;});
-  if(idx>=0){
-    data.deptAnnex[idx].annexCount=annexCount;
-    await updateRowSafe("dept_annex",data.deptAnnex[idx].id,[data.deptAnnex[idx].id,dept,annexCount]);
-  } else {
-    var nr={id:genId("da"),dept:dept,annexCount:annexCount};
-    data.deptAnnex.push(nr);
-    await saveRow("dept_annex",[nr.id,nr.dept,nr.annexCount]);
-  }
-  setSyncStatus("ok","● 저장됨");
-}
-
 function showDeptStats(){
   var deptMap={};
   (data.staff||[]).forEach(function(s){
@@ -3214,27 +3153,19 @@ function showDeptStats(){
   });
 
   var depts=Object.keys(deptMap).sort();
-  var totalStaff=0,totalLeave=0,totalWork=0,totalOthers=0,totalSum=0,totalAnnexStaff=0,totalAnnexOthers=0,totalAnnexManual=0;
+  var totalStaff=0,totalLeave=0,totalWork=0,totalOthers=0,totalSum=0,totalAnnexStaff=0,totalAnnexOthers=0;
   var rowsHtml="";
   depts.forEach(function(d){
     var v=deptMap[d];
     var work=v.total-v.onLeave;
     var sum=work+v.others;
     totalStaff+=v.total; totalLeave+=v.onLeave; totalWork+=work; totalOthers+=v.others; totalSum+=sum;
-    var override=getDeptAnnexOverride(d);
-    var annexTotal,annexCell;
-    if(override!==null){
-      annexTotal=override;
-      totalAnnexManual+=override;
-      annexCell=annexTotal>0?(annexTotal+" <span style=\"font-size:10px;color:#6B7280\">(수동설정)</span>"):"0 <span style=\"font-size:10px;color:#6B7280\">(수동설정)</span>";
-    } else {
-      totalAnnexStaff+=v.annexStaff; totalAnnexOthers+=v.annexOthers;
-      annexTotal=v.annexStaff+v.annexOthers;
-      var annexDetail=[];
-      if(v.annexStaff>0) annexDetail.push("직원 "+v.annexStaff);
-      if(v.annexOthers>0) annexDetail.push("기타 "+v.annexOthers);
-      annexCell=annexTotal>0?(annexTotal+" <span style=\"font-size:10px;color:#6B7280\">("+annexDetail.join(" · ")+")</span>"):"-";
-    }
+    totalAnnexStaff+=v.annexStaff; totalAnnexOthers+=v.annexOthers;
+    var annexTotal=v.annexStaff+v.annexOthers;
+    var annexDetail=[];
+    if(v.annexStaff>0) annexDetail.push("직원 "+v.annexStaff);
+    if(v.annexOthers>0) annexDetail.push("기타 "+v.annexOthers);
+    var annexCell=annexTotal>0?(annexTotal+" <span style=\"font-size:10px;color:#6B7280\">("+annexDetail.join(" · ")+")</span>"):"-";
     var othersDetail=Object.keys(v.othersByCat).map(function(c){return c+" "+v.othersByCat[c];}).join(" · ");
     var othersCell=v.others>0?(v.others+" <span style=\"font-size:10px;color:#6B7280\">("+othersDetail+")</span>"):"-";
     rowsHtml+="<tr><td style='font-weight:600'>"+d+"</td>"+
@@ -3270,12 +3201,7 @@ function showDeptStats(){
     "<tr><th>부서</th><th>직원</th><th>휴가중</th><th>별관근무</th><th>실근무인원</th><th>기타인력</th><th>합계</th></tr>"+
   "</thead><tbody>");
   win.document.write(rowsHtml);
-  var annexTotalAll=totalAnnexStaff+totalAnnexOthers+totalAnnexManual;
-  var annexTotalDetail=[];
-  if(totalAnnexStaff>0) annexTotalDetail.push("직원 "+totalAnnexStaff);
-  if(totalAnnexOthers>0) annexTotalDetail.push("기타 "+totalAnnexOthers);
-  if(totalAnnexManual>0) annexTotalDetail.push("수동 "+totalAnnexManual);
-  win.document.write("<tr class='total-row'><td>전체 합계</td><td style='text-align:center'>"+totalStaff+"</td><td style='text-align:center'>"+totalLeave+"</td><td style='text-align:center'>"+annexTotalAll+" <span style=\"font-size:10px;font-weight:400;color:#6B7280\">("+annexTotalDetail.join(" · ")+")</span></td><td style='text-align:center'>"+totalWork+"</td><td style='text-align:center'>"+totalOthers+"</td><td style='text-align:center'>"+totalSum+"</td></tr>");
+  win.document.write("<tr class='total-row'><td>전체 합계</td><td style='text-align:center'>"+totalStaff+"</td><td style='text-align:center'>"+totalLeave+"</td><td style='text-align:center'>"+(totalAnnexStaff+totalAnnexOthers)+" <span style=\"font-size:10px;font-weight:400;color:#6B7280\">(직원 "+totalAnnexStaff+" · 기타 "+totalAnnexOthers+")</span></td><td style='text-align:center'>"+totalWork+"</td><td style='text-align:center'>"+totalOthers+"</td><td style='text-align:center'>"+totalSum+"</td></tr>");
   win.document.write("</tbody></table>");
 
   win.document.write("<div class='sub-title'>🏖️ 현재 휴직/휴가중 인원 ("+onLeaveList.length+"명)</div>");
