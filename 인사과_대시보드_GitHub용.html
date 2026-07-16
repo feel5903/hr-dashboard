@@ -1025,19 +1025,7 @@ function renderWeekly(){
         var wt=document.createTextNode(x.content);t2.appendChild(wt);
         var t3=document.createElement("td");t3.style.fontSize="12px";t3.textContent=x.start||"";
         var t4=document.createElement("td");t4.style.fontSize="12px";if(wOver){t4.style.color="#DC2626";t4.style.fontWeight="600";t4.textContent=(x.end||"")+" ⚠️";}else if(wDue){t4.style.color="#D97706";t4.style.fontWeight="600";t4.textContent=(x.end||"")+" 🔔";}else{t4.textContent=x.end||"";}
-        var t5=document.createElement("td");
-        if(String(x.id).indexOf("tk")===0){
-          t5.innerHTML=badge(x.status);
-        } else {
-          var selStatus=document.createElement("select");
-          selStatus.style.cssText="font-size:11px;padding:2px 4px;border:1px solid var(--gray-border);border-radius:4px";
-          ["진행","완료","대기","피드백","보류"].forEach(function(st){var op=document.createElement("option");op.textContent=st;if(x.status===st)op.selected=true;selStatus.appendChild(op);});
-          selStatus.onchange=(function(rowId){return function(){
-            var di=data.daily.findIndex(function(d){return d.id===rowId;});
-            if(di>=0) changeStatus("daily",di,this.value);
-          };})(x.id);
-          t5.appendChild(selStatus);
-        }
+        var t5=document.createElement("td");t5.innerHTML=badge(x.status);
         var t6=document.createElement("td");t6.style.cssText="font-size:12px;color:var(--text-muted);white-space:pre-wrap";t6.textContent=x.note||"";
         var t7=document.createElement("td");
         var ta=document.createElement("textarea");
