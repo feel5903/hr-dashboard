@@ -3211,8 +3211,13 @@ function showDeptStats(){
     var rotation=getRotationAnnex(d);
     totalAnnexStaff+=v.annexStaff; totalAnnexOthers+=v.annexOthers; totalAnnexRotation+=rotation;
     var annexTotal=v.annexStaff+v.annexOthers+rotation;
-    var annexCell=annexTotal>0?annexTotal:"-";
-    var othersCell=v.others>0?v.others:"-";
+    var annexDetail=[];
+    if(v.annexStaff>0) annexDetail.push("직원 "+v.annexStaff);
+    if(v.annexOthers>0) annexDetail.push("기타 "+v.annexOthers);
+    if(rotation>0) annexDetail.push("지정 "+rotation);
+    var annexCell=annexTotal>0?(annexTotal+"<div style=\"font-size:9.5px;color:#9CA3AF;font-weight:400;margin-top:1px\">"+annexDetail.join(" · ")+"</div>"):"-";
+    var othersDetail=Object.keys(v.othersByCat).map(function(c){return c+" "+v.othersByCat[c];}).join(" · ");
+    var othersCell=v.others>0?(v.others+"<div style=\"font-size:9.5px;color:#9CA3AF;font-weight:400;margin-top:1px\">"+othersDetail+"</div>"):"-";
     rowsHtml+="<tr><td style='font-weight:600'>"+d+"</td>"+
       "<td style='text-align:center'>"+v.total+"</td>"+
       "<td style='text-align:center;color:"+(v.onLeave>0?"#DC2626":"#9CA3AF")+"'>"+v.onLeave+"</td>"+
@@ -3246,7 +3251,12 @@ function showDeptStats(){
     "<tr><th>부서</th><th>직원</th><th>휴가중</th><th>별관근무</th><th>실근무인원</th><th>기타인력</th><th>합계</th></tr>"+
   "</thead><tbody>");
   win.document.write(rowsHtml);
-  win.document.write("<tr class='total-row'><td>전체 합계</td><td style='text-align:center'>"+totalStaff+"</td><td style='text-align:center'>"+totalLeave+"</td><td style='text-align:center'>"+(totalAnnexStaff+totalAnnexOthers+totalAnnexRotation)+"</td><td style='text-align:center'>"+totalWork+"</td><td style='text-align:center'>"+totalOthers+"</td><td style='text-align:center'>"+totalSum+"</td></tr>");
+  var totalAnnexDetail=[];
+  if(totalAnnexStaff>0) totalAnnexDetail.push("직원 "+totalAnnexStaff);
+  if(totalAnnexOthers>0) totalAnnexDetail.push("기타 "+totalAnnexOthers);
+  if(totalAnnexRotation>0) totalAnnexDetail.push("지정 "+totalAnnexRotation);
+  var totalAnnexAll=totalAnnexStaff+totalAnnexOthers+totalAnnexRotation;
+  win.document.write("<tr class='total-row'><td>전체 합계</td><td style='text-align:center'>"+totalStaff+"</td><td style='text-align:center'>"+totalLeave+"</td><td style='text-align:center'>"+(totalAnnexAll>0?(totalAnnexAll+"<div style=\"font-size:9.5px;color:#9CA3AF;font-weight:400;margin-top:1px\">"+totalAnnexDetail.join(" · ")+"</div>"):"-")+"</td><td style='text-align:center'>"+totalWork+"</td><td style='text-align:center'>"+totalOthers+"</td><td style='text-align:center'>"+totalSum+"</td></tr>");
   win.document.write("</tbody></table>");
 
   win.document.write("<div class='sub-title'>🏖️ 현재 휴직/휴가중 인원 ("+onLeaveList.length+"명)</div>");
