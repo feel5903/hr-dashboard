@@ -439,7 +439,11 @@ tbody tr:hover{background:#FAFBFC}
     <h3 id="other-form-title">기타인력 추가</h3>
     <input type="hidden" id="ot-id">
     <div class="field" id="ot-name-field"><label>이름</label><input type="text" id="ot-name"></div>
-    <div class="field" id="ot-count-field" style="display:none"><label>인원수</label><input type="number" id="ot-count" min="1" placeholder="예: 5"></div>
+    <div class="field" id="ot-location-field"><label>근무위치</label>
+      <select id="ot-location"><option>본관</option><option>별관</option></select>
+    </div>
+    <div class="field" id="ot-count-field" style="display:none"><label>전체 인원수</label><input type="number" id="ot-count" min="1" placeholder="예: 5"></div>
+    <div class="field" id="ot-annexcount-field" style="display:none"><label>그 중 별관 인원수</label><input type="number" id="ot-annexCount" min="0" placeholder="예: 2"></div>
     <div class="field"><label>근무부서</label><input type="text" id="ot-dept"></div>
     <div class="field"><label>구분</label>
       <select id="ot-category" onchange="toggleOtherFields()"><option>일자리사업</option><option>사회복무요원</option><option>자활근로</option><option>미화</option><option>영양</option><option>용역</option><option>기타</option></select>
@@ -2946,7 +2950,9 @@ function toggleOtherFields(){
   var cat=document.getElementById("ot-category").value;
   var isHc=OTHER_HEADCOUNT_CATS.indexOf(cat)>=0;
   document.getElementById("ot-name-field").style.display=isHc?"none":"";
+  document.getElementById("ot-location-field").style.display=isHc?"none":"";
   document.getElementById("ot-count-field").style.display=isHc?"":"none";
+  document.getElementById("ot-annexcount-field").style.display=isHc?"":"none";
 }
 function renderOthersTable(){
   var list=data.others||[];
@@ -2957,7 +2963,13 @@ function renderOthersTable(){
     var isActive=(!o.end||todayStr<=o.end)&&(!o.start||todayStr>=o.start);
     var isHc=OTHER_HEADCOUNT_CATS.indexOf(o.category)>=0;
     var catStyle=getOtherCategoryStyle(o.category);
-    var nameCell=isHc?(o.count||1)+"명":(o.name||"");
+    var annexBadge=' <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;background:#E0E7FF;color:#4338CA">별관 '+(isHc?(o.annexCount||0):"")+'</span>';
+    var nameCell;
+    if(isHc){
+      nameCell=(o.count||1)+"명"+((o.annexCount&&parseInt(o.annexCount)>0)?annexBadge:"");
+    } else {
+      nameCell=(o.name||"")+((o.location==='별관')?' <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;background:#E0E7FF;color:#4338CA">별관</span>':"");
+    }
     return "<tr>"+
       "<td style='font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+nameCell+"</td>"+
       "<td style='font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+(o.dept||"")+"</td>"+
@@ -2979,7 +2991,9 @@ function openOtherForm(id){
     if(!o) return;
     document.getElementById("other-form-title").textContent="기타인력 수정";
     document.getElementById("ot-name").value=o.name||"";
+    document.getElementById("ot-location").value=o.location||"본관";
     document.getElementById("ot-count").value=o.count||"";
+    document.getElementById("ot-annexCount").value=o.annexCount||"";
     document.getElementById("ot-dept").value=o.dept||"";
     document.getElementById("ot-category").value=o.category||"일자리사업";
     document.getElementById("ot-start").value=o.start||todayStr;
@@ -2988,7 +3002,9 @@ function openOtherForm(id){
   } else {
     document.getElementById("other-form-title").textContent="기타인력 추가";
     document.getElementById("ot-name").value="";
+    document.getElementById("ot-location").value="본관";
     document.getElementById("ot-count").value="";
+    document.getElementById("ot-annexCount").value="";
     document.getElementById("ot-dept").value="";
     document.getElementById("ot-category").value="일자리사업";
     document.getElementById("ot-start").value=todayStr;
@@ -3002,14 +3018,17 @@ async function saveOther(){
   var id=document.getElementById("ot-id").value;
   var category=document.getElementById("ot-category").value;
   var isHc=OTHER_HEADCOUNT_CATS.indexOf(category)>=0;
-  var name="",count="";
+  var name="",count="",annexCount="",location="";
   if(isHc){
     count=parseInt(document.getElementById("ot-count").value)||0;
-    if(!count){alert("인원수를 입력해주세요");return;}
+    if(!count){alert("전체 인원수를 입력해주세요");return;}
+    annexCount=parseInt(document.getElementById("ot-annexCount").value)||0;
+    if(annexCount>count){alert("별관 인원수가 전체 인원수보다 많을 수 없어요");return;}
     name=category+" 인력";
   } else {
     name=document.getElementById("ot-name").value.trim();
     if(!name){alert("이름을 입력해주세요");return;}
+    location=document.getElementById("ot-location").value;
   }
   var nr={
     id:id||genId("ot"),
@@ -3019,10 +3038,12 @@ async function saveOther(){
     start:document.getElementById("ot-start").value,
     end:document.getElementById("ot-end").value,
     note:document.getElementById("ot-note").value.trim(),
-    count:isHc?count:""
+    count:isHc?count:"",
+    annexCount:isHc?annexCount:"",
+    location:isHc?"":location
   };
   if(!data.others) data.others=[];
-  var row=[nr.id,nr.name,nr.dept,nr.category,nr.start,nr.end,nr.note,nr.count];
+  var row=[nr.id,nr.name,nr.dept,nr.category,nr.start,nr.end,nr.note,nr.count,nr.annexCount,nr.location];
   if(id){
     var idx=data.others.findIndex(function(x){return x.id===id;});
     if(idx>=0) data.others[idx]=nr;
@@ -3118,7 +3139,13 @@ function showDeptStats(){
     if(activeStart&&activeEnd){
       var d=o.dept||"미지정";
       if(!deptMap[d]) deptMap[d]={total:0,onLeave:0,others:0,annex:0};
+      var isHc=OTHER_HEADCOUNT_CATS.indexOf(o.category)>=0;
       deptMap[d].others+=(o.count?parseInt(o.count):1);
+      if(isHc){
+        deptMap[d].annex+=(o.annexCount?parseInt(o.annexCount):0);
+      } else if(o.location==='별관'){
+        deptMap[d].annex+=1;
+      }
     }
   });
 
@@ -3157,7 +3184,7 @@ function showDeptStats(){
   win.document.write("@media print{button{display:none}}");
   win.document.write("</style></head><body>");
   win.document.write("<h1>서울재활병원 부서별 인원통계</h1>");
-  win.document.write("<div class='subtitle'>기준일: "+todayStr+" · 별관근무는 실근무인원 중 별관 소속 인원수예요</div>");
+  win.document.write("<div class='subtitle'>기준일: "+todayStr+" · 별관근무는 실근무인원+기타인력 중 별관 소속 인원수예요</div>");
   win.document.write("<table><colgroup><col style='width:24%'><col style='width:10%'><col style='width:10%'><col style='width:12%'><col style='width:14%'><col style='width:14%'><col style='width:12%'></colgroup><thead>"+
     "<tr><th colspan='4' style='background:#8FA0B5'>기본현황</th><th colspan='3' style='background:#5C8A1E'>실근무 현황</th></tr>"+
     "<tr><th>부서</th><th>직원</th><th>휴가중</th><th>별관근무</th><th>실근무인원</th><th>기타인력</th><th>합계</th></tr>"+
