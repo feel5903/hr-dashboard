@@ -2122,7 +2122,7 @@ function renderStaff() {
     var ce=s.contractEnd||'';
     return '<tr>'+
       '<td style="font-weight:600">'+(s.name||'')+'</td>'+
-      '<td style="font-size:12px">'+(s.dept||'')+' <button onclick="toggleStaffLocation(\''+s.id+'\')" title="클릭하면 본관/별관 전환됩니다" style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:8px;border:none;cursor:pointer;background:'+(s.location==='별관'?'#E0E7FF':'#F3F4F6')+';color:'+(s.location==='별관'?'#4338CA':'#9CA3AF')+'">'+(s.location==='별관'?'별관':'본관')+'</button></td>'+
+      '<td style="font-size:12px">'+(s.dept||'')+(s.location==='별관'?' <button onclick="toggleStaffLocation(\''+s.id+'\')" title="클릭하면 본관으로 전환됩니다" style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:8px;border:none;cursor:pointer;background:#E0E7FF;color:#4338CA">별관</button>':'')+'</td>'+
       '<td style="text-align:center;font-size:12px">'+(s.position||'')+'</td>'+
       '<td style="text-align:center;font-size:12px">'+(s.title||'')+'</td>'+
       '<td style="text-align:center;font-size:12px">'+(s.joinDate||'')+'</td>'+
