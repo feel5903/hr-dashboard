@@ -435,10 +435,11 @@ tbody tr:hover{background:#FAFBFC}
   <div class="modal" style="width:400px">
     <h3 id="other-form-title">기타인력 추가</h3>
     <input type="hidden" id="ot-id">
-    <div class="field"><label>이름</label><input type="text" id="ot-name"></div>
+    <div class="field" id="ot-name-field"><label>이름</label><input type="text" id="ot-name"></div>
+    <div class="field" id="ot-count-field" style="display:none"><label>인원수</label><input type="number" id="ot-count" min="1" placeholder="예: 5"></div>
     <div class="field"><label>근무부서</label><input type="text" id="ot-dept"></div>
     <div class="field"><label>구분</label>
-      <select id="ot-category"><option>일자리사업</option><option>사회복무요원</option><option>자활근로</option><option>미화</option><option>기타</option></select>
+      <select id="ot-category" onchange="toggleOtherFields()"><option>일자리사업</option><option>사회복무요원</option><option>자활근로</option><option>미화</option><option>영양</option><option>기타</option></select>
     </div>
     <div class="field"><label>시작일</label><input type="date" id="ot-start"></div>
     <div class="field"><label>종료일</label><input type="date" id="ot-end"></div>
@@ -865,7 +866,34 @@ function renderDaily(){
   var tbody=document.getElementById("daily-tbody");
   if(!rows.length){tbody.innerHTML="<tr><td colspan='8' class='empty'>업무가 없습니다</td></tr>";return;}
   tbody.innerHTML="";
+
+  // 월별 그룹화 (이번달만 기본으로 펼침, 지난달들은 접어서 클릭시 펼쳐지게)
+  var monthGroups={};
   rows.forEach(function(x){
+    var d=x.start||x.created||"";
+    var mk=d?d.slice(0,7):"미지정";
+    if(!monthGroups[mk]) monthGroups[mk]=[];
+    monthGroups[mk].push(x);
+  });
+  var monthKeys=Object.keys(monthGroups).sort().reverse();
+  var curMonthKey=todayStr.slice(0,7);
+  if(!window._dailyOpenMonths) window._dailyOpenMonths={};
+  monthKeys.forEach(function(mk){
+    if(window._dailyOpenMonths[mk]===undefined) window._dailyOpenMonths[mk]=(mk===curMonthKey||window._filterDueToday||fm||checkedStatuses.length||sq);
+  });
+
+  monthKeys.forEach(function(mk){
+    var groupRows=monthGroups[mk];
+    var isOpen=window._dailyOpenMonths[mk];
+    var label=mk==="미지정"?"날짜 미지정":(mk.slice(0,4)+"년 "+parseInt(mk.slice(5,7),10)+"월");
+    var htr=document.createElement("tr");
+    var htd=document.createElement("td");htd.colSpan=8;
+    htd.style.cssText="background:var(--gray-light);font-size:12px;font-weight:700;color:var(--navy);padding:.55rem 1rem;cursor:pointer;user-select:none";
+    htd.textContent=(isOpen?"▼ ":"▶ ")+label+" ("+groupRows.length+"건)"+(mk===curMonthKey?" · 이번달":"");
+    htd.onclick=(function(mkey){return function(){window._dailyOpenMonths[mkey]=!window._dailyOpenMonths[mkey];renderDaily();};})(mk);
+    htr.appendChild(htd);tbody.appendChild(htr);
+    if(!isOpen) return;
+    groupRows.forEach(function(x){
     var di=data.daily.indexOf(x);
     var due=isToday(x.end)&&x.status!=="완료";
     var over=isOverdue(x.end,x.status);
@@ -901,6 +929,7 @@ function renderDaily(){
     var db=document.createElement("button");db.className="del-btn";db.textContent="🗑️";db.onclick=(function(i){return function(){deleteItem("daily",i);};})(di);
     wrap.appendChild(sel);wrap.appendChild(eb);wrap.appendChild(db);td7.appendChild(wrap);tr.appendChild(td7);
     tbody.appendChild(tr);
+    });
   });
 }
 
@@ -989,7 +1018,19 @@ function renderWeekly(){
         var wt=document.createTextNode(x.content);t2.appendChild(wt);
         var t3=document.createElement("td");t3.style.fontSize="12px";t3.textContent=x.start||"";
         var t4=document.createElement("td");t4.style.fontSize="12px";if(wOver){t4.style.color="#DC2626";t4.style.fontWeight="600";t4.textContent=(x.end||"")+" ⚠️";}else if(wDue){t4.style.color="#D97706";t4.style.fontWeight="600";t4.textContent=(x.end||"")+" 🔔";}else{t4.textContent=x.end||"";}
-        var t5=document.createElement("td");t5.innerHTML=badge(x.status);
+        var t5=document.createElement("td");
+        if(String(x.id).indexOf("tk")===0){
+          t5.innerHTML=badge(x.status);
+        } else {
+          var selStatus=document.createElement("select");
+          selStatus.style.cssText="font-size:11px;padding:2px 4px;border:1px solid var(--gray-border);border-radius:4px";
+          ["진행","완료","대기","피드백","보류"].forEach(function(st){var op=document.createElement("option");op.textContent=st;if(x.status===st)op.selected=true;selStatus.appendChild(op);});
+          selStatus.onchange=(function(rowId){return function(){
+            var di=data.daily.findIndex(function(d){return d.id===rowId;});
+            if(di>=0) changeStatus("daily",di,this.value);
+          };})(x.id);
+          t5.appendChild(selStatus);
+        }
         var t6=document.createElement("td");t6.style.cssText="font-size:12px;color:var(--text-muted);white-space:pre-wrap";t6.textContent=x.note||"";
         var t7=document.createElement("td");
         var ta=document.createElement("textarea");
@@ -2874,6 +2915,13 @@ function openOthersModal(){
   renderOthersTable();
   document.getElementById("others-overlay").classList.add("open");
 }
+var OTHER_HEADCOUNT_CATS=["미화","영양"];
+function toggleOtherFields(){
+  var cat=document.getElementById("ot-category").value;
+  var isHc=OTHER_HEADCOUNT_CATS.indexOf(cat)>=0;
+  document.getElementById("ot-name-field").style.display=isHc?"none":"";
+  document.getElementById("ot-count-field").style.display=isHc?"":"none";
+}
 function renderOthersTable(){
   var list=data.others||[];
   var tbody=document.getElementById("others-tbody");
@@ -2881,8 +2929,10 @@ function renderOthersTable(){
   if(!list.length){ tbody.innerHTML="<tr><td colspan='7' class='empty'>등록된 기타인력이 없습니다</td></tr>"; return; }
   tbody.innerHTML=list.map(function(o){
     var isActive=(!o.end||todayStr<=o.end)&&(!o.start||todayStr>=o.start);
+    var isHc=OTHER_HEADCOUNT_CATS.indexOf(o.category)>=0;
+    var nameCell=isHc?"<span style='color:#4338CA'>총 "+(o.count||1)+"명</span>":(o.name||"");
     return "<tr>"+
-      "<td style='font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+(o.name||"")+"</td>"+
+      "<td style='font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+nameCell+"</td>"+
       "<td style='font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+(o.dept||"")+"</td>"+
       "<td style='white-space:nowrap'><span style='font-size:11px;padding:2px 7px;border-radius:10px;background:#EEF2FF;color:#4338CA'>"+(o.category||"")+"</span></td>"+
       "<td style='font-size:12px;white-space:nowrap'>"+(o.start||"")+"</td>"+
@@ -2902,6 +2952,7 @@ function openOtherForm(id){
     if(!o) return;
     document.getElementById("other-form-title").textContent="기타인력 수정";
     document.getElementById("ot-name").value=o.name||"";
+    document.getElementById("ot-count").value=o.count||"";
     document.getElementById("ot-dept").value=o.dept||"";
     document.getElementById("ot-category").value=o.category||"일자리사업";
     document.getElementById("ot-start").value=o.start||todayStr;
@@ -2910,29 +2961,41 @@ function openOtherForm(id){
   } else {
     document.getElementById("other-form-title").textContent="기타인력 추가";
     document.getElementById("ot-name").value="";
+    document.getElementById("ot-count").value="";
     document.getElementById("ot-dept").value="";
     document.getElementById("ot-category").value="일자리사업";
     document.getElementById("ot-start").value=todayStr;
     document.getElementById("ot-end").value="";
     document.getElementById("ot-note").value="";
   }
+  toggleOtherFields();
   document.getElementById("other-form-overlay").classList.add("open");
 }
 async function saveOther(){
   var id=document.getElementById("ot-id").value;
-  var name=document.getElementById("ot-name").value.trim();
-  if(!name){alert("이름을 입력해주세요");return;}
+  var category=document.getElementById("ot-category").value;
+  var isHc=OTHER_HEADCOUNT_CATS.indexOf(category)>=0;
+  var name="",count="";
+  if(isHc){
+    count=parseInt(document.getElementById("ot-count").value)||0;
+    if(!count){alert("인원수를 입력해주세요");return;}
+    name=category+" 인력";
+  } else {
+    name=document.getElementById("ot-name").value.trim();
+    if(!name){alert("이름을 입력해주세요");return;}
+  }
   var nr={
     id:id||genId("ot"),
     name:name,
     dept:document.getElementById("ot-dept").value.trim(),
-    category:document.getElementById("ot-category").value,
+    category:category,
     start:document.getElementById("ot-start").value,
     end:document.getElementById("ot-end").value,
-    note:document.getElementById("ot-note").value.trim()
+    note:document.getElementById("ot-note").value.trim(),
+    count:isHc?count:""
   };
   if(!data.others) data.others=[];
-  var row=[nr.id,nr.name,nr.dept,nr.category,nr.start,nr.end,nr.note];
+  var row=[nr.id,nr.name,nr.dept,nr.category,nr.start,nr.end,nr.note,nr.count];
   if(id){
     var idx=data.others.findIndex(function(x){return x.id===id;});
     if(idx>=0) data.others[idx]=nr;
@@ -3021,7 +3084,7 @@ function showDeptStats(){
     if(activeStart&&activeEnd){
       var d=o.dept||"미지정";
       if(!deptMap[d]) deptMap[d]={total:0,onLeave:0,others:0};
-      deptMap[d].others++;
+      deptMap[d].others+=(o.count?parseInt(o.count):1);
     }
   });
 
