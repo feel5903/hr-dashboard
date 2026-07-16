@@ -439,7 +439,7 @@ tbody tr:hover{background:#FAFBFC}
     <div class="field" id="ot-count-field" style="display:none"><label>인원수</label><input type="number" id="ot-count" min="1" placeholder="예: 5"></div>
     <div class="field"><label>근무부서</label><input type="text" id="ot-dept"></div>
     <div class="field"><label>구분</label>
-      <select id="ot-category" onchange="toggleOtherFields()"><option>일자리사업</option><option>사회복무요원</option><option>자활근로</option><option>미화</option><option>영양</option><option>기타</option></select>
+      <select id="ot-category" onchange="toggleOtherFields()"><option>일자리사업</option><option>사회복무요원</option><option>자활근로</option><option>미화</option><option>영양</option><option>용역</option><option>기타</option></select>
     </div>
     <div class="field"><label>시작일</label><input type="date" id="ot-start"></div>
     <div class="field"><label>종료일</label><input type="date" id="ot-end"></div>
@@ -2915,7 +2915,19 @@ function openOthersModal(){
   renderOthersTable();
   document.getElementById("others-overlay").classList.add("open");
 }
-var OTHER_HEADCOUNT_CATS=["미화","영양"];
+var OTHER_CATEGORY_COLORS={
+  '일자리사업':{bg:'#EEF2FF',color:'#4338CA'},
+  '사회복무요원':{bg:'#DBEAFE',color:'#1E40AF'},
+  '자활근로':{bg:'#D1FAE5',color:'#065F46'},
+  '미화':{bg:'#FEF3DC',color:'#92400E'},
+  '영양':{bg:'#FCE7F3',color:'#9D174D'},
+  '용역':{bg:'#F3E8FF',color:'#6B21A8'},
+  '기타':{bg:'#F3F4F6',color:'#374151'}
+};
+function getOtherCategoryStyle(cat){
+  return OTHER_CATEGORY_COLORS[cat]||{bg:'#F3F4F6',color:'#374151'};
+}
+var OTHER_HEADCOUNT_CATS=["미화","영양","용역"];
 function toggleOtherFields(){
   var cat=document.getElementById("ot-category").value;
   var isHc=OTHER_HEADCOUNT_CATS.indexOf(cat)>=0;
@@ -2930,11 +2942,12 @@ function renderOthersTable(){
   tbody.innerHTML=list.map(function(o){
     var isActive=(!o.end||todayStr<=o.end)&&(!o.start||todayStr>=o.start);
     var isHc=OTHER_HEADCOUNT_CATS.indexOf(o.category)>=0;
-    var nameCell=isHc?"<span style='color:#4338CA'>총 "+(o.count||1)+"명</span>":(o.name||"");
+    var catStyle=getOtherCategoryStyle(o.category);
+    var nameCell=isHc?"<span style='color:"+catStyle.color+"'>총 "+(o.count||1)+"명</span>":(o.name||"");
     return "<tr>"+
       "<td style='font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+nameCell+"</td>"+
       "<td style='font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+(o.dept||"")+"</td>"+
-      "<td style='white-space:nowrap'><span style='font-size:11px;padding:2px 7px;border-radius:10px;background:#EEF2FF;color:#4338CA'>"+(o.category||"")+"</span></td>"+
+      "<td style='white-space:nowrap'><span style='font-size:11px;padding:2px 7px;border-radius:10px;background:"+catStyle.bg+";color:"+catStyle.color+"'>"+(o.category||"")+"</span></td>"+
       "<td style='font-size:12px;white-space:nowrap'>"+(o.start||"")+"</td>"+
       "<td style='font-size:12px;white-space:nowrap;color:"+(isActive?"inherit":"#DC2626")+"'>"+(o.end||"-")+"</td>"+
       "<td style='font-size:12px;color:var(--text-muted);white-space:pre-wrap'>"+(o.note||"")+"</td>"+
