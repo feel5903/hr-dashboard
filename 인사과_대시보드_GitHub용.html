@@ -3133,10 +3133,10 @@ function showDeptStats(){
     rowsHtml+="<tr><td style='font-weight:600'>"+d+"</td>"+
       "<td style='text-align:center'>"+v.total+"</td>"+
       "<td style='text-align:center;color:"+(v.onLeave>0?"#DC2626":"#9CA3AF")+"'>"+v.onLeave+"</td>"+
-      "<td style='text-align:center;font-weight:700;color:#44546E'>"+work+"</td>"+
       "<td style='text-align:center;color:"+(v.annex>0?"#4338CA":"#9CA3AF")+"'>"+(v.annex>0?v.annex:"-")+"</td>"+
-      "<td style='text-align:center'>"+(v.others>0?v.others+" <span style=\"font-size:10px;color:#6B7280\">(기타)</span>":"-")+"</td>"+
-      "<td style='text-align:center;font-weight:700;background:#F9FAFB'>"+sum+"</td></tr>";
+      "<td style='text-align:center;font-weight:700;color:#44546E;background:#EEF7DC'>"+work+"</td>"+
+      "<td style='text-align:center;background:#EEF7DC'>"+(v.others>0?v.others+" <span style=\"font-size:10px;color:#6B7280\">(기타)</span>":"-")+"</td>"+
+      "<td style='text-align:center;font-weight:700;background:#DCEEB3'>"+sum+"</td></tr>";
   });
 
   var onLeaveList=(data.staffLeaves||[]).filter(function(l){return todayStr>=l.start&&todayStr<=l.end;}).map(function(l){
@@ -3158,9 +3158,12 @@ function showDeptStats(){
   win.document.write("</style></head><body>");
   win.document.write("<h1>서울재활병원 부서별 인원통계</h1>");
   win.document.write("<div class='subtitle'>기준일: "+todayStr+" · 별관근무는 실근무인원 중 별관 소속 인원수예요</div>");
-  win.document.write("<table><colgroup><col style='width:26%'><col style='width:10%'><col style='width:10%'><col style='width:14%'><col style='width:14%'><col style='width:14%'><col style='width:12%'></colgroup><thead><tr><th>부서</th><th>직원</th><th>휴가중</th><th>실근무인원</th><th>별관근무</th><th>기타인력</th><th>합계</th></tr></thead><tbody>");
+  win.document.write("<table><colgroup><col style='width:24%'><col style='width:10%'><col style='width:10%'><col style='width:12%'><col style='width:14%'><col style='width:14%'><col style='width:12%'></colgroup><thead>"+
+    "<tr><th colspan='4' style='background:#8FA0B5'>기본현황</th><th colspan='3' style='background:#5C8A1E'>🍪 간식 배분 대상</th></tr>"+
+    "<tr><th>부서</th><th>직원</th><th>휴가중</th><th>별관근무</th><th>실근무인원</th><th>기타인력</th><th>합계</th></tr>"+
+  "</thead><tbody>");
   win.document.write(rowsHtml);
-  win.document.write("<tr class='total-row'><td>전체 합계</td><td style='text-align:center'>"+totalStaff+"</td><td style='text-align:center'>"+totalLeave+"</td><td style='text-align:center'>"+totalWork+"</td><td style='text-align:center'>"+totalAnnex+"</td><td style='text-align:center'>"+totalOthers+"</td><td style='text-align:center'>"+totalSum+"</td></tr>");
+  win.document.write("<tr class='total-row'><td>전체 합계</td><td style='text-align:center'>"+totalStaff+"</td><td style='text-align:center'>"+totalLeave+"</td><td style='text-align:center'>"+totalAnnex+"</td><td style='text-align:center'>"+totalWork+"</td><td style='text-align:center'>"+totalOthers+"</td><td style='text-align:center'>"+totalSum+"</td></tr>");
   win.document.write("</tbody></table>");
 
   win.document.write("<div class='sub-title'>🏖️ 현재 휴직/휴가중 인원 ("+onLeaveList.length+"명)</div>");
