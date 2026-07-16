@@ -422,8 +422,7 @@ tbody tr:hover{background:#FAFBFC}
 <!-- 별관인원 설정 모달 -->
 <div class="overlay" id="rotation-annex-overlay">
   <div class="modal" style="width:520px;max-height:80vh;overflow-y:auto">
-    <h3>🔄 별관인원 설정 <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(특정인이 아닌 인원수만 고정된 경우)</span></h3>
-    <div style="font-size:12px;color:var(--text-muted);margin:8px 0 14px">누가 별관에 가는지 특정 인원이 정해지지 않고, 항상 그 인원수만큼 채워지는 부서에 입력하세요. 여기 입력한 숫자는 <b>개인별 별관표시·기타인력 별관표시와 별개로 더해져요</b> (덮어쓰지 않아요). 휴직과는 연동되지 않으니, 실제 인원수가 바뀔 때만 수정해주시면 돼요.</div>
+    <h3>🔄 별관인원 설정</h3>
     <div id="rotation-annex-list"></div>
     <div class="modal-actions"><button class="btn primary" onclick="document.getElementById('rotation-annex-overlay').classList.remove('open')">닫기</button></div>
   </div>
@@ -3126,8 +3125,9 @@ function getRotationAnnex(dept){
   var n=parseInt(row.annexCount);
   return isNaN(n)?0:n;
 }
+var ROTATION_ANNEX_DEPTS=["소아청소년언어치료팀","소아청소년재활심리팀","원무행정팀"];
 function openRotationAnnexModal(){
-  var depts=getAllKnownDepts();
+  var depts=ROTATION_ANNEX_DEPTS;
   var el=document.getElementById("rotation-annex-list");
   if(!depts.length){ el.innerHTML="<div class='empty'>등록된 부서가 없습니다</div>"; }
   else {
