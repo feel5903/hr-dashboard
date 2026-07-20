@@ -3201,27 +3201,28 @@ function showDeptStats(){
   });
 
   var depts=Object.keys(deptMap).sort();
-  var totalStaff=0,totalLeave=0,totalWork=0,totalOthers=0,totalSum=0,totalAnnexStaff=0,totalAnnexOthers=0,totalAnnexRotation=0;
+  var totalStaff=0,totalLeave=0,totalMain=0,totalOthers=0,totalSum=0,totalAnnexStaff=0,totalAnnexOthers=0,totalAnnexRotation=0;
   var rowsHtml="";
   depts.forEach(function(d){
     var v=deptMap[d];
     var work=v.total-v.onLeave;
-    var sum=work+v.others;
-    totalStaff+=v.total; totalLeave+=v.onLeave; totalWork+=work; totalOthers+=v.others; totalSum+=sum;
     var rotation=getRotationAnnex(d);
-    totalAnnexStaff+=v.annexStaff; totalAnnexOthers+=v.annexOthers; totalAnnexRotation+=rotation;
     var annexTotal=v.annexStaff+v.annexOthers+rotation;
+    var mainWork=work-annexTotal;
+    var sum=work+v.others;
+    totalStaff+=v.total; totalLeave+=v.onLeave; totalMain+=mainWork; totalOthers+=v.others; totalSum+=sum;
+    totalAnnexStaff+=v.annexStaff; totalAnnexOthers+=v.annexOthers; totalAnnexRotation+=rotation;
     var annexDetail=[];
     if(v.annexStaff>0) annexDetail.push("직원 "+v.annexStaff);
     if(v.annexOthers>0) annexDetail.push("기타 "+v.annexOthers);
     if(rotation>0) annexDetail.push("지정 "+rotation);
     var annexCell=annexTotal>0?(annexTotal+"<div style=\"font-size:9.5px;color:#9CA3AF;font-weight:400;margin-top:1px\">"+annexDetail.join(" · ")+"</div>"):"-";
     var othersCell=v.others>0?v.others:"-";
-    rowsHtml+="<tr><td style='font-weight:600'>"+d+"</td>"+
+    rowsHtml+="<tr><td style='font-weight:600;white-space:nowrap'>"+d+"</td>"+
       "<td style='text-align:center'>"+v.total+"</td>"+
       "<td style='text-align:center;color:"+(v.onLeave>0?"#DC2626":"#9CA3AF")+"'>"+v.onLeave+"</td>"+
-      "<td style='text-align:center;font-weight:700'>"+annexCell+"</td>"+
-      "<td style='text-align:center;font-weight:700;color:#44546E;background:#EEF7DC'>"+work+"</td>"+
+      "<td style='text-align:center;font-weight:700;background:#EEF7DC'>"+annexCell+"</td>"+
+      "<td style='text-align:center;font-weight:700;color:#44546E;background:#EEF7DC'>"+mainWork+"</td>"+
       "<td style='text-align:center;background:#EEF7DC'>"+othersCell+"</td>"+
       "<td style='text-align:center;font-weight:700;background:#DCEEB3'>"+sum+"</td></tr>";
   });
@@ -3236,18 +3237,18 @@ function showDeptStats(){
   win.document.write("body{font-family:'Noto Sans KR',sans-serif;font-size:13px;padding:20px 60px;color:#1F2937}");
   win.document.write("h1{text-align:center;font-size:18px;color:#44546E;margin-bottom:4px}");
   win.document.write(".subtitle{text-align:center;font-size:12px;color:#888;margin-bottom:20px}");
-  win.document.write("table{width:100%;max-width:960px;margin:0 auto 20px;border-collapse:collapse}");
+  win.document.write("table{width:100%;max-width:1000px;margin:0 auto 20px;border-collapse:collapse;table-layout:fixed}");
   win.document.write("th{background:#44546E;color:#fff;padding:7px 10px;font-size:12px;text-align:center}");
   win.document.write("td{padding:6px 10px;border:1px solid #ddd;font-size:13px}");
   win.document.write(".total-row td{background:#FEF3DC;font-weight:700}");
-  win.document.write(".sub-title{font-size:14px;font-weight:700;color:#44546E;margin:20px auto 8px;max-width:960px;border-left:4px solid #A5D861;padding-left:8px}");
+  win.document.write(".sub-title{font-size:14px;font-weight:700;color:#44546E;margin:20px auto 8px;max-width:1000px;border-left:4px solid #A5D861;padding-left:8px}");
   win.document.write("@media print{button{display:none}}");
   win.document.write("</style></head><body>");
   win.document.write("<h1>서울재활병원 부서별 인원통계</h1>");
-  win.document.write("<div class='subtitle'>기준일: "+todayStr+" · 별관근무는 실근무인원+기타인력 중 별관 소속 인원수예요</div>");
-  win.document.write("<table style='max-width:960px'><colgroup><col style='width:16%'><col style='width:10%'><col style='width:10%'><col style='width:19%'><col style='width:16%'><col style='width:19%'><col style='width:10%'></colgroup><thead>"+
-    "<tr><th colspan='4' style='background:#8FA0B5'>기본현황</th><th colspan='3' style='background:#5C8A1E'>실근무 현황</th></tr>"+
-    "<tr><th>부서</th><th>직원</th><th>휴가중</th><th>별관근무</th><th>실근무인원</th><th>기타인력</th><th>합계</th></tr>"+
+  win.document.write("<div class='subtitle'>기준일: "+todayStr+" · 별관근무는 본관/기타인력과 별개로, 그 안에 포함된 인원수예요</div>");
+  win.document.write("<table><colgroup><col style='width:28%'><col style='width:12%'><col style='width:12%'><col style='width:12%'><col style='width:12%'><col style='width:12%'><col style='width:12%'></colgroup><thead>"+
+    "<tr><th colspan='3' style='background:#8FA0B5'>기본현황</th><th colspan='4' style='background:#5C8A1E'>실근무 현황</th></tr>"+
+    "<tr><th>부서</th><th>직원</th><th>휴가중</th><th>별관근무</th><th>본관</th><th>기타인력</th><th>합계</th></tr>"+
   "</thead><tbody>");
   win.document.write(rowsHtml);
   var totalAnnexDetail=[];
@@ -3255,7 +3256,8 @@ function showDeptStats(){
   if(totalAnnexOthers>0) totalAnnexDetail.push("기타 "+totalAnnexOthers);
   if(totalAnnexRotation>0) totalAnnexDetail.push("지정 "+totalAnnexRotation);
   var totalAnnexAll=totalAnnexStaff+totalAnnexOthers+totalAnnexRotation;
-  win.document.write("<tr class='total-row'><td>전체 합계</td><td style='text-align:center'>"+totalStaff+"</td><td style='text-align:center'>"+totalLeave+"</td><td style='text-align:center'>"+(totalAnnexAll>0?(totalAnnexAll+"<div style=\"font-size:9.5px;color:#9CA3AF;font-weight:400;margin-top:1px\">"+totalAnnexDetail.join(" · ")+"</div>"):"-")+"</td><td style='text-align:center'>"+totalWork+"</td><td style='text-align:center'>"+totalOthers+"</td><td style='text-align:center'>"+totalSum+"</td></tr>");
+  var totalSumAll=totalMain+totalOthers+totalAnnexAll;
+  win.document.write("<tr class='total-row'><td>전체 합계</td><td style='text-align:center'>"+totalStaff+"</td><td style='text-align:center'>"+totalLeave+"</td><td style='text-align:center'>"+(totalAnnexAll>0?(totalAnnexAll+"<div style=\"font-size:9.5px;color:#9CA3AF;font-weight:400;margin-top:1px\">"+totalAnnexDetail.join(" · ")+"</div>"):"-")+"</td><td style='text-align:center'>"+totalMain+"</td><td style='text-align:center'>"+totalOthers+"</td><td style='text-align:center'>"+totalSumAll+"</td></tr>");
   win.document.write("</tbody></table>");
 
   win.document.write("<div class='sub-title'>🏖️ 현재 휴직/휴가중 인원 ("+onLeaveList.length+"명)</div>");
