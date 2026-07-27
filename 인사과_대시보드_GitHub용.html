@@ -335,7 +335,7 @@ tbody tr:hover{background:#FAFBFC}
 <div id="pane-staff" class="pane">
   <div class="card">
     <div class="card-head">
-      <span class="card-title">👤 직원현황</span>
+      <span class="card-title">👤 직원현황 <span style="font-size:12px;font-weight:400;color:var(--text-muted)">(총 <span id="staff-total-count">0</span>명)</span></span>
       <div class="card-actions">
         <div style="position:relative;display:inline-flex;align-items:center">
           <span style="position:absolute;left:8px;font-size:13px">🔍</span>
@@ -2124,6 +2124,8 @@ function renderStaff() {
   var sq = (document.getElementById('staff-search')||{value:''}).value.toLowerCase();
   var ft = (document.getElementById('staff-filter-type')||{value:''}).value;
   var list = data.staff || [];
+  var totalCountEl=document.getElementById('staff-total-count');
+  if(totalCountEl) totalCountEl.textContent=list.length;
   var filtered = list.filter(function(s) {
     if(ft && s.contractType !== ft) return false;
     if(sq && (s.name||'').toLowerCase().indexOf(sq)<0 && (s.dept||'').toLowerCase().indexOf(sq)<0) return false;
@@ -2705,9 +2707,9 @@ function renderChecklist(){
   var html="<div style='display:grid;grid-template-columns:repeat(3,1fr);gap:12px'>";
   list.forEach(function(cat){
     var doneCnt=cat.items.filter(function(it){return it.checked;}).length;
-    html+="<div style='border:1px solid var(--gray-border);border-radius:var(--radius-lg);overflow:hidden;background:#fff'>";
-    html+="<div style='display:flex;align-items:center;justify-content:space-between;background:var(--navy);padding:.5rem .8rem'>";
-    html+="<span style='color:#fff;font-weight:700;font-size:13px'>"+cat.name+" <span style='font-weight:400;font-size:11px;opacity:.75'>("+doneCnt+"/"+cat.items.length+")</span></span>";
+    html+="<div draggable='true' ondragstart='clDragStart(event,\""+cat.id+"\")' ondragover='event.preventDefault()' ondrop='clDrop(event,\""+cat.id+"\")' ondragend='clDragEnd(event)' style='border:1px solid var(--gray-border);border-radius:var(--radius-lg);overflow:hidden;background:#fff;transition:opacity .15s'>";
+    html+="<div style='display:flex;align-items:center;justify-content:space-between;background:var(--navy);padding:.5rem .8rem;cursor:grab'>";
+    html+="<span style='color:#fff;font-weight:700;font-size:13px'><span style='opacity:.6;margin-right:4px' title='드래그해서 순서 변경'>⠿</span>"+cat.name+" <span style='font-weight:400;font-size:11px;opacity:.75'>("+doneCnt+"/"+cat.items.length+")</span></span>";
     html+="<div style='display:flex;gap:4px'>";
     html+="<button onclick='renameChecklistCat(\""+cat.id+"\")' title='카테고리 이름수정' style='background:rgba(255,255,255,.25);border:none;border-radius:4px;color:#fff;font-size:11px;padding:2px 6px;cursor:pointer'>✏️</button>";
     html+="<button onclick='deleteChecklistCat(\""+cat.id+"\")' title='카테고리 삭제' style='background:rgba(255,255,255,.25);border:none;border-radius:4px;color:#fff;font-size:11px;padding:2px 6px;cursor:pointer'>🗑️</button>";
@@ -2766,6 +2768,29 @@ function deleteChecklistItem(catId,itemId){
   if(!cat) return;
   cat.items=cat.items.filter(function(x){return x.id!==itemId;});
   saveChecklist(list);
+  renderChecklist();
+}
+
+var _clDragId=null;
+function clDragStart(e,catId){
+  _clDragId=catId;
+  e.dataTransfer.effectAllowed='move';
+  e.currentTarget.style.opacity='0.4';
+}
+function clDragEnd(e){
+  e.currentTarget.style.opacity='1';
+}
+function clDrop(e,targetCatId){
+  e.preventDefault();
+  if(!_clDragId||_clDragId===targetCatId){ _clDragId=null; return; }
+  var list=getChecklist();
+  var fromIdx=list.findIndex(function(c){return c.id===_clDragId;});
+  var toIdx=list.findIndex(function(c){return c.id===targetCatId;});
+  if(fromIdx<0||toIdx<0){ _clDragId=null; return; }
+  var moved=list.splice(fromIdx,1)[0];
+  list.splice(toIdx,0,moved);
+  saveChecklist(list);
+  _clDragId=null;
   renderChecklist();
 }
 
