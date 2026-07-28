@@ -183,11 +183,11 @@ tbody tr:hover{background:#FAFBFC}
   <div class="stats-row">
     <div class="stat-card" onclick="goToDueToday()" style="cursor:pointer" title="클릭하면 오늘 마감 업무 보기"><div class="stat-icon coral">🔔</div><div><div class="stat-label" style="font-size:13px;font-weight:700;color:var(--coral)">오늘 마감</div><div class="stat-val coral" id="s-due">0</div></div></div>
     <div class="stat-card" onclick="showAnnualPopup()" style="cursor:pointer" title="클릭하면 이번달 중요업무 보기"><div class="stat-icon" style="background:#E0E7FF">📅</div><div><div class="stat-label" style="font-size:13px;font-weight:700;color:#4338CA"><span id="annual-month-label"></span> 중요업무</div><div class="stat-val" style="color:#4338CA" id="cnt-annual-stat">0</div></div></div>
-    <div class="stat-card" style="flex:1;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <div class="stat-card" style="grid-column:span 2;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button id="btn-alert-award" onclick="showAlertPopup('award')" style="display:none;padding:6px 14px;background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;color:#92400E">🎖️ 포상 <span id="cnt-award"></span></button>
       <button id="btn-alert-sabbatical" onclick="showAlertPopup('sabbatical')" style="display:none;padding:6px 14px;background:#D1FAE5;border:1.5px solid #10B981;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;color:#065F46">🌿 안식 <span id="cnt-sabbatical"></span></button>
       <button id="btn-alert-contract" onclick="showAlertPopup('contract')" style="display:none;padding:6px 14px;background:#FEE2E2;border:1.5px solid #EF4444;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;color:#991B1B">📋 계약만료 <span id="cnt-contract"></span></button>
-      <button id="btn-alert-pension" onclick="showAlertPopup('pension')" style="display:none;padding:6px 14px;background:#DCFCE7;border:1.5px solid #16A34A;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;color:#065F46">💰 근속1년 <span id="cnt-pension"></span></button>
+      <button id="btn-alert-pension" onclick="showAlertPopup('pension')" style="display:none;padding:6px 14px;background:#DCFCE7;border:1.5px solid #16A34A;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;color:#065F46">💰 퇴직연금(근속1년) <span id="cnt-pension"></span></button>
       <span id="no-alerts-msg" style="font-size:12px;color:#aaa">동기화 후 표시</span>
     </div>
   </div>
