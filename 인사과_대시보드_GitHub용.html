@@ -3437,12 +3437,12 @@ var ONCALL_SEED_SCHEDULE={
   "2026-09-27":"송유진","2026-09-28":"김정래","2026-09-29":"김정래","2026-09-30":"김정래"
 };
 async function seedOncallDataIfEmpty(){
-  if(localStorage.getItem("oncall_seeded_v1")) return;
+  if(localStorage.getItem("oncall_seeded_v2")) return;
   if((data.oncallDoctors&&data.oncallDoctors.length)||(data.oncallSchedule&&data.oncallSchedule.length)){
-    localStorage.setItem("oncall_seeded_v1","1");
+    localStorage.setItem("oncall_seeded_v2","1");
     return;
   }
-  localStorage.setItem("oncall_seeded_v1","1");
+  localStorage.setItem("oncall_seeded_v2","1");
   for(var i=0;i<ONCALL_SEED_DOCTORS.length;i++){
     var d=ONCALL_SEED_DOCTORS[i];
     var nr={id:genId("dr"),name:d.name,phone:d.phone};
@@ -3453,7 +3453,7 @@ async function seedOncallDataIfEmpty(){
   for(var j=0;j<dates.length;j++){
     var ds=dates[j];
     var nm=ONCALL_SEED_SCHEDULE[ds];
-    var nr2={id:ds,date:ds,name:nm};
+    var nr2={id:oncallId(ds),date:ds,name:nm};
     data.oncallSchedule.push(nr2);
     await saveRow("oncall_schedule",[nr2.id,nr2.date,nr2.name]);
   }
@@ -3557,6 +3557,8 @@ function openOncallPicker(dateStr){
   document.getElementById("oncall-picker-overlay").classList.add("open");
 }
 
+function oncallId(dateStr){ return "os-"+dateStr; }
+
 async function assignOncallDay(name){
   var dateStr=_oncallActiveDate;
   if(!dateStr) return;
@@ -3564,9 +3566,9 @@ async function assignOncallDay(name){
   var idx=data.oncallSchedule.findIndex(function(r){return r.date===dateStr;});
   if(idx>=0){
     data.oncallSchedule[idx].name=name;
-    await updateRowSafe("oncall_schedule",dateStr,[dateStr,dateStr,name]);
+    await updateRowSafe("oncall_schedule",oncallId(dateStr),[oncallId(dateStr),dateStr,name]);
   } else {
-    var nr={id:dateStr,date:dateStr,name:name};
+    var nr={id:oncallId(dateStr),date:dateStr,name:name};
     data.oncallSchedule.push(nr);
     await saveRow("oncall_schedule",[nr.id,nr.date,nr.name]);
   }
@@ -3578,7 +3580,7 @@ async function clearOncallDay(){
   var dateStr=_oncallActiveDate;
   if(!dateStr) return;
   data.oncallSchedule=(data.oncallSchedule||[]).filter(function(r){return r.date!==dateStr;});
-  await deleteRowSafe("oncall_schedule",dateStr);
+  await deleteRowSafe("oncall_schedule",oncallId(dateStr));
   document.getElementById("oncall-picker-overlay").classList.remove("open");
   renderOncallCalendar();
 }
