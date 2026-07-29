@@ -165,6 +165,7 @@ tbody tr:hover{background:#FAFBFC}
   <div class="nav-item" onclick="switchNav('weekly',this)"><span class="nav-icon">📊</span>주간 보고</div>
   <div class="nav-item" onclick="switchNav('project',this)"><span class="nav-icon">🗂️</span>프로젝트<span class="nav-badge" id="badge-project" style="display:none">0</span></div>
   <div class="nav-item" onclick="switchNav('recruit',this)"><span class="nav-icon">👥</span>채용현황<span class="nav-badge" id="badge-recruit" style="display:none">0</span></div>
+  <div class="nav-item" onclick="switchNav('oncall',this)"><span class="nav-icon">🩺</span>당직의 스케줄</div>
 
   <div class="nav-divider"></div>
   <div class="nav-item" onclick="switchNav('annual',this)"><span class="nav-icon">📅</span>연간중요일정</div>
@@ -398,6 +399,35 @@ tbody tr:hover{background:#FAFBFC}
 </div>
 
 <!-- 직원 휴가 관리 모달 -->
+<!-- 당직의 명단 관리 모달 -->
+<div class="overlay" id="doctor-roster-overlay">
+  <div class="modal" style="width:480px;max-height:80vh;overflow-y:auto">
+    <h3>👥 당직의 명단 관리</h3>
+    <div id="doctor-roster-list" style="margin:10px 0 14px"></div>
+    <div style="border-top:1px solid var(--gray-border);padding-top:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px">+ 새 당직의 추가</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <input type="text" id="dr-new-name" placeholder="이름">
+        <input type="text" id="dr-new-phone" placeholder="010-0000-0000">
+      </div>
+      <button class="btn lime" onclick="addDoctor()" style="width:100%">+ 추가</button>
+    </div>
+    <div class="modal-actions"><button class="btn primary" onclick="document.getElementById('doctor-roster-overlay').classList.remove('open')">닫기</button></div>
+  </div>
+</div>
+
+<!-- 날짜별 당직의 선택 모달 -->
+<div class="overlay" id="oncall-picker-overlay">
+  <div class="modal" style="width:320px">
+    <h3 id="oncall-picker-title">당직의 선택</h3>
+    <div id="oncall-picker-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="clearOncallDay()" style="color:#991B1B">비우기</button>
+      <button class="btn" onclick="document.getElementById('oncall-picker-overlay').classList.remove('open')">닫기</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="staff-leave-overlay">
   <div class="modal" style="width:480px">
     <h3 id="staff-leave-title">휴가 관리</h3>
@@ -494,6 +524,28 @@ tbody tr:hover{background:#FAFBFC}
         </div>
       </div>
       <div id="annual-grid" style="padding:1rem"></div>
+    </div>
+  </div>
+
+  <div id="pane-oncall" class="pane">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">🩺 당직의 스케줄</span>
+        <div class="card-actions">
+          <span id="oncall-unset-badge" style="font-size:11px;font-weight:700;color:#92400E"></span>
+          <button class="btn" onclick="openDoctorRosterModal()" style="border-color:#4338CA;color:#4338CA">👥 당직의 명단 관리</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:14px;padding:.75rem 1rem;border-bottom:1px solid var(--gray-border)">
+        <button class="btn" onclick="changeOncallMonth(-1)">◀ 이전달</button>
+        <span id="oncall-month-label" style="font-size:15px;font-weight:700;color:var(--navy);min-width:110px;text-align:center"></span>
+        <button class="btn" onclick="changeOncallMonth(1)">다음달 ▶</button>
+      </div>
+      <div id="oncall-grid" style="padding:1rem"></div>
+      <div style="padding:0 1.25rem 1.25rem">
+        <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:.5rem">📞 이번 달 당직의 연락처</div>
+        <div id="oncall-contacts" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
     </div>
   </div>
 
@@ -658,7 +710,7 @@ var PALETTE=["#44546E","#2563EB","#5C8A1E","#7C3AED","#D97706","#DC2626","#0891B
 var members=JSON.parse(localStorage.getItem("hr_members")||"null")||[{name:"김재용",role:"인사과장",color:"#44546E"},{name:"배지은",role:"주임",color:"#2563EB"},{name:"공지현",role:"주임",color:"#5C8A1E"},{name:"최필상",role:"사원",color:"#7C3AED"}];
 var curMonth={y:TODAY.getFullYear(),m:TODAY.getMonth()};
 var curForm="daily",editMemberIdx=null,editIdx=null;
-var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[],duties:[],staff:[],annual:[],staffLeaves:[],others:[],rotationAnnex:[]};
+var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[],duties:[],staff:[],annual:[],staffLeaves:[],others:[],rotationAnnex:[],oncallDoctors:[],oncallSchedule:[]};
 var dismissedAlerts=[];
 var isEditing=false; // 입력 중 동기화 방지 플래그
 (function(){try{var b=localStorage.getItem("hr_data_backup");if(b){var p=JSON.parse(b);if(p.daily)data.daily=p.daily;if(p.project)data.project=p.project;if(p.task)data.task=p.task;if(p.leave)data.leave=p.leave;if(p.recruit)data.recruit=p.recruit;if(p.dormitory)data.dormitory=p.dormitory;}}catch(e){}})();
@@ -805,7 +857,7 @@ async function deleteRowsSafe(tab,ids){
 async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동기화 대기)");return;}setSyncStatus("loading","⟳ 동기화 중...");try{var d=await callScript({tab:"daily"});var p=await callScript({tab:"project"});var lv=await callScript({tab:"leave"});var tk=await callScript({tab:"task"});
     var rc=await callScript({tab:"recruit"});
     var dm=await callScript({tab:"dormitory"});
-    var dt=await callScript({tab:"duties"});var st=await callScript({tab:"staff"});var ad=await callScript({tab:"alerts_dismissed"});var an=await callScript({tab:"annual"});var sl=await callScript({tab:"staff_leaves"});var ot=await callScript({tab:"others"});var ra=await callScript({tab:"rotation_annex"});var fd=filterRows(d).map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p).map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv).map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk).map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
+    var dt=await callScript({tab:"duties"});var st=await callScript({tab:"staff"});var ad=await callScript({tab:"alerts_dismissed"});var an=await callScript({tab:"annual"});var sl=await callScript({tab:"staff_leaves"});var ot=await callScript({tab:"others"});var ra=await callScript({tab:"rotation_annex"});var dr=await callScript({tab:"oncall_doctors"});var os=await callScript({tab:"oncall_schedule"});var fd=filterRows(d).map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p).map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv).map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk).map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
     var frc=filterRows(rc).map(function(r){return normalizeRow(r,"recruit");});
     data.recruit=frc;
     var fdm=filterRows(dm).map(function(r){return normalizeRow(r,"dormitory");});
@@ -823,6 +875,11 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
     data.others=fot;
     var fra=filterRows(ra).map(function(r){return normalizeRow(r,"rotation_annex");});
     data.rotationAnnex=fra;
+    var fdr=filterRows(dr).map(function(r){return normalizeRow(r,"oncall_doctors");});
+    data.oncallDoctors=fdr;
+    var fos=filterRows(os).map(function(r){return normalizeRow(r,"oncall_schedule");});
+    data.oncallSchedule=fos;
+    seedOncallDataIfEmpty();
     saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
 function updateStats(){
   document.getElementById("s-due").textContent=data.daily.filter(function(x){return isToday(x.end)&&x.status!=="완료";}).length;
@@ -1363,6 +1420,7 @@ function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").f
   if(name==="duties")renderDuties();
   if(name==="dormitory")renderDormitory();if(name==="project")renderProject();if(name==="weekly"){renderWeeklySelect();renderWeekly();}
   if(name==="annual")renderAnnual();
+  if(name==="oncall")renderOncallCalendar();
   if(name==="checklist"){renderChecklist();renderNotes();}}
 
 
@@ -3351,6 +3409,237 @@ function showDeptStats(){
   win.document.write("<div style='text-align:center;margin-top:20px'><button onclick='window.print()' style='background:#44546E;color:#fff;border:none;padding:8px 24px;border-radius:6px;font-size:13px;cursor:pointer'>🖨️ 인쇄</button></div>");
   win.document.write("</body></html>");
   win.document.close();
+}
+
+// ── 당직의 스케줄 ──
+var ONCALL_PALETTE=["#44546E","#2563EB","#5C8A1E","#7C3AED","#D97706","#0891B2","#DB2777","#059669","#9333EA","#B45309"];
+var oncallCurYear=2026, oncallCurMonth=8;
+var _oncallActiveDate=null;
+
+var ONCALL_SEED_DOCTORS=[
+  {name:"김정래",phone:"010-4434-2656"},
+  {name:"이희영",phone:"010-3904-8503"},
+  {name:"송유진",phone:"010-3596-7437"},
+  {name:"정상봉",phone:"010-8961-5667"},
+  {name:"고진수",phone:"010-5559-4111"},
+  {name:"박지웅",phone:"010-2350-6010"}
+];
+var ONCALL_SEED_SCHEDULE={
+  "2026-08-01":"정상봉","2026-08-02":"고진수","2026-08-03":"김정래","2026-08-04":"김정래","2026-08-05":"김정래","2026-08-06":"김정래","2026-08-07":"고진수","2026-08-08":"정상봉",
+  "2026-08-10":"김정래","2026-08-11":"김정래","2026-08-12":"김정래","2026-08-13":"김정래","2026-08-14":"고진수","2026-08-15":"정상봉",
+  "2026-08-16":"박지웅","2026-08-17":"김정래","2026-08-18":"김정래","2026-08-19":"김정래","2026-08-20":"김정래","2026-08-21":"이희영","2026-08-22":"송유진",
+  "2026-08-23":"송유진","2026-08-24":"김정래","2026-08-25":"김정래","2026-08-26":"김정래","2026-08-27":"김정래","2026-08-28":"이희영","2026-08-29":"송유진",
+  "2026-08-30":"송유진","2026-08-31":"김정래",
+  "2026-09-01":"김정래","2026-09-02":"김정래","2026-09-03":"김정래","2026-09-04":"이희영","2026-09-05":"송유진",
+  "2026-09-06":"송유진","2026-09-08":"김정래","2026-09-09":"김정래","2026-09-10":"김정래","2026-09-11":"김정래","2026-09-12":"송유진",
+  "2026-09-13":"송유진","2026-09-14":"김정래","2026-09-15":"김정래","2026-09-16":"김정래","2026-09-17":"김정래","2026-09-19":"송유진",
+  "2026-09-20":"송유진","2026-09-21":"김정래","2026-09-22":"김정래","2026-09-23":"김정래","2026-09-24":"김정래","2026-09-26":"송유진",
+  "2026-09-27":"송유진","2026-09-28":"김정래","2026-09-29":"김정래","2026-09-30":"김정래"
+};
+async function seedOncallDataIfEmpty(){
+  if((data.oncallDoctors&&data.oncallDoctors.length)||(data.oncallSchedule&&data.oncallSchedule.length)) return;
+  for(var i=0;i<ONCALL_SEED_DOCTORS.length;i++){
+    var d=ONCALL_SEED_DOCTORS[i];
+    var nr={id:genId("dr"),name:d.name,phone:d.phone};
+    data.oncallDoctors.push(nr);
+    await saveRow("oncall_doctors",[nr.id,nr.name,nr.phone]);
+  }
+  var dates=Object.keys(ONCALL_SEED_SCHEDULE);
+  for(var j=0;j<dates.length;j++){
+    var ds=dates[j];
+    var nm=ONCALL_SEED_SCHEDULE[ds];
+    var nr2={id:ds,date:ds,name:nm};
+    data.oncallSchedule.push(nr2);
+    await saveRow("oncall_schedule",[nr2.id,nr2.date,nr2.name]);
+  }
+  renderOncallCalendar();
+}
+
+function getOncallColor(name){
+  var doctors=data.oncallDoctors||[];
+  var idx=doctors.findIndex(function(d){return d.name===name;});
+  if(idx<0) idx=0;
+  return ONCALL_PALETTE[idx % ONCALL_PALETTE.length];
+}
+
+function changeOncallMonth(delta){
+  oncallCurMonth+=delta;
+  if(oncallCurMonth>12){oncallCurMonth=1;oncallCurYear++;}
+  if(oncallCurMonth<1){oncallCurMonth=12;oncallCurYear--;}
+  renderOncallCalendar();
+}
+
+var KR_HOLIDAYS_2026={
+  "2026-01-01":"신정","2026-02-16":"설날연휴","2026-02-17":"설날","2026-02-18":"설날연휴",
+  "2026-03-01":"삼일절","2026-03-02":"대체공휴일","2026-05-05":"어린이날","2026-05-24":"부처님오신날","2026-05-25":"대체공휴일",
+  "2026-06-03":"지방선거","2026-06-06":"현충일","2026-08-15":"광복절","2026-08-17":"대체공휴일",
+  "2026-09-24":"추석연휴","2026-09-25":"추석","2026-09-26":"추석연휴",
+  "2026-10-03":"개천절","2026-10-05":"대체공휴일","2026-10-09":"한글날","2026-12-25":"성탄절"
+};
+function renderOncallCalendar(){
+  var label=document.getElementById("oncall-month-label");
+  if(label) label.textContent=oncallCurYear+"년 "+oncallCurMonth+"월";
+  var grid=document.getElementById("oncall-grid");
+  if(!grid) return;
+  var y=oncallCurYear,m=oncallCurMonth;
+  var first=new Date(y,m-1,1);
+  var last=new Date(y,m,0);
+  var monthPrefix=y+"-"+String(m).padStart(2,"0");
+  var scheduleMap={};
+  (data.oncallSchedule||[]).forEach(function(r){ if(r.date&&r.date.indexOf(monthPrefix)===0) scheduleMap[r.date]=r.name; });
+  var html="<div style='display:grid;grid-template-columns:repeat(7,1fr);gap:4px'>";
+  ["일","월","화","수","목","금","토"].forEach(function(d,i){
+    html+="<div style='text-align:center;font-size:12px;font-weight:700;color:"+(i===0?"#DC2626":i===6?"#2563EB":"var(--text-muted)")+";padding:4px 0'>"+d+"</div>";
+  });
+  for(var i=0;i<first.getDay();i++) html+="<div></div>";
+  var unsetCount=0;
+  for(var dd=1;dd<=last.getDate();dd++){
+    var ds=monthPrefix+"-"+String(dd).padStart(2,"0");
+    var person=scheduleMap[ds]||"";
+    if(!person) unsetCount++;
+    var color=person?getOncallColor(person):"";
+    var dow=new Date(ds).getDay();
+    var holiday=KR_HOLIDAYS_2026[ds];
+    var numColor=holiday||dow===0?"#DC2626":dow===6?"#2563EB":(person?"var(--text)":"#92400E");
+    html+="<div onclick=\"openOncallPicker('"+ds+"')\" title='"+(holiday||"")+"' style='border-radius:8px;padding:6px;min-height:56px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;"+
+      (person?"background:"+color+"22;border:1px solid "+color+"55":"background:#FEF3DC;border:1px dashed #F59E0B")+"'>"+
+      "<span style='font-size:11px;font-weight:700;color:"+numColor+"'>"+dd+(holiday?" 🔴":"")+"</span>"+
+      (person?"<span style='font-size:12px;font-weight:700;color:"+color+"'>"+person+"</span>":"<span style='font-size:10px;font-weight:700;color:#DC2626'>미정</span>")+
+    "</div>";
+  }
+  html+="</div>";
+  grid.innerHTML=html;
+  var badge=document.getElementById("oncall-unset-badge");
+  if(badge) badge.textContent=unsetCount>0?"⚠️ 미정 "+unsetCount+"일":"";
+  renderOncallContacts(scheduleMap);
+}
+
+function renderOncallContacts(scheduleMap){
+  var used={};
+  Object.keys(scheduleMap).forEach(function(k){ if(scheduleMap[k]) used[scheduleMap[k]]=true; });
+  var box=document.getElementById("oncall-contacts");
+  if(!box) return;
+  var names=Object.keys(used);
+  if(!names.length){ box.innerHTML="<div style='font-size:12px;color:#aaa'>이번 달 등록된 당직의가 없습니다</div>"; return; }
+  box.innerHTML=names.map(function(name){
+    var doc=(data.oncallDoctors||[]).find(function(d){return d.name===name;});
+    var color=getOncallColor(name);
+    return "<div style='display:flex;align-items:center;gap:10px;padding:.5rem .75rem;background:var(--gray-light);border-radius:var(--radius)'>"+
+      "<span style='width:10px;height:10px;border-radius:50%;background:"+color+";flex-shrink:0'></span>"+
+      "<span style='font-size:13px;font-weight:700;min-width:110px'>"+name+" 당직과장</span>"+
+      "<span style='font-size:13px;color:var(--text-muted)'>"+(doc?doc.phone:"연락처 미등록")+"</span>"+
+    "</div>";
+  }).join("");
+}
+
+function openOncallPicker(dateStr){
+  _oncallActiveDate=dateStr;
+  var d=new Date(dateStr);
+  document.getElementById("oncall-picker-title").textContent=(d.getMonth()+1)+"월 "+d.getDate()+"일 당직의 선택";
+  var list=document.getElementById("oncall-picker-list");
+  var current=(data.oncallSchedule||[]).find(function(r){return r.date===dateStr;});
+  var currentName=current?current.name:"";
+  var doctors=data.oncallDoctors||[];
+  if(!doctors.length){
+    list.innerHTML="<div style='font-size:12px;color:#aaa'>등록된 당직의가 없습니다. 먼저 '당직의 명단 관리'에서 추가해주세요.</div>";
+  } else {
+    list.innerHTML=doctors.map(function(doc){
+      var isCur=doc.name===currentName;
+      var color=getOncallColor(doc.name);
+      return "<button onclick='assignOncallDay(\""+doc.name.replace(/"/g,"")+"\")' style='text-align:left;padding:8px 12px;border-radius:var(--radius);border:1px solid "+(isCur?color:"var(--gray-border)")+";background:"+(isCur?color+"22":"#fff")+";cursor:pointer;font-size:13px;font-weight:600;color:"+color+"'>"+doc.name+(isCur?" (현재)":"")+"</button>";
+    }).join("");
+  }
+  document.getElementById("oncall-picker-overlay").classList.add("open");
+}
+
+async function assignOncallDay(name){
+  var dateStr=_oncallActiveDate;
+  if(!dateStr) return;
+  if(!data.oncallSchedule) data.oncallSchedule=[];
+  var idx=data.oncallSchedule.findIndex(function(r){return r.date===dateStr;});
+  if(idx>=0){
+    data.oncallSchedule[idx].name=name;
+    await updateRowSafe("oncall_schedule",dateStr,[dateStr,dateStr,name]);
+  } else {
+    var nr={id:dateStr,date:dateStr,name:name};
+    data.oncallSchedule.push(nr);
+    await saveRow("oncall_schedule",[nr.id,nr.date,nr.name]);
+  }
+  document.getElementById("oncall-picker-overlay").classList.remove("open");
+  renderOncallCalendar();
+}
+
+async function clearOncallDay(){
+  var dateStr=_oncallActiveDate;
+  if(!dateStr) return;
+  data.oncallSchedule=(data.oncallSchedule||[]).filter(function(r){return r.date!==dateStr;});
+  await deleteRowSafe("oncall_schedule",dateStr);
+  document.getElementById("oncall-picker-overlay").classList.remove("open");
+  renderOncallCalendar();
+}
+
+function openDoctorRosterModal(){
+  renderDoctorRosterList();
+  document.getElementById("doctor-roster-overlay").classList.add("open");
+}
+
+function renderDoctorRosterList(){
+  var list=data.oncallDoctors||[];
+  var el=document.getElementById("doctor-roster-list");
+  if(!list.length){ el.innerHTML="<div style='font-size:12px;color:#aaa'>등록된 당직의가 없습니다</div>"; return; }
+  el.innerHTML=list.map(function(doc){
+    var color=getOncallColor(doc.name);
+    return "<div style='display:flex;align-items:center;gap:8px;padding:.4rem .2rem;border-bottom:1px solid #f3f4f6'>"+
+      "<span style='width:10px;height:10px;border-radius:50%;background:"+color+";flex-shrink:0'></span>"+
+      "<span style='flex:1;font-size:13px;font-weight:600'>"+doc.name+"</span>"+
+      "<span style='font-size:12px;color:var(--text-muted)'>"+(doc.phone||"")+"</span>"+
+      "<button onclick='editDoctor(\""+doc.id+"\")' style='background:none;border:none;color:var(--navy);cursor:pointer;font-size:12px'>✏️</button>"+
+      "<button onclick='deleteDoctor(\""+doc.id+"\")' style='background:none;border:none;color:#DC2626;cursor:pointer;font-size:12px'>✕</button>"+
+    "</div>";
+  }).join("");
+}
+
+async function addDoctor(){
+  var name=document.getElementById("dr-new-name").value.trim();
+  var phone=document.getElementById("dr-new-phone").value.trim();
+  if(!name){alert("이름을 입력해주세요");return;}
+  var nr={id:genId("dr"),name:name,phone:phone};
+  if(!data.oncallDoctors) data.oncallDoctors=[];
+  data.oncallDoctors.push(nr);
+  await saveRow("oncall_doctors",[nr.id,nr.name,nr.phone]);
+  document.getElementById("dr-new-name").value="";
+  document.getElementById("dr-new-phone").value="";
+  renderDoctorRosterList();
+}
+
+async function editDoctor(id){
+  var doc=(data.oncallDoctors||[]).find(function(x){return x.id===id;});
+  if(!doc) return;
+  var newName=prompt("이름",doc.name);
+  if(newName===null) return;
+  var newPhone=prompt("연락처",doc.phone||"");
+  if(newPhone===null) return;
+  var oldName=doc.name;
+  doc.name=newName.trim()||doc.name;
+  doc.phone=newPhone.trim();
+  await updateRowSafe("oncall_doctors",id,[doc.id,doc.name,doc.phone]);
+  if(oldName!==doc.name){
+    var affected=(data.oncallSchedule||[]).filter(function(r){return r.name===oldName;});
+    for(var i=0;i<affected.length;i++){
+      affected[i].name=doc.name;
+      await updateRowSafe("oncall_schedule",affected[i].id,[affected[i].id,affected[i].date,affected[i].name]);
+    }
+  }
+  renderDoctorRosterList();
+  renderOncallCalendar();
+}
+
+async function deleteDoctor(id){
+  var doc=(data.oncallDoctors||[]).find(function(x){return x.id===id;});
+  if(!doc||!confirm(doc.name+"을 명단에서 삭제할까요? (이미 배정된 날짜는 그대로 남아요)")) return;
+  data.oncallDoctors=data.oncallDoctors.filter(function(x){return x.id!==id;});
+  await deleteRowSafe("oncall_doctors",id);
+  renderDoctorRosterList();
 }
 
 function addLinkInput(){
