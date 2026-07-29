@@ -387,9 +387,9 @@ function openEdit(gi,di){
     <div class="mbody">
       <div class="field"><label>부서명</label><input id="f_dept" value="${esc(d.dept)}"></div>
       <div class="frow"><div class="field"><label>${yLabel(-2)}년</label><input id="f_y2024" value="${fmtN(d.y2024)}"></div>
-        <div class="field"><label>${yLabel(-1)}년</label><input id="f_y2025" value="${fmtN(d.y2025)}"></div>
-        <div class="field"><label>${yLabel(0)} 검토안</label><input id="f_target" value="${fmtN(d.target)}"></div></div>
-      <div class="frow"><div class="field"><label>증원요청</label><input id="f_req" value="${fmtN(d.req)}"></div>
+        <div class="field"><label>${yLabel(-1)}년</label><input id="f_y2025" value="${fmtN(d.y2025)}" oninput="recalcTarget()"></div>
+        <div class="field"><label>${yLabel(0)} 검토안</label><input id="f_target" value="${fmtN(d.target)}"><div class="hint">직전연도 + 증원요청 자동 (수정 가능)</div></div></div>
+      <div class="frow"><div class="field"><label>증원요청</label><input id="f_req" value="${fmtN(d.req)}" oninput="recalcTarget()"></div>
         <div class="field"><label>대체</label><input id="f_replace" value="${fmtN(d.replace)}"></div>
         <div class="field"><label>충원</label><input id="f_fill" value="${fmtN(d.fill)}"></div>
         <div class="field"><label>증원</label><input id="f_increase" value="${fmtN(d.increase)}"></div></div>
@@ -402,6 +402,11 @@ function openEdit(gi,di){
     <div class="mfoot"><button class="btn del" onclick="delDept(${gi},${di})">부서 삭제</button><span class="spacer"></span>
       <button class="btn sub" onclick="closeModal()">취소</button><button class="btn primary" onclick="saveDept(${gi},${di})">저장</button></div>`;
   document.getElementById("overlay").classList.add("on");
+}
+function recalcTarget(){
+  const p=parseFloat(document.getElementById('f_y2025').value)||0;
+  const r=parseFloat(document.getElementById('f_req').value)||0;
+  document.getElementById('f_target').value = String(p+r);
 }
 function staffRow(o){
   if(o.rec) return `<div class="srow" data-rec="1"><span class="rec-tag">● 채용중 (미정)</span><button class="iconx" onclick="this.parentNode.remove()">✕</button></div>`;
