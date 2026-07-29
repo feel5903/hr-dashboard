@@ -49,6 +49,9 @@ h1.htitle{margin:0;font-size:25px;font-weight:800;color:var(--navy-d);letter-spa
 .ypill.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 .ypill.add{border-style:dashed;color:var(--ink-3)}
 .ypill.add:hover{border-color:var(--navy);color:var(--navy)}
+.ypill-wrap{display:inline-flex;align-items:center;gap:2px}
+.ydel{background:transparent;border:none;color:var(--ink-3);font-size:11px;padding:2px 4px;border-radius:5px;line-height:1}
+.ydel:hover{background:var(--red-bg);color:var(--red)}
 .spacer{flex:1}
 .ghost{background:#fff;border:1px solid var(--line);color:var(--ink-2);padding:6px 13px;border-radius:8px;font-size:12px;font-weight:600}
 .ghost:hover{border-color:var(--navy);color:var(--navy)}
@@ -249,7 +252,8 @@ function renderHeader(){
   const g=Y().grand||{};
   const card=(st,label,val,cls)=>`<div class="statcard ${cls||''} ${view.status===st?'on':''}" onclick="statClick('${st}')"><div class="n">${fmtN(val)}</div><div class="l">${label}</div></div>`;
   const stats=card('all','직원계',g.target,'total')+card('rep','대체',g.replace,'rep')+card('fill','충원',g.fill,'fill')+card('inc','증원',g.increase,'inc')+card('rec','채용중',countRec(),'rec');
-  const pills=yrs.map(y=>`<button class="ypill ${y===activeYear?'on':''}" onclick="setYear('${y}')">${y}</button>`).join("")+`<button class="ypill add edit-only" onclick="newYear()">＋ 새 연도</button>`;
+  const multi=yrs.length>1;
+  const pills=yrs.map(y=>`<span class="ypill-wrap"><button class="ypill ${y===activeYear?'on':''}" onclick="setYear('${y}')">${y}</button>${multi?`<button class="ydel edit-only" title="${y}년 삭제" onclick="delYear('${y}')">✕</button>`:''}</span>`).join("")+`<button class="ypill add edit-only" onclick="newYear()">＋ 새 연도</button>`;
   const editCtl = API_URL ? `<div class="editmode"><span class="tglabel">${editMode?'편집중':'읽기전용'}</span><button class="toggle ${editMode?'on':''}" onclick="toggleEdit()" aria-label="편집모드"></button><span class="sync" id="sync"></span></div>` : "";
   const tabs=[["board","보드"],["hiring","채용사유"],["promo","승진·발령"],["budget","급여예산"],["guide","작성요령"]];
   document.querySelector("header .hwrap").innerHTML=`
@@ -279,6 +283,14 @@ function statClick(st){ view.status = (st==='all')?'all':(view.status===st?'all'
 function setAsOf(v){ Y().asOf=v; save(); renderHeader(); }
 function setYear(y){ activeYear=y; render(); }
 function setTab(t){ activeTab=t; render(); }
+function delYear(y){
+  const yrs=Object.keys(db.years);
+  if(yrs.length<=1){ alert("마지막 연도는 삭제할 수 없습니다."); return; }
+  if(!confirm(y+"년을 삭제할까요? 되돌릴 수 없습니다.")) return;
+  delete db.years[y];
+  if(activeYear===y) activeYear=Object.keys(db.years).sort().reverse()[0];
+  save(); render();
+}
 function newYear(){
   const yrs=Object.keys(db.years).sort(); const latest=yrs[yrs.length-1]; const guess=String(Number(latest)+1);
   const y=prompt(latest+"년 내용을 불러와 새 연도를 만듭니다.\n연도 컬럼이 한 칸씩 이동하고, 증원요청·대체·충원·증원·사유는 초기화됩니다.\n\n새 연도:", guess);
