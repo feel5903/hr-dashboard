@@ -640,7 +640,7 @@ tbody tr:hover{background:#FAFBFC}
       <div class="field"><label>사유</label><select id="r-reason"><option>퇴사대체</option><option>육휴대체</option><option>출산대체</option><option>출산/육휴대체</option><option>계약만료</option><option>증원</option><option>기타</option></select></div>
       <div class="field"><label>상태</label><select id="r-status"><option>내부결재중</option><option>대기중</option><option>공고중</option><option>서류마감</option><option>서류검토</option><option>면접</option><option>면접결과보고</option></select></div>
       <div class="field"><label>일정</label><input type="text" id="r-schedule" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" placeholder="예: ~4/29, 4/27 면접"></div>
-      <div class="field"><label>비고</label><input type="text" id="r-note" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" placeholder="비고"></div>
+      <div class="field"><label>비고</label><textarea id="r-note" autocomplete="off" placeholder="비고" style="height:60px;resize:vertical"></textarea></div>
     </div>
     <div id="recruit-fields-입사예정" style="display:none">
       <div class="field"><label>담당자</label><select id="r-hire-manager"></select></div>
@@ -649,7 +649,7 @@ tbody tr:hover{background:#FAFBFC}
       <div class="field"><label>직무</label><input type="text" id="r-job" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" placeholder=""></div>
       <div class="field"><label>대체자</label><input type="text" id="r-hire-replace" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" placeholder=""></div>
       <div class="field"><label>사유</label><select id="r-hire-reason"><option>퇴사대체</option><option>육휴대체</option><option>출산대체</option><option>출산/육휴대체</option><option>계약만료</option><option>증원</option><option>기타</option></select></div>
-      <div class="field"><label>비고</label><input type="text" id="r-hire-note" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" placeholder="비고"></div>
+      <div class="field"><label>비고</label><textarea id="r-hire-note" autocomplete="off" placeholder="비고" style="height:60px;resize:vertical"></textarea></div>
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="document.getElementById('recruit-overlay').classList.remove('open')">취소</button>
@@ -1157,7 +1157,7 @@ function renderWeeklyRecruit(){
         '<td style="font-size:12px;color:var(--text-muted)">'+(x.reason||'')+'</td>'+
         '<td><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:'+bg+'">'+(x.status||'')+'</span></td>'+
         '<td style="font-size:12px;color:var(--navy)">'+(x.schedule||'')+'</td>'+
-        '<td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td></tr>';
+        '<td style="font-size:12px;color:var(--text-muted);white-space:pre-wrap">'+(x.note||'')+'</td></tr>';
     });
     html2+='</tbody></table>';
   }
@@ -1175,7 +1175,7 @@ function renderWeeklyRecruit(){
         '<td style="font-size:12px">'+(x.job||'')+'</td>'+
         '<td>'+(x.replaceName||'')+'</td>'+
         '<td style="font-size:13px">'+(x.reason||'')+'</td>'+
-        '<td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td></tr>';
+        '<td style="font-size:12px;color:var(--text-muted);white-space:pre-wrap">'+(x.note||'')+'</td></tr>';
     });
     html2+='</tbody></table>';
   }
@@ -1596,7 +1596,7 @@ function renderRecruit(){
           '<td><span style="font-size:11px;color:var(--text-muted)">'+(x.reason||'')+'</span></td>'+
           '<td><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:'+bg+'">'+(x.status||'')+'</span></td>'+
           '<td style="font-size:12px;color:var(--navy)">'+(x.schedule||'')+'</td>'+
-          '<td style="font-size:12px;color:var(--text-muted);min-width:160px">'+(x.note||'')+'</td>'+
+          '<td style="font-size:12px;color:var(--text-muted);min-width:160px;white-space:pre-wrap">'+(x.note||'')+'</td>'+
           '<td style="width:80px"><div class="action-btns">'+
           '<button class="edit-btn" onclick="editRecruit('+i+')">✏️</button>'+
           '<button class="del-btn" onclick="deleteRecruit('+i+')">🗑️</button>'+
@@ -1624,7 +1624,7 @@ function renderRecruit(){
           '<td>'+(x.replaceName||'')+'</td>'+
           '<td><span style="font-size:11px;color:var(--text-muted)">'+(x.reason||'')+'</span></td>'+
           
-          '<td style="font-size:12px;color:var(--text-muted);min-width:160px">'+(x.note||'')+'</td>'+
+          '<td style="font-size:12px;color:var(--text-muted);min-width:160px;white-space:pre-wrap">'+(x.note||'')+'</td>'+
           '<td style="width:80px"><div class="action-btns">'+
           '<button class="edit-btn" onclick="editRecruit('+i+')">✏️</button>'+
           '<button class="del-btn" onclick="deleteRecruit('+i+')">🗑️</button>'+
