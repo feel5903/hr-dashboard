@@ -534,6 +534,7 @@ tbody tr:hover{background:#FAFBFC}
         <div class="card-actions">
           <span id="oncall-unset-badge" style="font-size:11px;font-weight:700;color:#92400E"></span>
           <button class="btn" onclick="openDoctorRosterModal()" style="border-color:#4338CA;color:#4338CA">👥 당직의 명단 관리</button>
+          <button class="btn primary" onclick="printOncallSchedule()">🖨️ 인쇄</button>
         </div>
       </div>
       <div style="display:flex;align-items:center;justify-content:center;gap:14px;padding:.75rem 1rem;border-bottom:1px solid var(--gray-border)">
@@ -3535,6 +3536,66 @@ function renderOncallContacts(scheduleMap){
       "<span style='font-size:13px;color:var(--text-muted)'>"+(doc?doc.phone:"연락처 미등록")+"</span>"+
     "</div>";
   }).join("");
+}
+
+function printOncallSchedule(){
+  var y=oncallCurYear,m=oncallCurMonth;
+  var first=new Date(y,m-1,1);
+  var last=new Date(y,m,0);
+  var monthPrefix=y+"-"+String(m).padStart(2,"0");
+  var scheduleMap={};
+  (data.oncallSchedule||[]).forEach(function(r){ if(r.date&&r.date.indexOf(monthPrefix)===0) scheduleMap[r.date]=r.name; });
+
+  var win=window.open("","_blank");
+  win.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>"+y+"년 "+m+"월 당직의 스케줄</title><style>");
+  win.document.write("@page{size:A4 landscape;margin:10mm}");
+  win.document.write("body{font-family:'Noto Sans KR',sans-serif;margin:0;padding:15px 20px;color:#1F2937}");
+  win.document.write("h1{text-align:center;font-size:20px;color:#44546E;margin-bottom:16px}");
+  win.document.write("table{width:100%;border-collapse:collapse;margin-bottom:20px;table-layout:fixed}");
+  win.document.write("th{background:#44546E;color:#fff;padding:8px;font-size:13px;text-align:center}");
+  win.document.write("td{border:1px solid #ddd;vertical-align:top;height:70px;padding:4px 6px}");
+  win.document.write(".dnum{font-size:12px;font-weight:700}");
+  win.document.write(".dname{font-size:14px;font-weight:700;margin-top:4px}");
+  win.document.write(".sun{color:#DC2626}.sat{color:#2563EB}");
+  win.document.write(".unset{background:#FEE2E2}");
+  win.document.write(".unset .dname{color:#DC2626}");
+  win.document.write(".contacts{margin-top:10px}");
+  win.document.write(".contacts div{display:inline-block;margin-right:20px;font-size:13px}");
+  win.document.write("@media print{button{display:none}}");
+  win.document.write("</style></head><body>");
+  win.document.write("<h1>"+y+"년 "+m+"월 당직의 스케줄</h1>");
+
+  win.document.write("<table><thead><tr>");
+  ["일","월","화","수","목","금","토"].forEach(function(d,i){
+    win.document.write("<th class='"+(i===0?"sun":i===6?"sat":"")+"'>"+d+"</th>");
+  });
+  win.document.write("</tr></thead><tbody><tr>");
+  for(var i=0;i<first.getDay();i++) win.document.write("<td></td>");
+  var col=first.getDay();
+  for(var dd=1;dd<=last.getDate();dd++){
+    var ds=monthPrefix+"-"+String(dd).padStart(2,"0");
+    var person=scheduleMap[ds]||"";
+    var dow=new Date(ds).getDay();
+    var holiday=KR_HOLIDAYS_2026[ds];
+    var numClass=holiday||dow===0?"sun":dow===6?"sat":"";
+    win.document.write("<td class='"+(person?"":"unset")+"'><div class='dnum "+numClass+"'>"+dd+(holiday?" 🔴":"")+"</div><div class='dname'>"+(person||"미정")+"</div></td>");
+    col++;
+    if(col%7===0){ win.document.write("</tr><tr>"); }
+  }
+  win.document.write("</tr></tbody></table>");
+
+  win.document.write("<div class='contacts'><b>📞 이번 달 당직의 연락처 &nbsp; </b>");
+  var used={};
+  Object.keys(scheduleMap).forEach(function(k){ if(scheduleMap[k]) used[scheduleMap[k]]=true; });
+  Object.keys(used).forEach(function(name){
+    var doc=(data.oncallDoctors||[]).find(function(d){return d.name===name;});
+    win.document.write("<div>"+name+" 당직과장 "+(doc?doc.phone:"")+"</div>");
+  });
+  win.document.write("</div>");
+
+  win.document.write("<div style='text-align:center;margin-top:20px'><button onclick='window.print()' style='background:#44546E;color:#fff;border:none;padding:8px 24px;border-radius:6px;font-size:13px;cursor:pointer'>🖨️ PDF 저장 / 인쇄</button></div>");
+  win.document.write("</body></html>");
+  win.document.close();
 }
 
 function openOncallPicker(dateStr){
