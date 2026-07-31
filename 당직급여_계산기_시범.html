@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>당직의 급여 계산기 (시범)</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#44546E;--navy-light:#E8ECF0;
+  --lime:#A5D861;--lime-light:#EEF7DC;--lime-dark:#5C8A1E;
+  --amber:#F5A623;--amber-light:#FEF3DC;
+  --gray:#6B7280;--gray-light:#F3F4F6;--gray-border:#E5E7EB;
+  --text:#1F2937;--text-muted:#6B7280;
+  --radius:8px;--radius-lg:12px;
+}
+body{font-family:"Noto Sans KR",sans-serif;font-size:14px;color:var(--text);background:#F0F2F5;padding:1.5rem;min-height:100vh}
+.wrap{max-width:1150px;margin:0 auto;display:flex;flex-direction:column;gap:1rem}
+.banner{background:var(--lime-light);border:1px solid var(--lime-dark);border-radius:var(--radius);padding:.75rem 1rem;font-size:12.5px;color:var(--lime-dark)}
+h1{font-size:18px;color:var(--navy);margin-bottom:.25rem}
+.sub{font-size:12.5px;color:var(--text-muted);margin-bottom:.5rem}
+.card{background:#fff;border-radius:var(--radius-lg);border:1px solid var(--gray-border);padding:1.25rem}
+.card-title{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:.75rem}
+.tabs{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap}
+.tab-btn{padding:8px 16px;border-radius:var(--radius);border:1px solid var(--gray-border);background:#fff;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-muted);font-family:inherit}
+.tab-btn.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.day-picker{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap}
+.day-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--gray-border);background:#fff;cursor:pointer;font-size:13px;font-weight:700;color:var(--text-muted);font-family:inherit}
+.day-btn.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.day-btn.sun{color:#DC2626}
+.day-btn.sat{color:#2563EB}
+.day-btn.sun.active,.day-btn.sat.active{color:#fff}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:.75rem}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px}
+.field input,.field select{padding:.5rem .7rem;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:13px;font-family:inherit;width:170px}
+.btn{padding:.55rem 1.2rem;border:none;border-radius:var(--radius);background:var(--navy);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit}
+.btn.lime{background:var(--lime);color:var(--lime-dark)}
+.btn.ghost{background:#fff;border:1px solid var(--gray-border);color:var(--text-muted)}
+.preset-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.75rem}
+.preset-btn{padding:6px 12px;border-radius:20px;border:1px solid var(--navy-light);background:var(--navy-light);color:var(--navy);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:var(--gray-light);padding:.5rem .6rem;font-size:11.5px;font-weight:700;color:var(--text-muted);text-align:center;border-bottom:1px solid var(--gray-border)}
+tbody td{padding:.5rem .6rem;text-align:center;border-bottom:.5px solid var(--gray-border)}
+tbody tr:last-child td{border-bottom:none}
+.result-highlight{background:var(--lime-light);font-weight:700;color:var(--lime-dark)}
+.rate-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.rate-item{background:var(--gray-light);border-radius:var(--radius);padding:.6rem .8rem}
+.rate-item label{display:block;font-size:11px;color:var(--text-muted);margin-bottom:4px}
+.rate-item .rate-input-wrap{display:flex;align-items:center;gap:4px}
+.rate-item input{width:70px;padding:.3rem .4rem;border:1px solid var(--gray-border);border-radius:6px;font-size:13px;font-weight:700;color:var(--navy);text-align:right;font-family:inherit}
+.del-btn{background:#FEE2E2;color:#991B1B;border:none;border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>💰 당직의 급여 계산기 (시범 버전 v3)</h1>
+    <div class="sub">아직 대시보드에는 안 올라간 테스트 화면이에요.</div>
+  </div>
+
+  <div class="banner">
+    ✅ 국세청 <b>2026년 근로소득 간이세액표(본인 기준)</b> 630개 구간을 그대로 반영했어요. 1억원 초과 구간은 국세청 공식 산식으로 자동 계산돼요. 주민세는 소득세의 10%로 자동 계산돼요.
+  </div>
+
+  <div class="card">
+    <div class="card-title">1. 담당 요일 선택 (여러 개 선택 가능, 표시용이에요 — 계산에는 영향 없어요)</div>
+    <div class="day-picker" id="dayPicker"></div>
+
+    <div class="card-title">2. 계산 방향</div>
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-n2g" onclick="setMode('n2g')">목표 NET(월) → GROSS 역산</button>
+      <button class="tab-btn" id="tab-g2n" onclick="setMode('g2n')">GROSS(월) → NET 계산</button>
+    </div>
+
+    <div class="preset-row" id="presetRow"></div>
+
+    <div class="row">
+      <div class="field">
+        <label id="amountLabel">목표 월 NET 금액</label>
+        <input type="number" id="amountInput" value="2500000" step="10000">
+      </div>
+      <div class="field">
+        <label>시나리오명 (비교표 그룹핑용)</label>
+        <input type="text" id="scenarioInput" placeholder="예: 1안, 2안, 3안" list="scenarioList">
+        <datalist id="scenarioList"></datalist>
+      </div>
+      <button class="btn lime" onclick="calc()">계산하기</button>
+      <button class="btn ghost" onclick="addToCompare()">+ 비교표에 추가</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📊 계산 결과 (월 기준)</div>
+    <table>
+      <thead><tr>
+        <th>월 GROSS</th><th>소득세</th><th>주민세</th><th>국민연금</th><th>건강보험</th><th>노인장기요양</th><th>고용보험</th><th>공제액계</th><th>실지급액(NET)</th>
+      </tr></thead>
+      <tbody id="resultBody">
+        <tr><td colspan="9" style="color:#aaa;padding:1rem">계산하기를 눌러주세요</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">⚡ 빠른 세트 비교 (한 번 클릭으로 케이스 전체 추가)</div>
+    <div class="sub">금(250만)·토일(600만)은 공통이라 자동으로 같이 들어가요. 클릭하면 바로 아래 비교표+합계표에 그 케이스 전체가 한 묶음으로 추가돼요.</div>
+    <div class="preset-row">
+      <button class="preset-btn" onclick="addFullCase('1안: 월~목 통합', [['월,화,수,목',10000000]])">1안: 월~목 한 명이 다 담당</button>
+      <button class="preset-btn" onclick="addFullCase('2안: 월단독+화~목', [['월',2500000],['화,수,목',7500000]])">2안: 월 단독 + 화~목 세트</button>
+      <button class="preset-btn" onclick="addFullCase('3안: 월화+수목 세트', [['월,화',5000000],['수,목',5000000]])">3안: 월화 세트 + 수목 세트</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 담당자별 비교표 (여러 요일 담당자를 나란히 비교할 때)</div>
+    <div class="sub">요일 선택 → NET 입력 → 시나리오명(예: "1안") 입력 → "+ 비교표에 추가"를 누르면 여기 쌓여요. 같은 시나리오명으로 여러 명(요일 그룹)을 추가하면 아래 "시나리오별 합계"에서 자동으로 더해져요.</div>
+    <table>
+      <thead><tr><th>시나리오</th><th>담당 요일</th><th>목표 NET(월)</th><th>필요 GROSS(월)</th><th>연봉(GROSS×12)</th><th>퇴직금(연)</th><th>총 인건비(연)</th><th></th></tr></thead>
+      <tbody id="compareBody">
+        <tr><td colspan="8" style="color:#aaa;padding:1rem">아직 추가된 항목이 없습니다</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🏆 시나리오별 합계 (병원 입장에서 뭐가 유리한지 한눈에 비교)</div>
+    <table>
+      <thead><tr><th>시나리오</th><th>포함 인원</th><th>월 GROSS 합계</th><th>연간 GROSS 합계</th><th>연간 퇴직금 합계</th><th>연간 총인건비 합계</th></tr></thead>
+      <tbody id="scenarioTotalBody">
+        <tr><td colspan="6" style="color:#aaa;padding:1rem">비교표에 항목을 추가하면 여기 자동으로 집계돼요</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">⚙️ 4대보험 요율 (매년 바뀌면 여기서 직접 수정하세요)</div>
+    <div class="rate-grid">
+      <div class="rate-item">
+        <label>국민연금 (GROSS 기준)</label>
+        <div class="rate-input-wrap"><input type="number" id="rate-np" value="4.75" step="0.01"><span>%</span></div>
+      </div>
+      <div class="rate-item">
+        <label>건강보험 (GROSS 기준)</label>
+        <div class="rate-input-wrap"><input type="number" id="rate-hi" value="3.595" step="0.001"><span>%</span></div>
+      </div>
+      <div class="rate-item">
+        <label>노인장기요양 (GROSS 기준)</label>
+        <div class="rate-input-wrap"><input type="number" id="rate-ltc" value="0.4724" step="0.0001"><span>%</span></div>
+      </div>
+      <div class="rate-item">
+        <label>고용보험 (GROSS 기준)</label>
+        <div class="rate-input-wrap"><input type="number" id="rate-ei" value="0.9" step="0.01"><span>%</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var mode = 'n2g';
+var selectedDays = {}; // {'금':true, ...}
+var DAY_NAMES = ['일','월','화','수','목','금','토'];
+var lastResult = null;
+
+var PRESETS = [
+  {label:'예시: 금요일 250만', net: 2500000, days:['금']},
+  {label:'예시: 토·일 600만', net: 6000000, days:['토','일']},
+  {label:'예시: 월~목 800만(퇴사자 기준)', net: 8000000, days:['월','화','수','목']}
+];
+
+// 국세청 2026년 근로소득 간이세액표 (공제대상가족수=1, 본인만) — [하한(원), 상한(원), 소득세(원)]
+var TAX_BRACKETS = [[770000,775000,0],[855000,860000,0],[860000,865000,0],[865000,870000,0],[870000,875000,0],[875000,880000,0],[880000,885000,0],[885000,890000,0],[890000,895000,0],[895000,900000,0],[900000,905000,0],[905000,910000,0],[910000,915000,0],[915000,920000,0],[920000,925000,0],[925000,930000,0],[930000,935000,0],[935000,940000,0],[940000,945000,0],[945000,950000,0],[950000,955000,0],[955000,960000,0],[960000,965000,0],[965000,970000,0],[970000,975000,0],[975000,980000,0],[980000,985000,0],[985000,990000,0],[990000,995000,0],[995000,1000000,0],[1000000,1005000,0],[1005000,1010000,0],[1010000,1015000,0],[1015000,1020000,0],[1020000,1025000,0],[1025000,1030000,0],[1030000,1035000,0],[1035000,1040000,0],[1040000,1045000,0],[1045000,1050000,0],[1050000,1055000,0],[1055000,1060000,0],[1060000,1065000,1040],[1065000,1070000,1110],[1070000,1075000,1180],[1075000,1080000,1250],[1080000,1085000,1320],[1085000,1090000,1390],[1090000,1095000,1460],[1095000,1100000,1530],[1100000,1105000,1600],[1105000,1110000,1670],[1110000,1115000,1740],[1115000,1120000,1810],[1120000,1125000,1880],[1125000,1130000,1950],[1130000,1135000,2020],[1135000,1140000,2090],[1140000,1145000,2160],[1145000,1150000,2230],[1150000,1155000,2300],[1155000,1160000,2370],[1160000,1165000,2440],[1165000,1170000,2500],[1170000,1175000,2570],[1175000,1180000,2640],[1180000,1185000,2710],[1185000,1190000,2780],[1190000,1195000,2850],[1195000,1200000,2920],[1200000,1205000,2990],[1205000,1210000,3060],[1210000,1215000,3130],[1215000,1220000,3200],[1220000,1225000,3270],[1225000,1230000,3340],[1230000,1235000,3410],[1235000,1240000,3480],[1240000,1245000,3550],[1245000,1250000,3620],[1250000,1255000,3700],[1255000,1260000,3810],[1260000,1265000,3910],[1265000,1270000,4010],[1270000,1275000,4120],[1275000,1280000,4220],[1280000,1285000,4320],[1285000,1290000,4430],[1290000,1295000,4530],[1295000,1300000,4630],[1300000,1305000,4740],[1305000,1310000,4840],[1310000,1315000,4940],[1315000,1320000,5050],[1320000,1325000,5150],[1325000,1330000,5250],[1330000,1335000,5360],[1335000,1340000,5460],[1340000,1345000,5560],[1345000,1350000,5670],[1350000,1355000,5770],[1355000,1360000,5870],[1360000,1365000,5980],[1365000,1370000,6080],[1370000,1375000,6180],[1375000,1380000,6290],[1380000,1385000,6390],[1385000,1390000,6490],[1390000,1395000,6600],[1395000,1400000,6700],[1400000,1405000,6800],[1405000,1410000,6910],[1410000,1415000,7010],[1415000,1420000,7110],[1420000,1425000,7210],[1425000,1430000,7320],[1430000,1435000,7420],[1435000,1440000,7520],[1440000,1445000,7630],[1445000,1450000,7730],[1450000,1455000,7830],[1455000,1460000,7940],[1460000,1465000,8040],[1465000,1470000,8140],[1470000,1475000,8250],[1475000,1480000,8350],[1480000,1485000,8450],[1485000,1490000,8560],[1490000,1495000,8660],[1495000,1500000,8760],[1500000,1510000,8920],[1510000,1520000,9120],[1520000,1530000,9330],[1530000,1540000,9540],[1540000,1550000,9740],[1550000,1560000,9950],[1560000,1570000,10160],[1570000,1580000,10360],[1580000,1590000,10570],[1590000,1600000,10780],[1600000,1610000,10980],[1610000,1620000,11190],[1620000,1630000,11400],[1630000,1640000,11600],[1640000,1650000,11810],[1650000,1660000,12020],[1660000,1670000,12220],[1670000,1680000,12430],[1680000,1690000,12640],[1690000,1700000,12840],[1700000,1710000,13050],[1710000,1720000,13260],[1720000,1730000,13460],[1730000,1740000,13670],[1740000,1750000,13880],[1750000,1760000,14080],[1760000,1770000,14290],[1770000,1780000,14500],[1780000,1790000,14700],[1790000,1800000,14910],[1800000,1810000,15110],[1810000,1820000,15320],[1820000,1830000,15530],[1830000,1840000,15730],[1840000,1850000,15940],[1850000,1860000,16150],[1860000,1870000,16350],[1870000,1880000,16560],[1880000,1890000,16770],[1890000,1900000,16970],[1900000,1910000,17180],[1910000,1920000,17390],[1920000,1930000,17590],[1930000,1940000,17800],[1940000,1950000,18010],[1950000,1960000,18210],[1960000,1970000,18420],[1970000,1980000,18630],[1980000,1990000,18880],[1990000,2000000,19200],[2000000,2010000,19520],[2010000,2020000,19850],[2020000,2030000,20170],[2030000,2040000,20490],[2040000,2050000,20810],[2050000,2060000,21130],[2060000,2070000,21450],[2070000,2080000,21770],[2080000,2090000,22090],[2090000,2100000,22420],[2100000,2110000,22740],[2110000,2120000,23060],[2120000,2130000,23380],[2130000,2140000,23700],[2140000,2150000,24020],[2150000,2160000,24340],[2160000,2170000,24660],[2170000,2180000,24990],[2180000,2190000,25310],[2190000,2200000,25630],[2200000,2210000,25950],[2210000,2220000,26270],[2220000,2230000,26590],[2230000,2240000,26910],[2240000,2250000,27240],[2250000,2260000,27560],[2260000,2270000,27880],[2270000,2280000,28200],[2280000,2290000,28520],[2290000,2300000,28840],[2300000,2310000,29160],[2310000,2320000,29480],[2320000,2330000,29810],[2330000,2340000,30130],[2340000,2350000,30450],[2350000,2360000,30770],[2360000,2370000,31090],[2370000,2380000,31410],[2380000,2390000,31730],[2390000,2400000,32050],[2400000,2410000,32380],[2410000,2420000,32700],[2420000,2430000,33020],[2430000,2440000,33340],[2440000,2450000,33660],[2450000,2460000,33980],[2460000,2470000,34300],[2470000,2480000,34630],[2480000,2490000,34950],[2490000,2500000,35270],[2500000,2510000,35600],[2510000,2520000,35940],[2520000,2530000,36280],[2530000,2540000,36630],[2540000,2550000,36970],[2550000,2560000,37310],[2560000,2570000,37650],[2570000,2580000,38000],[2580000,2590000,38340],[2590000,2600000,38830],[2600000,2610000,39690],[2610000,2620000,40540],[2620000,2630000,41400],[2630000,2640000,42260],[2640000,2650000,43110],[2650000,2660000,43970],[2660000,2670000,44820],[2670000,2680000,45680],[2680000,2690000,46540],[2690000,2700000,47390],[2700000,2710000,48250],[2710000,2720000,49100],[2720000,2730000,49960],[2730000,2740000,50810],[2740000,2750000,51670],[2750000,2760000,52530],[2760000,2770000,53380],[2770000,2780000,54240],[2780000,2790000,55090],[2790000,2800000,55950],[2800000,2810000,56800],[2810000,2820000,57660],[2820000,2830000,58520],[2830000,2840000,59370],[2840000,2850000,60230],[2850000,2860000,61080],[2860000,2870000,61940],[2870000,2880000,62790],[2880000,2890000,63650],[2890000,2900000,64510],[2900000,2910000,65360],[2910000,2920000,66220],[2920000,2930000,67070],[2930000,2940000,67930],[2940000,2950000,68780],[2950000,2960000,69640],[2960000,2970000,70500],[2970000,2980000,71350],[2980000,2990000,72210],[2990000,3000000,73060],[3000000,3020000,74350],[3020000,3040000,76060],[3040000,3060000,77770],[3060000,3080000,79480],[3080000,3100000,81190],[3100000,3120000,82900],[3120000,3140000,84620],[3140000,3160000,86330],[3160000,3180000,88040],[3180000,3200000,89750],[3200000,3220000,91460],[3220000,3240000,93170],[3240000,3260000,95430],[3260000,3280000,97880],[3280000,3300000,100320],[3300000,3320000,102770],[3320000,3340000,105210],[3340000,3360000,107660],[3360000,3380000,110100],[3380000,3400000,112550],[3400000,3420000,114990],[3420000,3440000,117440],[3440000,3460000,119880],[3460000,3480000,122330],[3480000,3500000,124770],[3500000,3520000,127220],[3520000,3540000,129660],[3540000,3560000,132110],[3560000,3580000,134550],[3580000,3600000,137000],[3600000,3620000,139440],[3620000,3640000,141890],[3640000,3660000,144330],[3660000,3680000,146780],[3680000,3700000,149220],[3700000,3720000,151670],[3720000,3740000,154110],[3740000,3760000,156560],[3760000,3780000,163920],[3780000,3800000,166590],[3800000,3820000,169260],[3820000,3840000,171930],[3840000,3860000,174600],[3860000,3880000,177270],[3880000,3900000,179940],[3900000,3920000,182610],[3920000,3940000,185280],[3940000,3960000,187950],[3960000,3980000,190620],[3980000,4000000,193290],[4000000,4020000,195960],[4020000,4040000,198630],[4040000,4060000,201300],[4060000,4080000,203970],[4080000,4100000,206640],[4100000,4120000,209310],[4120000,4140000,211980],[4140000,4160000,214650],[4160000,4180000,217320],[4180000,4200000,219990],[4200000,4220000,222660],[4220000,4240000,225330],[4240000,4260000,228000],[4260000,4280000,230670],[4280000,4300000,233340],[4300000,4320000,236010],[4320000,4340000,238680],[4340000,4360000,241350],[4360000,4380000,244020],[4380000,4400000,246690],[4400000,4420000,249360],[4420000,4440000,252030],[4440000,4460000,254700],[4460000,4480000,257370],[4480000,4500000,260040],[4500000,4520000,262840],[4520000,4540000,265650],[4540000,4560000,268450],[4560000,4580000,271260],[4580000,4600000,276560],[4600000,4620000,279370],[4620000,4640000,282170],[4640000,4660000,284980],[4660000,4680000,287780],[4680000,4700000,290590],[4700000,4720000,293390],[4720000,4740000,296200],[4740000,4760000,299000],[4760000,4780000,301810],[4780000,4800000,304610],[4800000,4820000,307420],[4820000,4840000,310220],[4840000,4860000,313030],[4860000,4880000,315830],[4880000,4900000,318640],[4900000,4920000,321440],[4920000,4940000,324250],[4940000,4960000,327050],[4960000,4980000,329860],[4980000,5000000,332660],[5000000,5020000,335470],[5020000,5040000,338270],[5040000,5060000,341080],[5060000,5080000,343880],[5080000,5100000,346690],[5100000,5120000,349490],[5120000,5140000,352300],[5140000,5160000,355100],[5160000,5180000,357910],[5180000,5200000,360710],[5200000,5220000,363520],[5220000,5240000,366320],[5240000,5260000,369130],[5260000,5280000,371930],[5280000,5300000,374740],[5300000,5320000,377540],[5320000,5340000,380350],[5340000,5360000,383150],[5360000,5380000,385960],[5380000,5400000,388760],[5400000,5420000,391570],[5420000,5440000,394370],[5440000,5460000,397180],[5460000,5480000,399980],[5480000,5500000,402790],[5500000,5520000,405590],[5520000,5540000,408400],[5540000,5560000,411200],[5560000,5580000,414010],[5580000,5600000,416810],[5600000,5620000,419620],[5620000,5640000,422420],[5640000,5660000,425230],[5660000,5680000,428030],[5680000,5700000,430840],[5700000,5720000,433640],[5720000,5740000,436450],[5740000,5760000,439250],[5760000,5780000,442060],[5780000,5800000,444860],[5800000,5820000,447670],[5820000,5840000,450470],[5840000,5860000,470380],[5860000,5880000,475720],[5880000,5900000,478690],[5900000,5920000,483220],[5920000,5940000,487760],[5940000,5960000,492300],[5960000,5980000,496830],[5980000,6000000,501370],[6000000,6020000,505900],[6020000,6040000,510440],[6040000,6060000,514980],[6060000,6080000,519510],[6080000,6100000,524050],[6100000,6120000,528580],[6120000,6140000,533120],[6140000,6160000,537660],[6160000,6180000,542190],[6180000,6200000,546730],[6200000,6220000,551260],[6220000,6240000,555800],[6240000,6260000,560340],[6260000,6280000,564870],[6280000,6300000,569410],[6300000,6320000,573940],[6320000,6340000,578480],[6340000,6360000,583020],[6360000,6380000,587550],[6380000,6400000,592090],[6400000,6420000,596620],[6420000,6440000,601160],[6440000,6460000,605700],[6460000,6480000,610230],[6480000,6500000,614770],[6500000,6520000,619300],[6520000,6540000,623840],[6540000,6560000,628380],[6560000,6580000,632910],[6580000,6600000,637450],[6600000,6620000,641980],[6620000,6640000,646520],[6640000,6660000,651060],[6660000,6680000,655590],[6680000,6700000,660130],[6700000,6720000,664660],[6720000,6740000,669200],[6740000,6760000,673740],[6760000,6780000,678270],[6780000,6800000,682810],[6800000,6820000,687340],[6820000,6840000,691880],[6840000,6860000,696420],[6860000,6880000,700950],[6880000,6900000,705490],[6900000,6920000,710020],[6920000,6940000,714560],[6940000,6960000,719100],[6960000,6980000,723630],[6980000,7000000,728170],[7000000,7020000,732700],[7020000,7040000,737240],[7040000,7060000,741780],[7060000,7080000,746310],[7080000,7100000,750850],[7100000,7120000,755380],[7120000,7140000,759920],[7140000,7160000,764460],[7160000,7180000,768990],[7180000,7200000,773530],[7200000,7220000,778060],[7220000,7240000,782600],[7240000,7260000,787140],[7260000,7280000,791670],[7280000,7300000,796210],[7300000,7320000,800740],[7320000,7340000,805280],[7340000,7360000,809820],[7360000,7380000,814350],[7380000,7400000,818890],[7400000,7420000,823420],[7420000,7440000,827960],[7440000,7460000,832500],[7460000,7480000,837030],[7480000,7500000,841570],[7500000,7520000,846100],[7520000,7540000,850640],[7540000,7560000,855180],[7560000,7580000,859710],[7580000,7600000,864250],[7600000,7620000,868780],[7620000,7640000,873320],[7640000,7660000,877860],[7660000,7680000,882390],[7680000,7700000,886930],[7700000,7720000,891460],[7720000,7740000,896000],[7740000,7760000,900540],[7760000,7780000,905070],[7780000,7800000,909610],[7800000,7820000,914140],[7820000,7840000,918680],[7840000,7860000,923220],[7860000,7880000,927750],[7880000,7900000,932290],[7900000,7920000,936820],[7920000,7940000,941360],[7940000,7960000,945900],[7960000,7980000,950430],[7980000,8000000,954970],[8000000,8020000,959500],[8020000,8040000,964040],[8040000,8060000,968580],[8060000,8080000,973110],[8080000,8100000,977650],[8100000,8120000,982180],[8120000,8140000,986720],[8140000,8160000,991260],[8160000,8180000,995790],[8180000,8200000,1000330],[8200000,8220000,1004860],[8220000,8240000,1009400],[8240000,8260000,1013940],[8260000,8280000,1018470],[8280000,8300000,1023010],[8300000,8320000,1027540],[8320000,8340000,1032080],[8340000,8360000,1036740],[8360000,8380000,1041420],[8380000,8400000,1046100],[8400000,8420000,1050780],[8420000,8440000,1055460],[8440000,8460000,1060140],[8460000,8480000,1064820],[8480000,8500000,1069500],[8500000,8520000,1074180],[8520000,8540000,1078860],[8540000,8560000,1083540],[8560000,8580000,1088220],[8580000,8600000,1092900],[8600000,8620000,1097580],[8620000,8640000,1102260],[8640000,8660000,1106940],[8660000,8680000,1111620],[8680000,8700000,1116300],[8700000,8720000,1120980],[8720000,8740000,1125660],[8740000,8760000,1130340],[8760000,8780000,1135020],[8780000,8800000,1139700],[8800000,8820000,1144380],[8820000,8840000,1149060],[8840000,8860000,1153740],[8860000,8880000,1158420],[8880000,8900000,1163100],[8900000,8920000,1167780],[8920000,8940000,1172460],[8940000,8960000,1177140],[8960000,8980000,1181820],[8980000,9000000,1186500],[9000000,9020000,1191180],[9020000,9040000,1195860],[9040000,9060000,1200540],[9060000,9080000,1205220],[9080000,9100000,1209900],[9100000,9120000,1214580],[9120000,9140000,1219260],[9140000,9160000,1223940],[9160000,9180000,1228620],[9180000,9200000,1233300],[9200000,9220000,1237980],[9220000,9240000,1244640],[9240000,9260000,1251470],[9260000,9280000,1258290],[9280000,9300000,1265120],[9300000,9320000,1271940],[9320000,9340000,1278770],[9340000,9360000,1285590],[9360000,9380000,1292420],[9380000,9400000,1299240],[9400000,9420000,1306070],[9420000,9440000,1312890],[9440000,9460000,1319720],[9460000,9480000,1326540],[9480000,9500000,1333370],[9500000,9520000,1340190],[9520000,9540000,1347020],[9540000,9560000,1353840],[9560000,9580000,1360670],[9580000,9600000,1367490],[9600000,9620000,1374320],[9620000,9640000,1381140],[9640000,9660000,1387970],[9660000,9680000,1394790],[9680000,9700000,1401620],[9700000,9720000,1408440],[9720000,9740000,1415270],[9740000,9760000,1422090],[9760000,9780000,1428920],[9780000,9800000,1435740],[9800000,9820000,1442570],[9820000,9840000,1449390],[9840000,9860000,1456220],[9860000,9880000,1463040],[9880000,9900000,1469870],[9900000,9920000,1476690],[9920000,9940000,1483520],[9940000,9960000,1490340],[9960000,9980000,1497170],[9980000,10000000,1503990]];
+
+function taxAboveTable(gross){
+  var base = 1507400;
+  var over = gross - 10000000;
+  if(gross <= 14000000){
+    return base + (over*0.98)*0.35 + 25000;
+  } else if(gross <= 28000000){
+    return base + 1397000 + ((gross-14000000)*0.98)*0.38;
+  } else if(gross <= 30000000){
+    return base + 6610600 + ((gross-28000000)*0.98)*0.40;
+  } else if(gross <= 45000000){
+    return base + 7394600 + (gross-30000000)*0.40;
+  } else if(gross <= 87000000){
+    return base + 13394600 + (gross-45000000)*0.42;
+  } else {
+    return base + 31034600 + (gross-87000000)*0.45;
+  }
+}
+
+function lookupMonthlyTax(monthlyGross){
+  if(monthlyGross <= 0) return 0;
+  if(monthlyGross >= 10000000) return taxAboveTable(monthlyGross);
+  for(var i=0;i<TAX_BRACKETS.length;i++){
+    var b = TAX_BRACKETS[i];
+    if(monthlyGross >= b[0] && monthlyGross < b[1]) return b[2];
+  }
+  if(monthlyGross < TAX_BRACKETS[0][0]) return 0;
+  return TAX_BRACKETS[TAX_BRACKETS.length-1][2];
+}
+
+function fmt(n){ return Math.round(n).toLocaleString('ko-KR'); }
+
+function renderDayPicker(){
+  var el = document.getElementById('dayPicker');
+  el.innerHTML = '';
+  DAY_NAMES.forEach(function(d){
+    var btn = document.createElement('button');
+    btn.className = 'day-btn' + (d==='일'?' sun':d==='토'?' sat':'') + (selectedDays[d]?' active':'');
+    btn.textContent = d;
+    btn.onclick = function(){
+      selectedDays[d] = !selectedDays[d];
+      renderDayPicker();
+    };
+    el.appendChild(btn);
+  });
+}
+
+function getSelectedDaysLabel(){
+  var arr = DAY_NAMES.filter(function(d){ return selectedDays[d]; });
+  return arr.length ? arr.join('·') : '(요일 미선택)';
+}
+
+function setMode(m){
+  mode = m;
+  document.getElementById('tab-n2g').classList.toggle('active', m==='n2g');
+  document.getElementById('tab-g2n').classList.toggle('active', m==='g2n');
+  document.getElementById('amountLabel').textContent = m==='n2g' ? '목표 월 NET 금액' : '월 GROSS 금액';
+}
+
+function renderPresets(){
+  var row = document.getElementById('presetRow');
+  row.innerHTML = '';
+  PRESETS.forEach(function(p){
+    var btn = document.createElement('button');
+    btn.className = 'preset-btn';
+    btn.textContent = p.label;
+    btn.onclick = function(){
+      selectedDays = {};
+      p.days.forEach(function(d){ selectedDays[d] = true; });
+      renderDayPicker();
+      setMode('n2g');
+      document.getElementById('amountInput').value = p.net;
+      calc();
+    };
+    row.appendChild(btn);
+  });
+}
+
+function roundDown10(n){ return Math.floor(n/10)*10; }
+
+function calcFromGross(gross){
+  var npRate = parseFloat(document.getElementById('rate-np').value)/100;
+  var hiRate = parseFloat(document.getElementById('rate-hi').value)/100;
+  var ltcRate = parseFloat(document.getElementById('rate-ltc').value)/100;
+  var eiRate = parseFloat(document.getElementById('rate-ei').value)/100;
+
+  var np = roundDown10(gross * npRate);
+  var hi = roundDown10(gross * hiRate);
+  var ltc = roundDown10(gross * ltcRate);
+  var ei = roundDown10(gross * eiRate);
+  var tax = lookupMonthlyTax(gross);
+  var local = roundDown10(tax * 0.1);
+
+  var deductTotal = np + hi + ltc + ei + tax + local;
+  var net = gross - deductTotal;
+  return {
+    gross: gross, tax: tax, local: local,
+    np: np, hi: hi, ltc: ltc, ei: ei,
+    deductTotal: deductTotal, net: net
+  };
+}
+
+function solveGrossForNet(targetNet){
+  var lo = targetNet, hi = targetNet * 1.6;
+  for(var i=0;i<60;i++){
+    var mid = (lo+hi)/2;
+    var r = calcFromGross(mid);
+    if(r.net > targetNet) hi = mid; else lo = mid;
+  }
+  return calcFromGross((lo+hi)/2);
+}
+
+function renderResult(r){
+  var body = document.getElementById('resultBody');
+  body.innerHTML =
+    "<tr>" +
+    "<td>" + fmt(r.gross) + "</td>" +
+    "<td>" + fmt(r.tax) + "</td>" +
+    "<td>" + fmt(r.local) + "</td>" +
+    "<td>" + fmt(r.np) + "</td>" +
+    "<td>" + fmt(r.hi) + "</td>" +
+    "<td>" + fmt(r.ltc) + "</td>" +
+    "<td>" + fmt(r.ei) + "</td>" +
+    "<td>" + fmt(r.deductTotal) + "</td>" +
+    "<td class='result-highlight'>" + fmt(r.net) + "</td>" +
+    "</tr>";
+}
+
+function calc(){
+  var amount = parseFloat(document.getElementById('amountInput').value) || 0;
+  var r;
+  if(mode === 'n2g'){
+    r = solveGrossForNet(amount);
+  } else {
+    r = calcFromGross(amount);
+  }
+  lastResult = r;
+  renderResult(r);
+}
+
+var compareRows = []; // {scenario, days, net, gross, annualGross, severance, totalCost}
+
+// dayNetPairs: [['월,화',5000000], ...] 형태. 금/토일 공통 세트는 자동으로 같이 추가됨
+function addFullCase(scenarioName, dayNetPairs){
+  var allPairs = dayNetPairs.concat([['금',2500000],['토,일',6000000]]);
+  allPairs.forEach(function(pair){
+    var daysLabel = pair[0].split(',').join('·');
+    var net = pair[1];
+    var r = solveGrossForNet(net);
+    var annualGross = r.gross * 12;
+    var severance = r.gross;
+    var totalCost = annualGross + severance;
+    compareRows.push({
+      scenario: scenarioName, days: daysLabel, net: r.net, gross: r.gross,
+      annualGross: annualGross, severance: severance, totalCost: totalCost
+    });
+  });
+  renderCompareTable();
+  renderScenarioTotals();
+}
+
+function addToCompare(){
+  if(!lastResult){ alert('먼저 계산하기를 눌러주세요'); return; }
+  var r = lastResult;
+  var scenario = (document.getElementById('scenarioInput').value || '(미지정)').trim() || '(미지정)';
+  var annualGross = r.gross * 12;
+  var severance = r.gross;
+  var totalCost = annualGross + severance;
+  var entry = {
+    scenario: scenario, days: getSelectedDaysLabel(), net: r.net, gross: r.gross,
+    annualGross: annualGross, severance: severance, totalCost: totalCost
+  };
+  compareRows.push(entry);
+  renderCompareTable();
+  renderScenarioTotals();
+}
+
+function removeCompareRow(idx){
+  compareRows.splice(idx,1);
+  renderCompareTable();
+  renderScenarioTotals();
+}
+
+function renderCompareTable(){
+  var body = document.getElementById('compareBody');
+  if(!compareRows.length){
+    body.innerHTML = "<tr><td colspan='8' style='color:#aaa;padding:1rem'>아직 추가된 항목이 없습니다</td></tr>";
+    return;
+  }
+  body.innerHTML = compareRows.map(function(e, i){
+    return "<tr>" +
+      "<td style='font-weight:700;color:var(--navy)'>" + e.scenario + "</td>" +
+      "<td style='font-weight:700'>" + e.days + "</td>" +
+      "<td>" + fmt(e.net) + "</td>" +
+      "<td class='result-highlight'>" + fmt(e.gross) + "</td>" +
+      "<td>" + fmt(e.annualGross) + "</td>" +
+      "<td>" + fmt(e.severance) + "</td>" +
+      "<td style='font-weight:700'>" + fmt(e.totalCost) + "</td>" +
+      "<td><button class='del-btn' onclick='removeCompareRow(" + i + ")'>삭제</button></td>" +
+    "</tr>";
+  }).join('');
+
+  // 시나리오명 자동완성 목록 갱신
+  var names = Array.from(new Set(compareRows.map(function(e){ return e.scenario; })));
+  document.getElementById('scenarioList').innerHTML = names.map(function(n){ return "<option value='" + n + "'>"; }).join('');
+}
+
+function renderScenarioTotals(){
+  var body = document.getElementById('scenarioTotalBody');
+  if(!compareRows.length){
+    body.innerHTML = "<tr><td colspan='6' style='color:#aaa;padding:1rem'>비교표에 항목을 추가하면 여기 자동으로 집계돼요</td></tr>";
+    return;
+  }
+  var groups = {};
+  compareRows.forEach(function(e){
+    if(!groups[e.scenario]) groups[e.scenario] = {count:0, gross:0, annualGross:0, severance:0, totalCost:0, days:[]};
+    var g = groups[e.scenario];
+    g.count++;
+    g.gross += e.gross;
+    g.annualGross += e.annualGross;
+    g.severance += e.severance;
+    g.totalCost += e.totalCost;
+    g.days.push(e.days);
+  });
+  var scenarioNames = Object.keys(groups);
+  var cheapest = null;
+  scenarioNames.forEach(function(name){
+    if(cheapest===null || groups[name].totalCost < groups[cheapest].totalCost) cheapest = name;
+  });
+  body.innerHTML = scenarioNames.map(function(name){
+    var g = groups[name];
+    var isBest = name === cheapest && scenarioNames.length > 1;
+    return "<tr" + (isBest ? " style='background:var(--lime-light)'" : "") + ">" +
+      "<td style='font-weight:700;color:var(--navy)'>" + name + (isBest ? " 🏆" : "") + "</td>" +
+      "<td style='font-size:12px;color:var(--text-muted)'>" + g.days.join(' + ') + "</td>" +
+      "<td class='result-highlight'>" + fmt(g.gross) + "</td>" +
+      "<td>" + fmt(g.annualGross) + "</td>" +
+      "<td>" + fmt(g.severance) + "</td>" +
+      "<td style='font-weight:700'>" + fmt(g.totalCost) + "</td>" +
+    "</tr>";
+  }).join('');
+}
+
+renderDayPicker();
+renderPresets();
+calc();
+</script>
+</body>
+</html>
