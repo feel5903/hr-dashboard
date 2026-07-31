@@ -146,7 +146,7 @@ tbody tr:last-child td{border-bottom:none}
     <div class="card-title">⚙️ 4대보험 요율 (매년 바뀌면 여기서 직접 수정하세요)</div>
     <div class="rate-grid">
       <div class="rate-item">
-        <label>국민연금 (GROSS 기준)</label>
+        <label>국민연금 (기준소득월액 기준)</label>
         <div class="rate-input-wrap"><input type="number" id="rate-np" value="4.75" step="0.01"><span>%</span></div>
       </div>
       <div class="rate-item">
@@ -161,7 +161,16 @@ tbody tr:last-child td{border-bottom:none}
         <label>고용보험 (GROSS 기준)</label>
         <div class="rate-input-wrap"><input type="number" id="rate-ei" value="0.9" step="0.01"><span>%</span></div>
       </div>
+      <div class="rate-item">
+        <label>국민연금 상한액 (기준소득월액)</label>
+        <div class="rate-input-wrap"><input type="number" id="np-cap" value="6590000" step="10000"><span>원</span></div>
+      </div>
+      <div class="rate-item">
+        <label>국민연금 하한액 (기준소득월액)</label>
+        <div class="rate-input-wrap"><input type="number" id="np-floor" value="410000" step="10000"><span>원</span></div>
+      </div>
     </div>
+    <div class="note-box">2026.7.1~2027.6.30 기준 국민연금 상한 659만원 / 하한 41만원으로 기본 세팅했어요. GROSS가 상한을 넘으면 상한액 기준으로만 국민연금이 계산돼요 (건강보험·장기요양·고용보험은 이런 상한이 없어요).</div>
   </div>
 </div>
 
@@ -264,8 +273,15 @@ function calcFromGross(gross){
   var hiRate = parseFloat(document.getElementById('rate-hi').value)/100;
   var ltcRate = parseFloat(document.getElementById('rate-ltc').value)/100;
   var eiRate = parseFloat(document.getElementById('rate-ei').value)/100;
+  var npCap = parseFloat(document.getElementById('np-cap').value) || 6590000;
+  var npFloor = parseFloat(document.getElementById('np-floor').value) || 410000;
 
-  var np = roundDown10(gross * npRate);
+  // 국민연금은 "기준소득월액"(상한/하한 적용된 값) 기준으로 계산
+  var npBase = gross;
+  if(npBase > npCap) npBase = npCap;
+  if(npBase < npFloor) npBase = npFloor;
+
+  var np = roundDown10(npBase * npRate);
   var hi = roundDown10(gross * hiRate);
   var ltc = roundDown10(gross * ltcRate);
   var ei = roundDown10(gross * eiRate);
@@ -345,17 +361,22 @@ function addFullCaseByRate(caseKey){
 
 function addFullCase(scenarioName, dayNetPairs){
   var allPairs = dayNetPairs.concat([['금',2500000],['토,일',6000000]]);
+  var totalNet = 0, totalGross = 0, totalAnnualGross = 0, totalSeverance = 0, totalCost = 0;
+  var daysDesc = [];
   allPairs.forEach(function(pair){
     var daysLabel = pair[0].split(',').join('·');
     var net = pair[1];
     var r = solveGrossForNet(net);
-    var annualGross = r.gross * 12;
-    var severance = r.gross;
-    var totalCost = annualGross + severance;
-    compareRows.push({
-      scenario: scenarioName, days: daysLabel, net: r.net, gross: r.gross,
-      annualGross: annualGross, severance: severance, totalCost: totalCost
-    });
+    totalNet += r.net;
+    totalGross += r.gross;
+    totalAnnualGross += r.gross * 12;
+    totalSeverance += r.gross;
+    daysDesc.push(daysLabel + '(' + fmt(net) + ')');
+  });
+  totalCost = totalAnnualGross + totalSeverance;
+  compareRows.push({
+    scenario: scenarioName, days: daysDesc.join(' + '), net: totalNet, gross: totalGross,
+    annualGross: totalAnnualGross, severance: totalSeverance, totalCost: totalCost
   });
   renderCompareTable();
   renderScenarioTotals();
