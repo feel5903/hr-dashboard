@@ -361,22 +361,17 @@ function addFullCaseByRate(caseKey){
 
 function addFullCase(scenarioName, dayNetPairs){
   var allPairs = dayNetPairs.concat([['금',2500000],['토,일',6000000]]);
-  var totalNet = 0, totalGross = 0, totalAnnualGross = 0, totalSeverance = 0, totalCost = 0;
-  var daysDesc = [];
   allPairs.forEach(function(pair){
     var daysLabel = pair[0].split(',').join('·');
     var net = pair[1];
     var r = solveGrossForNet(net);
-    totalNet += r.net;
-    totalGross += r.gross;
-    totalAnnualGross += r.gross * 12;
-    totalSeverance += r.gross;
-    daysDesc.push(daysLabel + '(' + fmt(net) + ')');
-  });
-  totalCost = totalAnnualGross + totalSeverance;
-  compareRows.push({
-    scenario: scenarioName, days: daysDesc.join(' + '), net: totalNet, gross: totalGross,
-    annualGross: totalAnnualGross, severance: totalSeverance, totalCost: totalCost
+    var annualGross = r.gross * 12;
+    var severance = r.gross;
+    var totalCost = annualGross + severance;
+    compareRows.push({
+      scenario: scenarioName, days: daysLabel, net: r.net, gross: r.gross,
+      annualGross: annualGross, severance: severance, totalCost: totalCost
+    });
   });
   renderCompareTable();
   renderScenarioTotals();
