@@ -204,6 +204,7 @@ td.note-cell { text-align: left; font-size: 11px; color: #6B7280; }
           <div class="note-hint">
             비고 예시:<br>
             육아휴직 / 출산육아 / 병가 / 안식휴가 → 근무일 0<br>
+            6/15 출장 / 6/15-6/17 출장 / 공가 / 난임휴가 → 해당 평일 차감<br>
             주35시간 단축 / 주30시간 단축<br>
             6/22 입사 / 6/12 퇴사<br>
             단축+복직: "26.03.05-26.06.02 주35시간 단축 6/3복직"<br>
@@ -241,6 +242,7 @@ td.note-cell { text-align: left; font-size: 11px; color: #6B7280; }
     <div class="fg"><label>성명</label><input type="text" id="edit-name"></div>
     <div class="note-hint">
       비고 예시: 육아휴직 / 출산육아 / 병가 / 안식휴가 → 근무일 0<br>
+      6/15 출장 / 6/15-6/17 출장 / 공가 / 난임휴가 → 해당 평일 차감<br>
       주35시간 단축 / 주30시간 단축<br>
       6/22 입사 / 6/12 퇴사<br>
       단축+복직: "26.03.05-26.06.02 주35시간 단축 6/3복직"<br>
@@ -524,25 +526,60 @@ function parseNote(note, startStr, endStr) {
     return dates;
   }
 
-  // 비고에서 직접 차감할 휴가 (난임휴가, 가족돌봄휴가 등 날짜 명시)
-  var extraHolidayTypes = '난임휴가|가족돌봄휴가|공가|특별휴가';
-  var extraDates = [];
-  // 패턴1: 날짜 먼저 - "6/22 난임휴가"
-  var p1re = new RegExp('([\\d./]+|\\d{1,2}월\\s*\\d{1,2}일?)\\s*(?:'+extraHolidayTypes+')', 'g');
+  // 비고에서 직접 차감할 휴가/출장 (난임휴가, 가족돌봄휴가, 출장 등 날짜/기간 명시)
+  var extraHolidayTypes = '출장|난임휴가|가족돌봄휴가|공가|특별휴가';
+  var extraDateSet = {};  // 평일 기준 차감 날짜 집합 (중복 자동 제거)
+
+  // 캡처된 날짜 문자열을 평일(주말·공휴일 제외) 기준으로 전개해 집합에 추가
+  function collectExtraDates(str) {
+    if(!str) return;
+    // 날짜 토큰: 7/27, 6.15, 26.07.27 (연.월.일) 모두 허용
+    var dateTok = '\\d{1,4}[.\\/]\\d{1,2}(?:[.\\/]\\d{1,2})?';
+    function toDate(tok) {
+      var parts = tok.split(/[.\/]/);
+      if(parts.length === 3) return parseDate(tok);              // 26.07.27
+      if(parts.length === 2) {                                    // 7/27
+        var mo = parseInt(parts[0]), dd = parseInt(parts[1]);
+        if(mo>=1 && mo<=12 && dd>=1 && dd<=31) return parseDayDate(mo, dd);
+      }
+      return null;
+    }
+    function pushWeekday(d) {
+      if(d && !isNaN(d) && d>=start && d<=end && d.getDay()!==0 && d.getDay()!==6 && !holidaySet.has(dateStr(d))) {
+        extraDateSet[dateStr(d)] = true;
+      }
+    }
+    // 1) 기간 전개: 6/15-6/17, 6.15~6.17, 26.07.27-26.07.31 등 → 사이 평일 모두 포함
+    var rangeRe = new RegExp('('+dateTok+')\\s*[~\\-]\\s*('+dateTok+')', 'g');
+    var rm;
+    while((rm=rangeRe.exec(str))!==null) {
+      var d1 = toDate(rm[1]), d2 = toDate(rm[2]);
+      if(!d1 || !d2 || isNaN(d1) || isNaN(d2)) continue;
+      var cur = new Date(d1);
+      while(cur <= d2) { pushWeekday(new Date(cur)); cur.setDate(cur.getDate()+1); }
+    }
+    // 2) 기간 부분 제거 후 단일 날짜 처리 (6/15, 26.07.27, 6월15일)
+    var rest = str.replace(rangeRe, ' ');
+    var singleRe = new RegExp('('+dateTok+'|\\d{1,2}월\\s*\\d{1,2}일?)', 'g');
+    var sm;
+    while((sm=singleRe.exec(rest))!==null) {
+      var tok = sm[1];
+      var mmatch = tok.match(/(\d{1,2})월\s*(\d{1,2})/);
+      if(mmatch) pushWeekday(parseDayDate(parseInt(mmatch[1]), parseInt(mmatch[2])));
+      else pushWeekday(toDate(tok));
+    }
+  }
+
+  // 패턴1: 날짜 먼저 - "6/15-6/17 출장", "6/22 난임휴가"  (기간 표기 -,~ 포함)
+  var p1re = new RegExp('(\\d[\\d./~\\-,\\s]*|\\d{1,2}월\\s*\\d{1,2}일?)\\s*(?:'+extraHolidayTypes+')', 'g');
   var m1re;
-  while((m1re=p1re.exec(note))!==null) {
-    extractDates(m1re[1]).forEach(function(d){ extraDates.push(d); });
-  }
-  // 패턴2: 휴가명 먼저 - "가족돌봄휴가 6/18, 6/23"
-  var p2re = new RegExp('(?:'+extraHolidayTypes+')\\s*([\\d./,\\s월일]+)', 'g');
+  while((m1re=p1re.exec(note))!==null) { collectExtraDates(m1re[1]); }
+  // 패턴2: 휴가명 먼저 - "출장 6/18, 6/23", "가족돌봄휴가 6/18~6/20"
+  var p2re = new RegExp('(?:'+extraHolidayTypes+')\\s*([\\d./~\\-,\\s월일]+)', 'g');
   var m2re;
-  while((m2re=p2re.exec(note))!==null) {
-    extractDates(m2re[1]).forEach(function(d){ extraDates.push(d); });
-  }
-  // 중복 제거
-  var seenMap = {};
-  extraDates = extraDates.filter(function(d){ var k=d.toISOString().slice(0,10); if(seenMap[k]) return false; seenMap[k]=true; return true; });
-  result.extraLeaveDays = extraDates.length;
+  while((m2re=p2re.exec(note))!==null) { collectExtraDates(m2re[1]); }
+
+  result.extraLeaveDays = Object.keys(extraDateSet).length;
 
   return result;
 }
@@ -559,6 +596,14 @@ function calcMember(member, startStr, endStr) {
 
   // 복직일 있으면 전체 0이 아님
   var hasReturn = !!p.returnDate;
+
+  // 단축근무 기간이 계산 기간과 안 겹치면(이미 끝났거나 아직 시작 전) 단축 무시 - 역사적 비고 방지
+  if((p.shortHours || p.dailyHours) &&
+     ((p.shortEndDate && p.shortEndDate < start) || (p.shortStartDate && p.shortStartDate > end))) {
+    p.shortHours = null;
+    p.dailyHours = null;
+  }
+  var extraLeaveDays = p.extraLeaveDays || 0;
 
   // 기간 내 완전 0 (복직 없는 육아/병가)
   if(isZeroFull && !hasReturn) {
@@ -596,19 +641,19 @@ function calcMember(member, startStr, endStr) {
   // 출산휴가 + 복직 (출산휴가 키워드, 복직일 있음)
   if(member.note.indexOf('출산휴가')>=0 && hasReturn && p.returnDate >= start) {
     var wdAfterReturn2 = getWeekdays(p.returnDate, end, holidaySet);
-    return { weekdays: wdAfterReturn2, isZero: false, partial: true };
+    return { weekdays: wdAfterReturn2 - extraLeaveDays, isZero: false, partial: true };
   }
 
   // 입사일
   if(p.entryDate && p.entryDate >= start) {
     var wd = getWeekdays(p.entryDate, end, holidaySet);
-    return { weekdays: wd, isZero: false };
+    return { weekdays: wd - extraLeaveDays, isZero: false };
   }
 
   // 퇴사일
   if(p.exitDate && p.exitDate >= start && p.exitDate <= end) {
     var wd = getWeekdays(start, p.exitDate, holidaySet);
-    return { weekdays: wd, isZero: false };
+    return { weekdays: wd - extraLeaveDays, isZero: false };
   }
 
   // 특정 요일만 단축 (예: 화,목 4시간) - shortHours보다 먼저 체크
@@ -625,21 +670,20 @@ function calcMember(member, startStr, endStr) {
       }
       dd.setDate(dd.getDate()+1);
     }
-    var totalAdj = Math.round((normalCount + shortCount * ratio) * 1000) / 1000;
+    var totalAdj = Math.round((normalCount + shortCount * ratio - extraLeaveDays) * 1000) / 1000;
     return { weekdays: totalAdj, isZero: false, isShort: true, shortNote: '주'+p.shortHours+'시간('+sd.days.map(function(d){return ['','월','화','수','목','금'][d];}).join(',')+'요일 단축)' };
   }
 
   // 단축근무 전체 기간
   if(p.shortHours) {
     var totalWd = getWeekdays(start, end, holidaySet);
-    var adj = Math.round(totalWd * p.shortHours / 40 * 1000) / 1000;
+    var adj = Math.round((totalWd * p.shortHours / 40 - extraLeaveDays) * 1000) / 1000;
     return { weekdays: adj, isZero: false, isShort: true, shortNote: '주'+p.shortHours+'시간 단축' };
   }
 
   // 특수 근무 (우진학교 등)
   var baseWd = getWeekdays(start, end, holidaySet);
-  var extraLeave = p.extraLeaveDays || 0;
-  return { weekdays: baseWd - extraLeave, isZero: false };
+  return { weekdays: baseWd - extraLeaveDays, isZero: false };
 }
 
 // ── 계산 ──
