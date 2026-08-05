@@ -165,7 +165,7 @@ tbody tr:hover{background:#FAFBFC}
   <div class="nav-item" onclick="switchNav('weekly',this)"><span class="nav-icon">📊</span>주간 보고</div>
   <div class="nav-item" onclick="switchNav('project',this)"><span class="nav-icon">🗂️</span>프로젝트<span class="nav-badge" id="badge-project" style="display:none">0</span></div>
   <div class="nav-item" onclick="switchNav('recruit',this)"><span class="nav-icon">👥</span>채용현황<span class="nav-badge" id="badge-recruit" style="display:none">0</span></div>
-  <div class="nav-item" onclick="switchNav('oncall',this)"><span class="nav-icon">🩺</span>당직의(급여,스케줄)</div>
+  <div class="nav-item" onclick="switchNav('oncall',this)"><span class="nav-icon">🩺</span>당직의(스케줄·급여계산)</div>
 
   <div class="nav-divider"></div>
   <div class="nav-item" onclick="switchNav('annual',this)"><span class="nav-icon">📅</span>연간중요일정</div>
@@ -530,7 +530,7 @@ tbody tr:hover{background:#FAFBFC}
   <div id="pane-oncall" class="pane">
     <div class="card">
       <div class="card-head">
-        <span class="card-title">🩺 당직의(급여,스케줄)</span>
+        <span class="card-title">🩺 당직의(스케줄·급여계산)</span>
       </div>
       <div style="display:flex;gap:6px;padding:.75rem 1.25rem;border-bottom:1px solid var(--gray-border)">
         <button class="btn primary" id="oncall-tab-schedule" onclick="switchOncallTab('schedule')">📅 스케줄</button>
@@ -558,6 +558,7 @@ tbody tr:hover{background:#FAFBFC}
       </div>
 
       <div id="oncall-tab-content-salary" style="display:none;padding:1rem 1.25rem">
+        <div style="max-width:1100px;margin:0 auto">
         <div style="background:var(--lime-light);border:1px solid var(--lime-dark);border-radius:8px;padding:.6rem .9rem;font-size:12px;color:var(--lime-dark);margin-bottom:1rem">
           ✅ 국세청 2026년 근로소득 간이세액표(본인 기준) 630개 구간 그대로 반영했어요. 국민연금 상한/하한, 사업주 부담분(고용·산재)까지 계산돼요. 아래 <b>계산 이력은 이 컴퓨터에만 저장</b>되고 팀원과 공유되지 않아요.
         </div>
@@ -678,6 +679,7 @@ tbody tr:hover{background:#FAFBFC}
               <tr><td colspan="6" class="empty">빠른 세트 비교에서 항목을 추가하면 여기 자동으로 집계돼요</td></tr>
             </tbody>
           </table>
+        </div>
         </div>
       </div>
     </div>
