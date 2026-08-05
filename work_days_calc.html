@@ -445,15 +445,15 @@ function parseNote(note, startStr, endStr) {
     noteClean: note
   };
 
-  // 단축근무 주시간
-  var shortMatch = note.match(/주(\d+)시간/);
-  if(shortMatch) result.shortHours = parseInt(shortMatch[1]);
+  // 단축근무 주시간 (소수점 허용: 주27.5시간)
+  var shortMatch = note.match(/주(\d+(?:\.\d+)?)시간/);
+  if(shortMatch) result.shortHours = parseFloat(shortMatch[1]);
 
-  // 특정 요일 단축: (화,목 4시간)
-  var dayShortMatch = note.match(/[(（]([가-힣,\s]+)\s+(\d+)시간[)）]/);
+  // 특정 요일 단축: (화,목 4시간) / (화 8시간) — 소수점 허용
+  var dayShortMatch = note.match(/[(（]([가-힣,\s]+)\s+(\d+(?:\.\d+)?)시간[)）]/);
   if(dayShortMatch) {
     var dayStr = dayShortMatch[1];
-    var hPerDay = parseInt(dayShortMatch[2]);
+    var hPerDay = parseFloat(dayShortMatch[2]);
     var dayMap = {'월':1,'화':2,'수':3,'목':4,'금':5};
     var shortDays = [];
     dayStr.split(/[,\s]+/).forEach(function(d){ if(dayMap[d.trim()]!==undefined) shortDays.push(dayMap[d.trim()]); });
@@ -598,10 +598,11 @@ function calcMember(member, startStr, endStr) {
   var hasReturn = !!p.returnDate;
 
   // 단축근무 기간이 계산 기간과 안 겹치면(이미 끝났거나 아직 시작 전) 단축 무시 - 역사적 비고 방지
-  if((p.shortHours || p.dailyHours) &&
+  if((p.shortHours || p.dailyHours || p.shortDays) &&
      ((p.shortEndDate && p.shortEndDate < start) || (p.shortStartDate && p.shortStartDate > end))) {
     p.shortHours = null;
     p.dailyHours = null;
+    p.shortDays = null;
   }
   var extraLeaveDays = p.extraLeaveDays || 0;
 
@@ -656,22 +657,47 @@ function calcMember(member, startStr, endStr) {
     return { weekdays: wd - extraLeaveDays, isZero: false };
   }
 
-  // 특정 요일만 단축 (예: 화,목 4시간) - shortHours보다 먼저 체크
+  // 특정 요일 지정 단축 (예: 화,목 4시간 / 화 8시간) - shortHours보다 먼저 체크
+  // 모델: 괄호에 적힌 요일은 그 시간 그대로, 나머지 평일이 (주간총시간 - 지정요일합)을 균등 분배
   if(p.shortDays) {
     var sd = p.shortDays;
-    var ratio = sd.hoursPerDay / 8; // 4시간 → 0.5
-    var normalCount = 0, shortCount = 0;
+    var listedHours = sd.hoursPerDay;          // 지정 요일의 하루 시간
+    var numListed = sd.days.length;
+    var numRemaining = 5 - numListed;          // 나머지 평일 종류 수
+    var weekly = p.shortHours;                 // 주간 총시간 (없을 수 있음)
+    var remainderPerDay;
+    if(weekly && numRemaining > 0) {
+      remainderPerDay = (weekly - listedHours * numListed) / numRemaining;
+    } else if(numRemaining > 0) {
+      remainderPerDay = 8;                     // 주시간 정보 없으면 나머지는 정상 8시간
+    } else {
+      remainderPerDay = 0;
+    }
+    if(remainderPerDay < 0) remainderPerDay = 0;
+
+    // 단축 적용 기간 (범위 지정 없으면 계산 전체 기간)
+    var sStart = (p.shortStartDate && p.shortStartDate > start) ? p.shortStartDate : start;
+    var sEnd = (p.shortEndDate && p.shortEndDate < end) ? p.shortEndDate : end;
+
+    var total = 0;
     var dd = new Date(start);
     while(dd <= end) {
-      var dsdd = dateStr(dd);
-      if(dd.getDay() !== 0 && dd.getDay() !== 6 && !holidaySet.has(dsdd)) {
-        if(sd.days.indexOf(dd.getDay()) >= 0) shortCount++;
-        else normalCount++;
+      if(dd.getDay() !== 0 && dd.getDay() !== 6 && !holidaySet.has(dateStr(dd))) {
+        if(dd >= sStart && dd <= sEnd) {
+          // 단축 기간 내
+          if(sd.days.indexOf(dd.getDay()) >= 0) total += listedHours / 8;
+          else total += remainderPerDay / 8;
+        } else {
+          total += 1;  // 단축 기간 밖: 정상 근무
+        }
       }
       dd.setDate(dd.getDate()+1);
     }
-    var totalAdj = Math.round((normalCount + shortCount * ratio - extraLeaveDays) * 1000) / 1000;
-    return { weekdays: totalAdj, isZero: false, isShort: true, shortNote: '주'+p.shortHours+'시간('+sd.days.map(function(d){return ['','월','화','수','목','금'][d];}).join(',')+'요일 단축)' };
+    var totalAdj = Math.round((total - extraLeaveDays) * 1000) / 1000;
+    if(totalAdj < 0) totalAdj = 0;
+    var dayLabel = sd.days.map(function(d){return ['','월','화','수','목','금'][d];}).join(',');
+    var shortNote = '주'+(p.shortHours||'')+'시간 단축('+dayLabel+' '+listedHours+'시간)';
+    return { weekdays: totalAdj, isZero: false, isShort: true, shortNote: shortNote };
   }
 
   // 단축근무 전체 기간
