@@ -805,15 +805,24 @@ function snapshot() {
     group: currentGroup,
     start: document.getElementById('date-start').value,
     end: document.getElementById('date-end').value,
-    holidays: holidays.slice(),
-    groups: JSON.parse(JSON.stringify(groups)),
     leaveData: Object.assign({}, leaveData),
     leaveInfo: ut ? ut.innerHTML : '',
     leaveCount: Object.keys(leaveData).length
   };
 }
 
+// 부서/직원 비고·공휴일은 "마스터"로 항상 저장 (스냅샷과 분리)
+function saveMaster() {
+  groups[currentGroup] = depts;
+  try {
+    localStorage.setItem('work_days_groups', JSON.stringify(groups));
+    localStorage.setItem('work_days_current_group', currentGroup);
+    localStorage.setItem('work_days_holidays', JSON.stringify(holidays));
+  } catch(e) {}
+}
+
 function persistState(addHistory) {
+  saveMaster(); // 비고·공휴일 항상 최신으로 보존
   var snap = snapshot();
   try { localStorage.setItem(LS_LAST, JSON.stringify(snap)); } catch(e) {}
   if(!addHistory) return;
@@ -830,12 +839,11 @@ function persistState(addHistory) {
   catch(e) { alert('이력 저장 공간이 부족해요. 이력 창에서 오래된 항목을 지워주세요.'); }
 }
 
+// 이력/마지막 상태 복원 — 기간·휴가데이터만 되돌리고 비고·공휴일(마스터)은 절대 건드리지 않음
 function restoreSnapshot(snap) {
   if(!snap) return;
-  if(snap.groups) groups = JSON.parse(JSON.stringify(snap.groups));
   currentGroup = snap.group || currentGroup;
-  depts = groups[currentGroup] || [];
-  holidays = (snap.holidays || []).slice();
+  depts = groups[currentGroup] || [];  // 항상 마스터 비고 사용
   leaveData = Object.assign({}, snap.leaveData || {});
   var ds = document.getElementById('date-start'), de = document.getElementById('date-end');
   if(snap.start && ds) ds.value = snap.start;
@@ -844,12 +852,10 @@ function restoreSnapshot(snap) {
   // 휴가 업로드 표시 복원
   var ut = document.getElementById('upload-text');
   var cnt = Object.keys(leaveData).length;
-  if(ut) {
-    if(cnt) {
-      ut.innerHTML = snap.leaveInfo || ('✅ 저장된 휴가 데이터<br><span style="font-size:11px;color:var(--green)">'+cnt+'명 로드됨</span>');
-      var ua = document.getElementById('upload-area'); if(ua) ua.style.borderColor = 'var(--green)';
-      var cb = document.getElementById('clear-upload-btn'); if(cb) cb.style.display = 'block';
-    }
+  if(ut && cnt) {
+    ut.innerHTML = snap.leaveInfo || ('✅ 저장된 휴가 데이터<br><span style="font-size:11px;color:var(--green)">'+cnt+'명 로드됨</span>');
+    var ua = document.getElementById('upload-area'); if(ua) ua.style.borderColor = 'var(--green)';
+    var cb = document.getElementById('clear-upload-btn'); if(cb) cb.style.display = 'block';
   }
   if(snap.start && snap.end) calcAll(false);
 }
@@ -1063,11 +1069,13 @@ function addHoliday() {
   if(!v) return;
   if(!holidays.includes(v)) { holidays.push(v); holidays.sort(); renderHolidays(); }
   document.getElementById('holiday-input').value = '';
+  saveMaster();
 }
 
 function removeHoliday(d) {
   holidays = holidays.filter(function(h){ return h !== d; });
   renderHolidays();
+  saveMaster();
 }
 
 function renderHolidays() {
@@ -1163,12 +1171,14 @@ function addMember() {
   document.getElementById('new-member-note').value = '';
   document.getElementById('add-member-form').style.display = 'none';
   renderMembers();
+  saveMaster();
 }
 
 function delMember(di, mi) {
   if(!confirm(depts[di].members[mi].name+' 을 삭제할까요?')) return;
   depts[di].members.splice(mi,1);
   renderMembers();
+  saveMaster();
 }
 
 function openEditMember(di, mi) {
@@ -1185,6 +1195,7 @@ function saveMemberEdit() {
   depts[di].members[mi].name = document.getElementById('edit-name').value.trim();
   depts[di].members[mi].note = document.getElementById('edit-note').value.trim();
   groups[currentGroup] = depts;
+  saveMaster();
   closeMemberModal();
   renderMembers();
   // 계산 결과 자동 갱신
@@ -1210,6 +1221,7 @@ function addDept() {
   currentDept = depts.length - 1;
   document.getElementById('dept-modal').classList.remove('open');
   renderDeptTabs();
+  saveMaster();
 }
 
 function saveSettings() {
