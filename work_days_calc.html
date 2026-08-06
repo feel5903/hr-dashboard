@@ -597,6 +597,7 @@ function parseNote(note, startStr, endStr) {
   while((m2re=p2re.exec(note))!==null) { collectExtraDates(m2re[1]); }
 
   result.extraLeaveDays = Object.keys(extraDateSet).length;
+  result.extraLeaveDates = Object.keys(extraDateSet).sort();
 
   return result;
 }
@@ -622,6 +623,31 @@ function calcMember(member, startStr, endStr) {
     p.shortDays = null;
   }
   var extraLeaveDays = p.extraLeaveDays || 0;
+  var extraLeaveDates = p.extraLeaveDates || [];
+
+  // 휴가일 1건을 "그 날의 근무가치"만큼만 차감 (단축근무자는 비율 적용)
+  function leaveDayValue(dsStr) {
+    var d = new Date(dsStr);
+    var wd = d.getDay();
+    var inShort = !!(p.shortHours || p.dailyHours || p.shortDays);
+    if(inShort && p.shortStartDate && d < p.shortStartDate) inShort = false;   // 단축 시작 전
+    if(inShort && p.shortEndDate && d > p.shortEndDate) inShort = false;       // 단축 종료 후
+    if(inShort && hasReturn && p.returnDate && d >= p.returnDate) inShort = false; // 복직 후 정상
+    if(!inShort) return 1;
+    if(p.shortDays) {
+      var sd = p.shortDays;
+      var numListed = sd.days.length, numRemaining = 5 - numListed;
+      var rem = (p.shortHours && numRemaining>0) ? (p.shortHours - sd.hoursPerDay*numListed)/numRemaining : (numRemaining>0 ? 8 : 0);
+      if(rem < 0) rem = 0;
+      return (sd.days.indexOf(wd) >= 0) ? sd.hoursPerDay/8 : rem/8;
+    }
+    if(p.dailyHours) return Math.min(1, p.dailyHours/8);
+    if(p.shortHours) return p.shortHours/40;
+    return 1;
+  }
+  var extraDeduction = 0;
+  extraLeaveDates.forEach(function(ds){ extraDeduction += leaveDayValue(ds); });
+  extraDeduction = Math.round(extraDeduction * 1000) / 1000;
 
   // 기간 내 완전 0 (복직 없는 육아/병가)
   if(isZeroFull && !hasReturn) {
@@ -643,8 +669,7 @@ function calcMember(member, startStr, endStr) {
     var wdBeforeAdj = p.dailyHours ? wdBefore * p.dailyHours / 8 : wdBefore * p.shortHours / 40;
     // 복직 후: 정상
     var wdAfter = getWeekdays(p.returnDate, end, holidaySet);
-    var extraLeave = p.extraLeaveDays || 0;
-    var totalWd = Math.round((wdBeforeAdj + wdAfter - extraLeave) * 1000) / 1000;
+    var totalWd = Math.round((wdBeforeAdj + wdAfter - extraDeduction) * 1000) / 1000;
     var shortLabel = p.dailyHours ? p.dailyHours+'시간 단축→복직' : '주'+p.shortHours+'시간→복직';
     return { weekdays: totalWd, isZero: false, isShort: true, shortNote: shortLabel };
   }
@@ -652,26 +677,25 @@ function calcMember(member, startStr, endStr) {
   // 육아휴직 후 복직 혼합
   if(isZeroFull && hasReturn && p.returnDate >= start && p.returnDate <= end) {
     var wdAfterReturn = getWeekdays(p.returnDate, end, holidaySet);
-    var extraLeave = p.extraLeaveDays || 0;
-    return { weekdays: wdAfterReturn - extraLeave, isZero: false, partial: true };
+    return { weekdays: wdAfterReturn - extraDeduction, isZero: false, partial: true };
   }
 
   // 출산휴가 + 복직 (출산휴가 키워드, 복직일 있음)
   if(member.note.indexOf('출산휴가')>=0 && hasReturn && p.returnDate >= start) {
     var wdAfterReturn2 = getWeekdays(p.returnDate, end, holidaySet);
-    return { weekdays: wdAfterReturn2 - extraLeaveDays, isZero: false, partial: true };
+    return { weekdays: wdAfterReturn2 - extraDeduction, isZero: false, partial: true };
   }
 
   // 입사일
   if(p.entryDate && p.entryDate >= start) {
     var wd = getWeekdays(p.entryDate, end, holidaySet);
-    return { weekdays: wd - extraLeaveDays, isZero: false };
+    return { weekdays: wd - extraDeduction, isZero: false };
   }
 
   // 퇴사일
   if(p.exitDate && p.exitDate >= start && p.exitDate <= end) {
     var wd = getWeekdays(start, p.exitDate, holidaySet);
-    return { weekdays: wd - extraLeaveDays, isZero: false };
+    return { weekdays: wd - extraDeduction, isZero: false };
   }
 
   // 특정 요일 지정 단축 (예: 화,목 4시간 / 화 8시간) - shortHours보다 먼저 체크
@@ -710,7 +734,7 @@ function calcMember(member, startStr, endStr) {
       }
       dd.setDate(dd.getDate()+1);
     }
-    var totalAdj = Math.round((total - extraLeaveDays) * 1000) / 1000;
+    var totalAdj = Math.round((total - extraDeduction) * 1000) / 1000;
     if(totalAdj < 0) totalAdj = 0;
     var dayLabel = sd.days.map(function(d){return ['','월','화','수','목','금'][d];}).join(',');
     var shortNote = '주'+(p.shortHours||'')+'시간 단축('+dayLabel+' '+listedHours+'시간)';
@@ -720,13 +744,13 @@ function calcMember(member, startStr, endStr) {
   // 단축근무 전체 기간
   if(p.shortHours) {
     var totalWd = getWeekdays(start, end, holidaySet);
-    var adj = Math.round((totalWd * p.shortHours / 40 - extraLeaveDays) * 1000) / 1000;
+    var adj = Math.round((totalWd * p.shortHours / 40 - extraDeduction) * 1000) / 1000;
     return { weekdays: adj, isZero: false, isShort: true, shortNote: '주'+p.shortHours+'시간 단축' };
   }
 
   // 특수 근무 (우진학교 등)
   var baseWd = getWeekdays(start, end, holidaySet);
-  return { weekdays: baseWd - extraLeaveDays, isZero: false };
+  return { weekdays: baseWd - extraDeduction, isZero: false };
 }
 
 // ── 계산 ──
