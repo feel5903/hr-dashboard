@@ -151,7 +151,8 @@ td.note-cell { text-align: left; font-size: 11px; color: #6B7280; }
 
 <div class="toolbar">
   <h1>🏥 치료과 근무일수 통계</h1>
-  <button class="btn-green" onclick="calcAll()">📊 계산하기</button>
+  <button class="btn-green" onclick="calcAll(true)">📊 계산하기</button>
+  <button class="btn-white" onclick="openHistory()">🕘 이력</button>
   <button class="btn-white" onclick="exportExcel()">⬇ 엑셀 다운로드</button>
   <button class="btn-white" onclick="window.print()">🖨️ 인쇄</button>
   <button class="btn-gray" onclick="saveSettings()">💾 설정 저장</button>
@@ -264,6 +265,17 @@ td.note-cell { text-align: left; font-size: 11px; color: #6B7280; }
     <div class="modal-btns">
       <button onclick="document.getElementById('dept-modal').classList.remove('open')" style="background:#E8ECF0">취소</button>
       <button onclick="addDept()" style="background:var(--green);color:#fff">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- 이력 모달 -->
+<div class="modal-bg" id="history-modal">
+  <div class="modal" style="width:480px">
+    <h3>🕘 계산 이력</h3>
+    <div id="history-list" style="max-height:60vh;overflow-y:auto"></div>
+    <div class="modal-btns">
+      <button onclick="document.getElementById('history-modal').classList.remove('open')" style="background:#E8ECF0">닫기</button>
     </div>
   </div>
 </div>
@@ -386,6 +398,11 @@ function init() {
   renderGroupTabs();
   renderDeptTabs();
   renderHolidays();
+
+  // 마지막 계산 상태 자동 복원 (빈 화면 방지)
+  var last = null;
+  try { last = JSON.parse(localStorage.getItem('work_days_last') || 'null'); } catch(e) { last = null; }
+  if(last) restoreSnapshot(last);
 }
 
 // ── 날짜 유틸 ──
@@ -713,7 +730,7 @@ function calcMember(member, startStr, endStr) {
 }
 
 // ── 계산 ──
-function calcAll() {
+function calcAll(addHistory) {
   var startStr = document.getElementById('date-start').value;
   var endStr = document.getElementById('date-end').value;
   if(!startStr || !endStr) { alert('기간을 설정해주세요'); return; }
@@ -766,6 +783,130 @@ function calcAll() {
 
   html += '</tbody></table></div>';
   document.getElementById('result-area').innerHTML = html;
+
+  persistState(!!addHistory);
+}
+
+// ── 상태 저장 / 이력 ──
+var LS_LAST = 'work_days_last', LS_HIST = 'work_days_history';
+
+function periodLabel(s, e) {
+  if(!s || !e) return '';
+  var a = new Date(s), b = new Date(e);
+  return (a.getMonth()+1)+'/'+a.getDate()+'~'+(b.getMonth()+1)+'/'+b.getDate();
+}
+
+function snapshot() {
+  groups[currentGroup] = depts; // 현재 편집분 반영
+  var ut = document.getElementById('upload-text');
+  return {
+    id: Date.now(),
+    savedAt: new Date().toISOString(),
+    group: currentGroup,
+    start: document.getElementById('date-start').value,
+    end: document.getElementById('date-end').value,
+    holidays: holidays.slice(),
+    groups: JSON.parse(JSON.stringify(groups)),
+    leaveData: Object.assign({}, leaveData),
+    leaveInfo: ut ? ut.innerHTML : '',
+    leaveCount: Object.keys(leaveData).length
+  };
+}
+
+function persistState(addHistory) {
+  var snap = snapshot();
+  try { localStorage.setItem(LS_LAST, JSON.stringify(snap)); } catch(e) {}
+  if(!addHistory) return;
+  var hist = [];
+  try { hist = JSON.parse(localStorage.getItem(LS_HIST) || '[]'); } catch(e) { hist = []; }
+  var key = snap.group+'|'+snap.start+'|'+snap.end;
+  // 같은 그룹·기간이면 기존 이력 갱신(중복 방지)
+  var prev = hist.filter(function(h){ return (h.group+'|'+h.start+'|'+h.end)===key; })[0];
+  hist = hist.filter(function(h){ return (h.group+'|'+h.start+'|'+h.end)!==key; });
+  snap.label = (prev && prev.label) ? prev.label : (snap.group+' · '+periodLabel(snap.start, snap.end));
+  hist.unshift(snap);
+  if(hist.length > 12) hist = hist.slice(0, 12);
+  try { localStorage.setItem(LS_HIST, JSON.stringify(hist)); }
+  catch(e) { alert('이력 저장 공간이 부족해요. 이력 창에서 오래된 항목을 지워주세요.'); }
+}
+
+function restoreSnapshot(snap) {
+  if(!snap) return;
+  if(snap.groups) groups = JSON.parse(JSON.stringify(snap.groups));
+  currentGroup = snap.group || currentGroup;
+  depts = groups[currentGroup] || [];
+  holidays = (snap.holidays || []).slice();
+  leaveData = Object.assign({}, snap.leaveData || {});
+  var ds = document.getElementById('date-start'), de = document.getElementById('date-end');
+  if(snap.start && ds) ds.value = snap.start;
+  if(snap.end && de) de.value = snap.end;
+  renderGroupTabs(); renderDeptTabs(); renderHolidays();
+  // 휴가 업로드 표시 복원
+  var ut = document.getElementById('upload-text');
+  var cnt = Object.keys(leaveData).length;
+  if(ut) {
+    if(cnt) {
+      ut.innerHTML = snap.leaveInfo || ('✅ 저장된 휴가 데이터<br><span style="font-size:11px;color:var(--green)">'+cnt+'명 로드됨</span>');
+      var ua = document.getElementById('upload-area'); if(ua) ua.style.borderColor = 'var(--green)';
+      var cb = document.getElementById('clear-upload-btn'); if(cb) cb.style.display = 'block';
+    }
+  }
+  if(snap.start && snap.end) calcAll(false);
+}
+
+function openHistory() {
+  renderHistoryList();
+  document.getElementById('history-modal').classList.add('open');
+}
+
+function renderHistoryList() {
+  var host = document.getElementById('history-list');
+  var hist = [];
+  try { hist = JSON.parse(localStorage.getItem(LS_HIST) || '[]'); } catch(e) { hist = []; }
+  if(!hist.length) {
+    host.innerHTML = '<div style="padding:18px 4px;color:#9CA3AF;font-size:13px">아직 저장된 이력이 없어요.<br>기간을 설정하고 <b>📊 계산하기</b>를 누르면 여기에 기록됩니다.</div>';
+    return;
+  }
+  host.innerHTML = hist.map(function(h) {
+    var d = new Date(h.savedAt);
+    var when = d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    return '<div style="border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px">'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-weight:700;font-size:13.5px;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+h.label+'</div>'+
+        '<div style="font-size:11.5px;color:#8A929C;margin-top:2px">'+when+' · 휴가 '+(h.leaveCount||0)+'명</div>'+
+      '</div>'+
+      '<button onclick="openRun('+h.id+')" style="background:var(--navy);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">열기</button>'+
+      '<button onclick="renameRun('+h.id+')" title="이름 변경" style="background:#EEF1F4;border:none;border-radius:6px;padding:6px 9px;font-size:12px;cursor:pointer;font-family:inherit">✏️</button>'+
+      '<button onclick="deleteRun('+h.id+')" title="삭제" style="background:#FEE2E2;color:#991B1B;border:none;border-radius:6px;padding:6px 9px;font-size:12px;cursor:pointer;font-family:inherit">🗑</button>'+
+    '</div>';
+  }).join('');
+}
+
+function getHist() { try { return JSON.parse(localStorage.getItem(LS_HIST) || '[]'); } catch(e) { return []; } }
+function setHist(h) { try { localStorage.setItem(LS_HIST, JSON.stringify(h)); } catch(e) {} }
+
+function openRun(id) {
+  var snap = getHist().filter(function(h){ return h.id===id; })[0];
+  if(!snap) return;
+  restoreSnapshot(snap);
+  document.getElementById('history-modal').classList.remove('open');
+}
+
+function renameRun(id) {
+  var hist = getHist();
+  var h = hist.filter(function(x){ return x.id===id; })[0];
+  if(!h) return;
+  var name = prompt('이력 이름을 바꿔주세요', h.label);
+  if(name===null) return;
+  h.label = name.trim() || h.label;
+  setHist(hist);
+  renderHistoryList();
+}
+
+function deleteRun(id) {
+  if(!confirm('이 이력을 삭제할까요?')) return;
+  setHist(getHist().filter(function(h){ return h.id!==id; }));
+  renderHistoryList();
 }
 
 // ── 엑셀 다운로드 ──
