@@ -165,7 +165,7 @@ tbody tr:hover{background:#FAFBFC}
   <div class="nav-item" onclick="switchNav('weekly',this)"><span class="nav-icon">📊</span>주간 보고</div>
   <div class="nav-item" onclick="switchNav('project',this)"><span class="nav-icon">🗂️</span>프로젝트<span class="nav-badge" id="badge-project" style="display:none">0</span></div>
   <div class="nav-item" onclick="switchNav('recruit',this)"><span class="nav-icon">👥</span>채용현황<span class="nav-badge" id="badge-recruit" style="display:none">0</span></div>
-  <div class="nav-item" onclick="switchNav('oncall',this)"><span class="nav-icon">🩺</span>당직의(스케줄·급여계산)</div>
+  <div class="nav-item" onclick="switchNav('oncall',this)"><span class="nav-icon">🩺</span>당직의 급여계산기</div>
 
   <div class="nav-divider"></div>
   <div class="nav-item" onclick="switchNav('annual',this)"><span class="nav-icon">📅</span>연간중요일정</div>
@@ -530,34 +530,10 @@ tbody tr:hover{background:#FAFBFC}
   <div id="pane-oncall" class="pane">
     <div class="card">
       <div class="card-head">
-        <span class="card-title">🩺 당직의(스케줄·급여계산)</span>
-      </div>
-      <div style="display:flex;gap:6px;padding:.75rem 1.25rem;border-bottom:1px solid var(--gray-border)">
-        <button class="btn primary" id="oncall-tab-schedule" onclick="switchOncallTab('schedule')">📅 스케줄</button>
-        <button class="btn" id="oncall-tab-salary" onclick="switchOncallTab('salary')">💰 급여계산기</button>
+        <span class="card-title">🩺 당직의 급여계산기</span>
       </div>
 
-      <div id="oncall-tab-content-schedule">
-        <div class="card-head">
-          <span class="card-title">📅 스케줄</span>
-          <div class="card-actions">
-            <span id="oncall-unset-badge" style="font-size:11px;font-weight:700;color:#92400E"></span>
-            <button class="btn" onclick="openDoctorRosterModal()" style="border-color:#4338CA;color:#4338CA">👥 당직의 명단 관리</button>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:center;gap:14px;padding:.75rem 1rem;border-bottom:1px solid var(--gray-border)">
-          <button class="btn" onclick="changeOncallMonth(-1)">◀ 이전달</button>
-          <span id="oncall-month-label" style="font-size:15px;font-weight:700;color:var(--navy);min-width:110px;text-align:center"></span>
-          <button class="btn" onclick="changeOncallMonth(1)">다음달 ▶</button>
-        </div>
-        <div id="oncall-grid" style="padding:1rem;max-width:820px;margin:0 auto"></div>
-        <div style="padding:0 1.25rem 1.25rem;max-width:820px;margin:0 auto">
-          <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:.5rem">📞 이번 달 당직의 연락처</div>
-          <div id="oncall-contacts" style="display:flex;flex-direction:column;gap:6px"></div>
-        </div>
-      </div>
-
-      <div id="oncall-tab-content-salary" style="display:none;padding:1rem 1.25rem">
+      <div id="oncall-tab-content-salary" style="padding:1rem 1.25rem">
         <div style="max-width:1100px;margin:0 auto">
         <div style="background:var(--lime-light);border:1px solid var(--lime-dark);border-radius:8px;padding:.6rem .9rem;font-size:12px;color:var(--lime-dark);margin-bottom:1rem">
           ✅ 국세청 2026년 근로소득 간이세액표(본인 기준) 630개 구간 그대로 반영했어요. 국민연금 상한/하한, 사업주 부담분(고용·산재)까지 계산돼요. 아래 <b>계산 이력은 이 컴퓨터에만 저장</b>되고 팀원과 공유되지 않아요.
@@ -1556,7 +1532,7 @@ function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").f
   if(name==="duties")renderDuties();
   if(name==="dormitory")renderDormitory();if(name==="project")renderProject();if(name==="weekly"){renderWeeklySelect();renderWeekly();}
   if(name==="annual")renderAnnual();
-  if(name==="oncall")renderOncallCalendar();
+  if(name==="oncall")salInit();
   if(name==="checklist"){renderChecklist();renderNotes();}}
 
 
@@ -4131,7 +4107,7 @@ function goToDueToday(){
   },150);
 }
 
-function renderAll(){updateStats();renderMemberUI();renderDaily();renderWeeklySelect();renderWeekly();renderProject();renderCalendar();renderRecruit();renderAnnualAlertBtn();renderAnnual();renderOncallCalendar();}
+function renderAll(){updateStats();renderMemberUI();renderDaily();renderWeeklySelect();renderWeekly();renderProject();renderCalendar();renderRecruit();renderAnnualAlertBtn();renderAnnual();}
 loadHeadcount();renderAll();syncAll();setInterval(syncAll,60000);
 
 
