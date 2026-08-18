@@ -1721,11 +1721,20 @@ function renderRecruit(){
         teamCount[t]=(teamCount[t]||0)+1;
       });
 
+      // 팀별 첫 등장 순서(같은 팀끼리 확실히 붙어있게 하기 위한 기준)
+      var teamFirstIndex={};
+      hiring.forEach(function(x,idx){
+        var t=x.team||'';
+        if(!(t in teamFirstIndex)) teamFirstIndex[t]=idx;
+      });
+
       var sorted=hiring.slice().sort(function(a,b){
         var mDiff=managerOrder.indexOf(a.manager||'')-managerOrder.indexOf(b.manager||'');
         if(mDiff!==0) return mDiff;
         var cDiff=(teamCount[b.team||'']||0)-(teamCount[a.team||'']||0);
         if(cDiff!==0) return cDiff;
+        var tDiff=teamFirstIndex[a.team||'']-teamFirstIndex[b.team||''];
+        if(tDiff!==0) return tDiff;
         return 0;
       });
 
