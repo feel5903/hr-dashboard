@@ -1691,29 +1691,43 @@ function renderRecruit(){
   var hires=recruits.filter(function(x){return x.type==='입사예정';});
   hires.sort(function(a,b){return a.date>b.date?1:-1;});
 
-  // 채용 진행
+  // 채용 진행 (팀별 그룹핑)
   var tbody=document.getElementById('recruit-tbody');
   if(tbody){
     if(!hiring.length){
-      tbody.innerHTML='<tr><td colspan="6" class="empty">채용 진행 중인 건이 없습니다</td></tr>';
+      tbody.innerHTML='<tr><td colspan="8" class="empty">채용 진행 중인 건이 없습니다</td></tr>';
     } else {
       tbody.innerHTML='';
+      var statusColors={'공고중':'#DBEAFE','서류마감':'#FEF3DC','서류검토':'#EDE9FE','면접':'#DCFCE7','면접결과보고':'#FCE7F3'};
+      var byTeam={};
       hiring.forEach(function(x){
-        var i=recruits.indexOf(x);
-        var tr=document.createElement('tr');
-        var statusColors={'공고중':'#DBEAFE','서류마감':'#FEF3DC','서류검토':'#EDE9FE','면접':'#DCFCE7','면접결과보고':'#FCE7F3'};
-        var bg=statusColors[x.status]||'#F3F4F6';
-        tr.innerHTML='<td style="font-size:12px">'+(x.manager||'')+'</td><td style="font-weight:500">'+(x.team||'')+'</td>'+
-          '<td>'+(x.replaceName||'')+'</td>'+
-          '<td><span style="font-size:11px;color:var(--text-muted)">'+(x.reason||'')+'</span></td>'+
-          '<td><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:'+bg+'">'+(x.status||'')+'</span></td>'+
-          '<td style="font-size:12px;color:var(--navy)">'+(x.schedule||'')+'</td>'+
-          '<td style="font-size:12px;color:var(--text-muted);min-width:160px;white-space:pre-wrap">'+(x.note||'')+'</td>'+
-          '<td style="width:80px"><div class="action-btns">'+
-          '<button class="edit-btn" onclick="editRecruit('+i+')">✏️</button>'+
-          '<button class="del-btn" onclick="deleteRecruit('+i+')">🗑️</button>'+
-          '</div></td>';
-        tbody.appendChild(tr);
+        var t=x.team||'(팀 미지정)';
+        if(!byTeam[t]) byTeam[t]=[];
+        byTeam[t].push(x);
+      });
+      var teamNames=Object.keys(byTeam).sort(function(a,b){return a.localeCompare(b,'ko');});
+      teamNames.forEach(function(t){
+        var htr=document.createElement('tr');
+        var htd=document.createElement('td');htd.colSpan=8;
+        htd.style.cssText="background:var(--navy-light);font-size:11px;font-weight:700;color:var(--navy);padding:.4rem 1rem";
+        htd.textContent=t+" ("+byTeam[t].length+"건)";
+        htr.appendChild(htd);tbody.appendChild(htr);
+        byTeam[t].forEach(function(x){
+          var i=recruits.indexOf(x);
+          var tr=document.createElement('tr');
+          var bg=statusColors[x.status]||'#F3F4F6';
+          tr.innerHTML='<td style="font-size:12px">'+(x.manager||'')+'</td><td style="font-weight:500">'+(x.team||'')+'</td>'+
+            '<td>'+(x.replaceName||'')+'</td>'+
+            '<td><span style="font-size:11px;color:var(--text-muted)">'+(x.reason||'')+'</span></td>'+
+            '<td><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:'+bg+'">'+(x.status||'')+'</span></td>'+
+            '<td style="font-size:12px;color:var(--navy)">'+(x.schedule||'')+'</td>'+
+            '<td style="font-size:12px;color:var(--text-muted);min-width:160px;white-space:pre-wrap">'+(x.note||'')+'</td>'+
+            '<td style="width:80px"><div class="action-btns">'+
+            '<button class="edit-btn" onclick="editRecruit('+i+')">✏️</button>'+
+            '<button class="del-btn" onclick="deleteRecruit('+i+')">🗑️</button>'+
+            '</div></td>';
+          tbody.appendChild(tr);
+        });
       });
     }
   }
