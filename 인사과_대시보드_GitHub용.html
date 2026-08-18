@@ -1700,21 +1700,23 @@ function renderRecruit(){
       tbody.innerHTML='';
       var statusColors={'공고중':'#DBEAFE','서류마감':'#FEF3DC','서류검토':'#EDE9FE','면접':'#DCFCE7','면접결과보고':'#FCE7F3'};
 
-      // 팀별 건수 계산 (여러 건 있는 팀만 배경색 표시)
+      // 팀별 건수 계산 → 2건 이상인 팀에 자동으로 색 배정 (상태 배지 색과 안 겹치는 팔레트)
       var teamCount={};
       hiring.forEach(function(x){
         var t=x.team||'';
         teamCount[t]=(teamCount[t]||0)+1;
       });
+      var TEAM_COLOR_PALETTE=['#CCFBF1','#FFEDD5','#E0E7FF','#E2E8F0','#CFFAFE','#FDE68A'];
+      var multiTeams=Object.keys(teamCount).filter(function(t){return t&&teamCount[t]>=2;}).sort(function(a,b){return a.localeCompare(b,'ko');});
+      var teamColorMap={};
+      multiTeams.forEach(function(t,idx){ teamColorMap[t]=TEAM_COLOR_PALETTE[idx%TEAM_COLOR_PALETTE.length]; });
 
       hiring.forEach(function(x){
         var i=recruits.indexOf(x);
         var tr=document.createElement('tr');
         var bg=statusColors[x.status]||'#F3F4F6';
         var team=x.team||'';
-        var teamBg='';
-        if(team==='성인병동간호팀' && teamCount[team]>=2) teamBg='background:#DBEAFE;padding:2px 6px;border-radius:4px';
-        else if(team==='소아병동간호팀' && teamCount[team]>=2) teamBg='background:#FCE7F3;padding:2px 6px;border-radius:4px';
+        var teamBg=teamColorMap[team]?('background:'+teamColorMap[team]+';padding:2px 6px;border-radius:4px'):'';
         tr.innerHTML='<td style="font-size:12px">'+(x.manager||'')+'</td><td style="font-weight:500"><span style="'+teamBg+'">'+team+'</span></td>'+
           '<td>'+(x.replaceName||'')+'</td>'+
           '<td><span style="font-size:11px;color:var(--text-muted)">'+(x.reason||'')+'</span></td>'+
