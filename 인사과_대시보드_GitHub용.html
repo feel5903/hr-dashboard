@@ -1691,7 +1691,7 @@ function renderRecruit(){
   var hires=recruits.filter(function(x){return x.type==='입사예정';});
   hires.sort(function(a,b){return a.date>b.date?1:-1;});
 
-  // 채용 진행 (원래 평면 목록, 담당자순서 유지 + 같은 담당자 안에서는 여러건 있는 팀이 위로)
+  // 채용 진행 (입력 순서 그대로, 성인/소아 팀만 색 구분)
   var tbody=document.getElementById('recruit-tbody');
   if(tbody){
     if(!hiring.length){
@@ -1700,49 +1700,15 @@ function renderRecruit(){
       tbody.innerHTML='';
       var statusColors={'공고중':'#DBEAFE','서류마감':'#FEF3DC','서류검토':'#EDE9FE','면접':'#DCFCE7','면접결과보고':'#FCE7F3'};
 
-      // 담당자 순서(배지은 다음 최필상, 이후 등장 순서대로) 계산
-      var managerOrder=[];
       hiring.forEach(function(x){
-        var mgr=x.manager||'';
-        if(managerOrder.indexOf(mgr)===-1) managerOrder.push(mgr);
-      });
-      managerOrder.sort(function(a,b){
-        if(a==='배지은') return -1;
-        if(b==='배지은') return 1;
-        if(a==='최필상') return -1;
-        if(b==='최필상') return 1;
-        return 0;
-      });
-
-      // 팀별 건수 계산 (많은 팀이 위로)
-      var teamCount={};
-      hiring.forEach(function(x){
-        var t=x.team||'';
-        teamCount[t]=(teamCount[t]||0)+1;
-      });
-
-      // 팀별 첫 등장 순서(같은 팀끼리 확실히 붙어있게 하기 위한 기준)
-      var teamFirstIndex={};
-      hiring.forEach(function(x,idx){
-        var t=x.team||'';
-        if(!(t in teamFirstIndex)) teamFirstIndex[t]=idx;
-      });
-
-      var sorted=hiring.slice().sort(function(a,b){
-        var mDiff=managerOrder.indexOf(a.manager||'')-managerOrder.indexOf(b.manager||'');
-        if(mDiff!==0) return mDiff;
-        var cDiff=(teamCount[b.team||'']||0)-(teamCount[a.team||'']||0);
-        if(cDiff!==0) return cDiff;
-        var tDiff=teamFirstIndex[a.team||'']-teamFirstIndex[b.team||''];
-        if(tDiff!==0) return tDiff;
-        return 0;
-      });
-
-      sorted.forEach(function(x){
         var i=recruits.indexOf(x);
         var tr=document.createElement('tr');
         var bg=statusColors[x.status]||'#F3F4F6';
-        tr.innerHTML='<td style="font-size:12px">'+(x.manager||'')+'</td><td style="font-weight:500">'+(x.team||'')+'</td>'+
+        var team=x.team||'';
+        var teamStyle='font-weight:500';
+        if(team.indexOf('성인')===0) teamStyle='font-weight:600;color:#1D4ED8;background:#DBEAFE;padding:2px 8px;border-radius:6px;display:inline-block';
+        else if(team.indexOf('소아')===0) teamStyle='font-weight:600;color:#DB2777;background:#FCE7F3;padding:2px 8px;border-radius:6px;display:inline-block';
+        tr.innerHTML='<td style="font-size:12px">'+(x.manager||'')+'</td><td><span style="'+teamStyle+'">'+team+'</span></td>'+
           '<td>'+(x.replaceName||'')+'</td>'+
           '<td><span style="font-size:11px;color:var(--text-muted)">'+(x.reason||'')+'</span></td>'+
           '<td><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:'+bg+'">'+(x.status||'')+'</span></td>'+
