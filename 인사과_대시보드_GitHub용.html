@@ -1691,7 +1691,7 @@ function renderRecruit(){
   var hires=recruits.filter(function(x){return x.type==='입사예정';});
   hires.sort(function(a,b){return a.date>b.date?1:-1;});
 
-  // 채용 진행 (팀별 그룹핑)
+  // 채용 진행 (원래 평면 목록, 담당자순서 유지 + 같은 담당자 안에서는 여러건 있는 팀이 위로)
   var tbody=document.getElementById('recruit-tbody');
   if(tbody){
     if(!hiring.length){
@@ -1699,35 +1699,51 @@ function renderRecruit(){
     } else {
       tbody.innerHTML='';
       var statusColors={'공고중':'#DBEAFE','서류마감':'#FEF3DC','서류검토':'#EDE9FE','면접':'#DCFCE7','면접결과보고':'#FCE7F3'};
-      var byTeam={};
+
+      // 담당자 순서(배지은 다음 최필상, 이후 등장 순서대로) 계산
+      var managerOrder=[];
       hiring.forEach(function(x){
-        var t=x.team||'(팀 미지정)';
-        if(!byTeam[t]) byTeam[t]=[];
-        byTeam[t].push(x);
+        var mgr=x.manager||'';
+        if(managerOrder.indexOf(mgr)===-1) managerOrder.push(mgr);
       });
-      var teamNames=Object.keys(byTeam).sort(function(a,b){return a.localeCompare(b,'ko');});
-      teamNames.forEach(function(t){
-        var htr=document.createElement('tr');
-        var htd=document.createElement('td');htd.colSpan=8;
-        htd.style.cssText="background:var(--navy-light);font-size:11px;font-weight:700;color:var(--navy);padding:.4rem 1rem";
-        htd.textContent=t+" ("+byTeam[t].length+"건)";
-        htr.appendChild(htd);tbody.appendChild(htr);
-        byTeam[t].forEach(function(x){
-          var i=recruits.indexOf(x);
-          var tr=document.createElement('tr');
-          var bg=statusColors[x.status]||'#F3F4F6';
-          tr.innerHTML='<td style="font-size:12px">'+(x.manager||'')+'</td><td style="font-weight:500">'+(x.team||'')+'</td>'+
-            '<td>'+(x.replaceName||'')+'</td>'+
-            '<td><span style="font-size:11px;color:var(--text-muted)">'+(x.reason||'')+'</span></td>'+
-            '<td><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:'+bg+'">'+(x.status||'')+'</span></td>'+
-            '<td style="font-size:12px;color:var(--navy)">'+(x.schedule||'')+'</td>'+
-            '<td style="font-size:12px;color:var(--text-muted);min-width:160px;white-space:pre-wrap">'+(x.note||'')+'</td>'+
-            '<td style="width:80px"><div class="action-btns">'+
-            '<button class="edit-btn" onclick="editRecruit('+i+')">✏️</button>'+
-            '<button class="del-btn" onclick="deleteRecruit('+i+')">🗑️</button>'+
-            '</div></td>';
-          tbody.appendChild(tr);
-        });
+      managerOrder.sort(function(a,b){
+        if(a==='배지은') return -1;
+        if(b==='배지은') return 1;
+        if(a==='최필상') return -1;
+        if(b==='최필상') return 1;
+        return 0;
+      });
+
+      // 팀별 건수 계산 (많은 팀이 위로)
+      var teamCount={};
+      hiring.forEach(function(x){
+        var t=x.team||'';
+        teamCount[t]=(teamCount[t]||0)+1;
+      });
+
+      var sorted=hiring.slice().sort(function(a,b){
+        var mDiff=managerOrder.indexOf(a.manager||'')-managerOrder.indexOf(b.manager||'');
+        if(mDiff!==0) return mDiff;
+        var cDiff=(teamCount[b.team||'']||0)-(teamCount[a.team||'']||0);
+        if(cDiff!==0) return cDiff;
+        return 0;
+      });
+
+      sorted.forEach(function(x){
+        var i=recruits.indexOf(x);
+        var tr=document.createElement('tr');
+        var bg=statusColors[x.status]||'#F3F4F6';
+        tr.innerHTML='<td style="font-size:12px">'+(x.manager||'')+'</td><td style="font-weight:500">'+(x.team||'')+'</td>'+
+          '<td>'+(x.replaceName||'')+'</td>'+
+          '<td><span style="font-size:11px;color:var(--text-muted)">'+(x.reason||'')+'</span></td>'+
+          '<td><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:'+bg+'">'+(x.status||'')+'</span></td>'+
+          '<td style="font-size:12px;color:var(--navy)">'+(x.schedule||'')+'</td>'+
+          '<td style="font-size:12px;color:var(--text-muted);min-width:160px;white-space:pre-wrap">'+(x.note||'')+'</td>'+
+          '<td style="width:80px"><div class="action-btns">'+
+          '<button class="edit-btn" onclick="editRecruit('+i+')">✏️</button>'+
+          '<button class="del-btn" onclick="deleteRecruit('+i+')">🗑️</button>'+
+          '</div></td>';
+        tbody.appendChild(tr);
       });
     }
   }
