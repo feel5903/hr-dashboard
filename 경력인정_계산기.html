@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>경력 인정 계산기 | 서울재활병원 인사과</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
   :root{
     --teal-900:#0d3b36;
@@ -138,6 +139,9 @@
     padding:6px 7px;
     border:1px solid var(--line);
     border-radius:5px;
+  }
+  td input.f-name{
+    width:220px;
   }
   td input.date-field{
     padding:5px 4px;
@@ -291,7 +295,7 @@
       <table id="careerTable">
         <thead>
           <tr>
-            <th style="min-width:150px;">근무처명</th>
+            <th style="min-width:230px;">근무처명</th>
             <th>시작일</th>
             <th>종료일</th>
             <th style="min-width:220px;">구분 (기관종별)</th>
@@ -367,6 +371,48 @@
     </div>
   </div>
 
+  <div class="panel">
+    <h2><span class="num">4</span>연봉표 생성</h2>
+    <div class="job-select-row" style="flex-wrap:wrap;gap:10px;">
+      <input type="text" id="salaryName" placeholder="성명" style="padding:9px 12px;border:1px solid var(--line);border-radius:6px;min-width:110px;">
+      <select id="salaryPosition" style="padding:9px 12px;border:1px solid var(--line);border-radius:6px;">
+        <option value="정규직">정규직</option>
+        <option value="계약직">계약직</option>
+      </select>
+      <select id="salaryGrade" style="padding:9px 12px;border:1px solid var(--line);border-radius:6px;">
+        <option value="1급">1급</option>
+        <option value="2급">2급</option>
+        <option value="3급">3급 (3-1급/3-2급)</option>
+        <option value="4급" selected>4급 (4-1급/4-2급)</option>
+        <option value="5급">5급</option>
+        <option value="기능직">기능직</option>
+        <option value="고용직">고용직</option>
+      </select>
+      <input type="text" id="salaryHireDate" maxlength="10" class="date-field" placeholder="20260810" style="width:120px;" oninput="maskDate(this)">
+      <span class="hint" style="padding:9px 12px;">← 임용년월일 (숫자만 입력)</span>
+    </div>
+    <div class="job-select-row" style="flex-wrap:wrap;gap:10px;margin-top:8px;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);">
+        <input type="checkbox" id="salaryShift3" style="width:16px;height:16px;"> 간호사 3교대 근무 (교대수당 150,000원 적용)
+      </label>
+    </div>
+    <div class="job-select-row" style="flex-wrap:wrap;gap:10px;margin-top:8px;">
+      <label style="font-size:13px;color:var(--muted);">해당 연도</label>
+      <input type="number" id="salaryYear" value="2026" style="width:80px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;">
+      <label style="font-size:13px;color:var(--muted);">설날 있는 달</label>
+      <input type="number" id="salaryLunarNY" value="2" min="1" max="12" style="width:60px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;">
+      <label style="font-size:13px;color:var(--muted);">추석 있는 달</label>
+      <input type="number" id="salaryChuseok" value="9" min="1" max="12" style="width:60px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;">
+    </div>
+    <div style="margin-top:12px;">
+      <button class="btn btn-primary" onclick="generateSalarySheet()">📊 연봉표 엑셀 다운로드</button>
+    </div>
+    <div id="salaryStatus" class="hint" style="display:none;margin-top:10px;"></div>
+    <div class="hint" style="margin-top:10px;">
+      직종 선택·경력 입력을 먼저 완료해주세요. 자동 계산: 기본급(호봉표+승급시점)·기말수당·정근수당·직무수당·가계보조수당·교통비·정액급식비·종사자복지수당·가계안정지원비(4·10월)·효도휴가비(설·추석월)·특수업무수당·직급보조수당·균형수당·근골격계질환예방수당·(간호사 3교대 시)교대수당·(간호사·치료사)면허수당. <b>가족수당·장기근속수당·직책수당·조정수당·간호간병통합수당·(3교대 아닌 경우)교대수당·(간호사·치료사 외)면허수당은 빈칸으로 두니 직접 확인 후 입력해주세요.</b> 생성된 파일은 일반 엑셀처럼 자유롭게 수정 가능합니다.
+    </div>
+  </div>
+
   <footer>
     ※ 계산 방식: 시작일~종료일(말일 기준) 사이 실 근무기간을 연/월/일로 산출 → 일수 15일 이상이면 1개월로 반올림 → 직종·기관종별 인정비율 적용(반올림) → 인정경력 산출.<br>
     ※ 특례(본원 퇴직후 재취업 / 본원 계약직·인턴 근무 / 본법인 근무 / 대한민국 군인 복무 / 공무원 근무 등)는 100%로 인정됩니다.<br>
@@ -396,6 +442,7 @@ const RATE_TABLE = {
     {label:"재취업/계약직·인턴/본법인/군복무/공무원", pct:100},
     {label:"종합병원", pct:100},
     {label:"재활병원", pct:100},
+    {label:"일반병원", pct:80},
     {label:"의원급", pct:50},
     {label:"복지관 / 시설 (사회복지사)", pct:50},
   ],
@@ -409,7 +456,7 @@ const RATE_TABLE = {
     {label:"종합병원", pct:100},
     {label:"일반병원", pct:80},
     {label:"의원급", pct:80},
-    {label:"이종업체 동종업무", pct:50},
+    {label:"이종업체 동종업무", pct:80},
   ],
   "일반기능직": [
     {label:"재취업/계약직/본법인/군복무/공무원", pct:100},
@@ -443,7 +490,7 @@ function addRow(){
   const tr = document.createElement('tr');
   tr.id = id;
   tr.innerHTML = `
-    <td><input type="text" class="f-name" placeholder="예: 문원의료재단 서울병원"></td>
+    <td><input type="text" class="f-name" placeholder="예: 문원의료재단 서울병원" oninput="this.title=this.value"></td>
     <td><input type="text" maxlength="10" class="f-start date-field" placeholder="20240401" oninput="onDateInput(this,'${id}')"></td>
     <td><input type="text" maxlength="10" class="f-end date-field" placeholder="20241231" oninput="onDateInput(this,'${id}')"></td>
     <td><select class="f-tier" onchange="recalc('${id}')">${optionsHtml(category)}</select></td>
@@ -738,6 +785,7 @@ function loadRecord(id){
     addRow();
     const tr = document.getElementById('tbody').lastElementChild;
     tr.querySelector('.f-name').value = rowData.name;
+    tr.querySelector('.f-name').title = rowData.name;
     tr.querySelector('.f-start').value = rowData.start;
     tr.querySelector('.f-end').value = rowData.end;
     const tierSelect = tr.querySelector('.f-tier');
@@ -759,6 +807,281 @@ function deleteRecord(id){
   const list = loadHistoryList().filter(r=>r.id !== id);
   persistHistoryList(list);
   renderHistoryList();
+}
+
+// ==================== 연봉표 생성 ====================
+const SALARY_TABLE = {
+  1:{'1급':1201000,'2급':1147000,'3급':1092000,'4급':1101000,'5급':2160000,'기능직':925000,'고용직':0},
+  2:{'1급':1236000,'2급':1180000,'3급':1123000,'4급':1116000,'5급':2164000,'기능직':954000,'고용직':0},
+  3:{'1급':1269000,'2급':1212000,'3급':1156000,'4급':1130000,'5급':2177000,'기능직':982000,'고용직':0},
+  4:{'1급':1303000,'2급':1246000,'3급':1187000,'4급':1145000,'5급':2188000,'기능직':1010000,'고용직':2006000},
+  5:{'1급':1337000,'2급':1278000,'3급':1219000,'4급':1159000,'5급':2198000,'기능직':1040000,'고용직':2055000},
+  6:{'1급':1371000,'2급':1311000,'3급':1251000,'4급':1189000,'5급':2241000,'기능직':1068000,'고용직':2104000},
+  7:{'1급':1404000,'2급':1344000,'3급':1282000,'4급':1220000,'5급':2283000,'기능직':1097000,'고용직':2152000},
+  8:{'1급':1439000,'2급':1377000,'3급':1314000,'4급':1251000,'5급':2325000,'기능직':1125000,'고용직':2201000},
+  9:{'1급':1472000,'2급':1409000,'3급':1346000,'4급':1281000,'5급':2367000,'기능직':1155000,'고용직':2250000},
+  10:{'1급':1506000,'2급':1443000,'3급':1378000,'4급':1312000,'5급':2410000,'기능직':1183000,'고용직':2298000},
+  11:{'1급':1540000,'2급':1475000,'3급':1409000,'4급':1343000,'5급':2452000,'기능직':1211000,'고용직':2347000},
+  12:{'1급':1574000,'2급':1508000,'3급':1442000,'4급':1374000,'5급':2494000,'기능직':1241000,'고용직':2396000},
+  13:{'1급':1607000,'2급':1541000,'3급':1473000,'4급':1404000,'5급':2537000,'기능직':1269000,'고용직':2445000},
+  14:{'1급':1642000,'2급':1574000,'3급':1505000,'4급':1436000,'5급':2579000,'기능직':1298000,'고용직':2493000},
+  15:{'1급':1675000,'2급':1606000,'3급':1537000,'4급':1466000,'5급':2621000,'기능직':1326000,'고용직':2542000},
+  16:{'1급':1709000,'2급':1640000,'3급':1569000,'4급':1497000,'5급':2664000,'기능직':1356000,'고용직':2590000},
+  17:{'1급':1743000,'2급':1672000,'3급':1600000,'4급':1527000,'5급':2705000,'기능직':1384000,'고용직':2639000},
+  18:{'1급':1777000,'2급':1705000,'3급':1632000,'4급':1559000,'5급':2748000,'기능직':1412000,'고용직':2687000},
+  19:{'1급':1810000,'2급':1737000,'3급':1664000,'4급':1589000,'5급':2791000,'기능직':1442000,'고용직':2736000},
+  20:{'1급':1845000,'2급':1771000,'3급':1696000,'4급':1619000,'5급':2832000,'기능직':1470000,'고용직':2785000},
+  21:{'1급':1878000,'2급':1803000,'3급':1727000,'4급':1650000,'5급':2875000,'기능직':1499000,'고용직':2833000},
+  22:{'1급':1912000,'2급':1836000,'3급':1758000,'4급':1680000,'5급':2918000,'기능직':1527000,'고용직':2882000},
+  23:{'1급':1945000,'2급':1868000,'3급':1790000,'4급':1711000,'5급':2959000,'기능직':1555000,'고용직':2931000},
+  24:{'1급':1979000,'2급':1901000,'3급':1821000,'4급':1741000,'5급':3002000,'기능직':1584000,'고용직':2980000},
+  25:{'1급':2012000,'2급':1933000,'3급':1853000,'4급':1772000,'5급':3045000,'기능직':1612000,'고용직':3028000},
+  26:{'1급':2046000,'2급':1966000,'3급':1884000,'4급':1802000,'5급':3086000,'기능직':1641000,'고용직':3077000},
+  27:{'1급':2079000,'2급':1998000,'3급':1916000,'4급':1833000,'5급':3129000,'기능직':1669000,'고용직':3126000},
+  28:{'1급':2113000,'2급':2031000,'3급':1947000,'4급':1863000,'5급':3171000,'기능직':1698000,'고용직':3174000},
+  29:{'1급':2146000,'2급':2063000,'3급':1979000,'4급':1893000,'5급':3213000,'기능직':1726000,'고용직':3223000},
+  30:{'1급':2180000,'2급':2095000,'3급':2010000,'4급':1924000,'5급':3256000,'기능직':1754000,'고용직':3272000},
+  31:{'1급':2213000,'2급':2128000,'3급':2042000,'4급':1954000,'5급':3298000,'기능직':1783000,'고용직':3321000},
+};
+const JEONGGEUN_PCT = {1:50,2:55,3:60,4:65,5:70,6:75,7:80,8:85,9:90,10:95};
+const LICENSE_AMOUNT = {'1급':100000,'2급':100000,'3급':75000,'4급':50000};
+
+function pad2(n){ return String(n).length===1 ? '0'+n : String(n); }
+
+function pctForHobong(h){ return h>=11 ? 100 : (JEONGGEUN_PCT[h] || 0); }
+
+function salaryStatus(msg, isError){
+  const el = document.getElementById('salaryStatus');
+  el.style.display = 'block';
+  el.style.background = isError ? '#fbeceb' : 'var(--teal-100)';
+  el.style.color = isError ? 'var(--danger)' : 'var(--muted)';
+  el.textContent = msg;
+}
+
+function generateSalarySheet(){
+  const DATE_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+  const name = document.getElementById('salaryName').value.trim();
+  const gradeKey = document.getElementById('salaryGrade').value;
+  const hireDateStr = document.getElementById('salaryHireDate').value;
+  const year = Number(document.getElementById('salaryYear').value);
+  const lunarNYMonth = Number(document.getElementById('salaryLunarNY').value);
+  const chuseokMonth = Number(document.getElementById('salaryChuseok').value);
+  const shift3 = document.getElementById('salaryShift3').checked;
+  const jobCategory = document.getElementById('jobCategory').value;
+  const degree = Number(document.getElementById('degreeType').value || 0);
+
+  if(!name){ salaryStatus('성명을 입력해주세요.', true); return; }
+  if(!DATE_RE.test(hireDateStr)){ salaryStatus('임용년월일을 정확히 입력해주세요 (예: 20260810).', true); return; }
+  if(currentRecognizedTotalMonths === undefined || document.querySelectorAll('#tbody tr').length === 0){
+    salaryStatus('먼저 위에서 근무경력을 입력해주세요.', true); return;
+  }
+
+  const hireDate = parseLocalDate(hireDateStr);
+  const hireYear = hireDate.getFullYear();
+  const hireMonth = hireDate.getMonth() + 1;
+  const hireDay = hireDate.getDate();
+
+  const M0 = currentRecognizedTotalMonths;
+  const baseYears = Math.floor(M0 / 12);
+  const remMonths = M0 % 12;
+  let baseHobong = baseYears + degree;
+  if(baseHobong > 30) baseHobong = 30;
+  if(baseHobong < 1) baseHobong = 1;
+
+  // 다음 승급 시점: 누적경력이 다음 12개월 단위를 넘는 달을 계산 후, 가까운 승급월(1,4,7,10)로 반올림
+  // 15일 미만 근무한 입사월은 개월수에 포함하지 않음 (그 다음달부터 기산)
+  let effHireYear = hireYear, effHireMonth = hireMonth;
+  const daysInHireMonth = new Date(hireYear, hireMonth, 0).getDate();
+  const daysWorkedInHireMonth = daysInHireMonth - hireDay + 1;
+  if(daysWorkedInHireMonth < 15){
+    effHireMonth += 1;
+    if(effHireMonth > 12){ effHireMonth = 1; effHireYear += 1; }
+  }
+  const monthsUntilNext = remMonths === 0 ? 12 : (12 - remMonths);
+  let py = effHireYear, pm = effHireMonth + monthsUntilNext;
+  while(pm > 12){ pm -= 12; py += 1; }
+  const promoMonths = [1,4,7,10];
+  let promoMonth = promoMonths.find(m => m >= pm);
+  let promoYear = py;
+  if(promoMonth === undefined){ promoMonth = 1; promoYear = py + 1; }
+
+  function hobongForMonth(y, m){
+    const promoted = (y > promoYear) || (y === promoYear && m >= promoMonth);
+    let h = baseHobong + (promoted ? 1 : 0);
+    if(h > 30) h = 30;
+    return h;
+  }
+  function salaryFor(h){ return (SALARY_TABLE[h] && SALARY_TABLE[h][gradeKey]) || 0; }
+  function monthActiveAt(y, m){ return (y > hireYear) || (y === hireYear && m >= hireMonth); }
+  function isActive(m){ return monthActiveAt(year, m); }
+
+  const basePay = {};
+  for(let m=1;m<=12;m++){ basePay[m] = isActive(m) ? salaryFor(hobongForMonth(year,m)) : null; }
+
+  // 면허수당
+  const licenseEligible = (jobCategory === '간호사' || jobCategory === '치료사');
+  const licenseAmt = LICENSE_AMOUNT[gradeKey] || 0;
+
+  // 교대(겸직)수당 - 간호사 3교대만 자동
+  const shiftAmt = (jobCategory === '간호사' && shift3) ? 150000 : 0;
+
+  // 정근수당: 1월 지급 = 직전해 7~12월 근무개월수, 7월 지급 = 당해 1~6월 근무개월수 (연차 무관 공통 적용)
+  function jeongeun(paymentMonth){
+    if(!isActive(paymentMonth) || basePay[paymentMonth] === null) return null;
+    let worked = 0;
+    if(paymentMonth === 1){
+      for(let m=7;m<=12;m++){ if(monthActiveAt(year-1, m)) worked++; }
+    } else {
+      for(let m=1;m<=6;m++){ if(monthActiveAt(year, m)) worked++; }
+    }
+    if(worked <= 0) return null;
+    const pct = pctForHobong(hobongForMonth(year, paymentMonth));
+    return Math.round(basePay[paymentMonth] * pct / 100 / 6 * worked);
+  }
+
+  // ---- 워크시트 구성 ----
+  const ws = {};
+  const monthCol = m => String.fromCharCode('B'.charCodeAt(0) + (m-1)); // 1->B ... 12->M
+
+  function setS(addr, v){ ws[addr] = {t:'s', v:String(v)}; }
+  function setN(addr, v){ if(v===null||v===undefined) return; ws[addr] = {t:'n', v:v, z:'#,##0'}; }
+  function setF(addr, formula, cached){ ws[addr] = {t:'n', f:formula, v:(cached===undefined?0:cached), z:'#,##0'}; }
+  const THIN = {style:'thin', color:{rgb:'999999'}};
+  const BORDER_ALL = {top:THIN, bottom:THIN, left:THIN, right:THIN};
+  const YELLOW_FILL = {patternType:'solid', fgColor:{rgb:'FFFF00'}};
+  function addBorder(addr){
+    if(!ws[addr]) ws[addr] = {t:'s', v:''};
+    ws[addr].s = Object.assign({}, ws[addr].s, {border: BORDER_ALL});
+  }
+  function addYellow(addr){
+    if(!ws[addr]) ws[addr] = {t:'s', v:''};
+    ws[addr].s = Object.assign({}, ws[addr].s, {fill: YELLOW_FILL, border: BORDER_ALL});
+  }
+
+  setS('A1','개 인 별 연 봉 표');
+  setS('A3','성  명'); setS('B3','직 위');
+  setS('A4', name); setS('B4', document.getElementById('salaryPosition').value);
+
+  const frontLabel = `${hireMonth}.${hireDay}`;
+  let backLabel, frontCareerMonths, frontHobong, backCareerMonths, backHobong;
+  if(hireMonth <= 6){
+    frontCareerMonths = M0; frontHobong = baseHobong;
+    backLabel = '7.1';
+    const julyElapsed = (year - hireYear)*12 + (7 - hireMonth);
+    backCareerMonths = M0 + Math.max(0, julyElapsed);
+    backHobong = hobongForMonth(year, 7);
+  } else {
+    backLabel = frontLabel;
+    frontCareerMonths = backCareerMonths = M0;
+    frontHobong = backHobong = baseHobong;
+  }
+
+  setS('A5','직  급'); setS('B5', frontLabel+'경력'); setS('C5', frontLabel+'호봉'); setS('D5','차기승급일');
+  setS('E5','1월기본급'); setS('F5','1월%'); setS('G5', backLabel+'경력'); setS('H5', backLabel+'호봉');
+  setS('I5','7월기본급'); setS('J5','7월%'); setS('K5','부양가족수'); setS('L5','임용년월일');
+
+  setS('A6', gradeKey);
+  setS('B6', monthsToStr(frontCareerMonths));
+  setS('C6', frontHobong+'호');
+  setS('D6', `${String(promoYear).slice(2)}.${pad2(promoMonth)}.01`);
+  if(basePay[1] !== null) setN('E6', basePay[1]);
+  setN('F6', pctForHobong(hobongForMonth(year,1)));
+  setS('G6', monthsToStr(backCareerMonths));
+  setS('H6', backHobong+'호');
+  if(basePay[7] !== null) setN('I6', basePay[7]);
+  setN('J6', pctForHobong(hobongForMonth(year,7)));
+  setN('K6', 0);
+  setS('L6', `${String(hireYear).slice(2)}.${pad2(hireMonth)}.${pad2(hireDay)}`);
+  setS('M6', `${year}년도`);
+
+  setS('A8','월');
+  for(let m=1;m<=12;m++) setN(monthCol(m)+'8', m);
+  setS('N8','총  계');
+
+  const rowLabels = [
+    ['기본급', 9], ['기말수당',10], ['정근수당',11], ['직무수당',12], ['가계보조수당',13],
+    ['교통비',14], ['가 족 수 당',15], ['종사자복지수당',16], ['장기근속수당',17], ['정액급식비',18],
+    ['가계안정지원비',19], ['효도휴가비',20], ['직책수당',21], ['조정수당',22], ['교대(겸직)수당',23],
+    ['면허수당',24], ['특수업무수당',25], ['직급보조수당',26], ['균형수당',27], ['근골격계질환예방수당',28],
+    ['간호간병통합수당',29]
+  ];
+  rowLabels.forEach(([label,row]) => setS('A'+row, label));
+
+  for(let m=1;m<=12;m++){
+    const col = monthCol(m);
+    const active = isActive(m);
+    if(active && basePay[m]!==null) setN(col+'9', basePay[m]);
+    if(active) setN(col+'12', Math.round(basePay[m]*0.10));
+    if(active) setN(col+'13', 30000);
+    if(active) setN(col+'14', 50000);
+    if(active) setN(col+'16', hobongForMonth(year,m)<=5 ? 35000 : 90000);
+    if(active) setN(col+'18', 200000);
+    if(active && (m===4 || m===10)) setN(col+'19', Math.round(basePay[m]*0.5));
+    if(active && (m===lunarNYMonth || m===chuseokMonth)) setN(col+'20', basePay[m]);
+    if(active && shiftAmt>0) setN(col+'23', shiftAmt);
+    if(active && licenseEligible && licenseAmt>0) setN(col+'24', licenseAmt);
+    if(active) setN(col+'25', 50000);
+    if(active) setN(col+'26', 100000);
+    if(active) setN(col+'27', 50000);
+    if(active) setN(col+'28', 50000);
+  }
+  const j1 = jeongeun(1); if(j1!==null) setN('B11', j1); // 1월 = B열
+  const j7 = jeongeun(7); if(j7!==null) setN('H11', j7); // 7월 = H열
+
+  // 기말수당 (분기 마지막달, 해당 분기 3개월 기본급 평균 = 사실상 일할 반영)
+  setF('D10','SUM(B9:D9)/3');
+  setF('G10','SUM(E9:G9)/3');
+  setF('J10','SUM(H9:J9)/3');
+  setF('M10','SUM(K9:M9)/3');
+
+  rowLabels.forEach(([label,row]) => setF('N'+row, `SUM(B${row}:M${row})`));
+
+  for(let m=1;m<=12;m++){
+    const col = monthCol(m);
+    setF(col+'30', `SUM(${col}9:${col}28)`);
+  }
+  setF('N30','SUM(B30:M30)');
+  setS('M31','총계');
+  setF('N31','SUM(N30:N30)');
+  setS('A32','서 울 재 활 병 원');
+  setS('M32','월평균액');
+  const activeMonthCount = Object.values(basePay).filter(v=>v!==null).length || 1;
+  setF('N32', `N31/${activeMonthCount}`);
+  setS('M33', `${year}연봉`);
+  setF('N33','N32*12');
+
+  // ---- 표선(테두리) 및 노란색 강조 ----
+  const monthColsAll = ['B','C','D','E','F','G','H','I','J','K','L','M','N'];
+  // 상단 정보 영역 표선
+  ['A3','B3'].forEach(addBorder);
+  ['A4','B4'].forEach(addBorder);
+  ['A5','B5','C5','D5','E5','F5','G5','H5','I5','J5','K5','L5'].forEach(addBorder);
+  ['A6','B6','C6','D6','E6','F6','G6','H6','I6','J6','K6','L6','M6'].forEach(addBorder);
+  // 월별 표 전체 표선 (8행~33행)
+  for(let r=8;r<=33;r++){
+    monthColsAll.concat(['A']).forEach(c => addBorder(c+r));
+  }
+  // 차기승급일 강조
+  addYellow('D6');
+  // 승급월에 해당하는 "월" 헤더 칸(8행) 강조 - 이 표의 연도 안에 승급이 있을 때만
+  if(promoYear === year){
+    addYellow(monthCol(promoMonth)+'8');
+  }
+  addYellow('N31'); addYellow('N32'); addYellow('N33');
+
+  ws['!ref'] = 'A1:N33';
+  ws['!merges'] = [
+    {s:{r:0,c:0}, e:{r:0,c:13}},   // A1:N1
+    {s:{r:5,c:12}, e:{r:5,c:13}},  // M6:N6
+    {s:{r:31,c:0}, e:{r:31,c:1}},  // A32:B32
+  ];
+  ws['!cols'] = [{wch:14}].concat(Array(12).fill({wch:10})).concat([{wch:12}]);
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, name || '연봉표');
+  XLSX.writeFile(wb, `${name || '연봉표'}_${year}년도_연봉표.xlsx`);
+
+  salaryStatus('✅ 연봉표 엑셀 파일이 다운로드되었습니다. 가족수당·장기근속수당·직책수당 등 빈칸 항목은 직접 확인 후 입력해주세요.', false);
 }
 
 // initial rows
