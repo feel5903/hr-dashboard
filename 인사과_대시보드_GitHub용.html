@@ -338,9 +338,8 @@ tbody tr:hover{background:#FAFBFC}
 <div id="pane-staff" class="pane">
   <div class="card">
     <div class="card-head">
-      <span class="card-title">👤 직원현황 <span style="font-size:12px;font-weight:400;color:var(--text-muted)">(총 <span id="staff-total-count">0</span>명)</span></span>
+      <span class="card-title">👤 직원현황 <span style="font-size:12px;font-weight:400;color:var(--text-muted)">(총 <span id="staff-total-count">0</span>명)</span> <button class="btn" onclick="openMonthlyHeadcountModal()" style="border-color:#4338CA;color:#4338CA;margin-left:8px">📊 월말 재직인원 조회</button></span>
       <div class="card-actions">
-        <button class="btn" onclick="openMonthlyHeadcountModal()" style="border-color:#4338CA;color:#4338CA">📊 월말 재직인원 조회</button>
         <div style="position:relative;display:inline-flex;align-items:center">
           <span style="position:absolute;left:8px;font-size:13px">🔍</span>
           <input type="text" id="staff-search" oninput="renderStaff()" placeholder="이름/부서 검색..."
