@@ -717,7 +717,19 @@ function gatherCurrentState(){
       tierPct: tierSelect.value,
     });
   });
-  return {jobCategory, candidateName, degreeType, rows};
+  const salary = {
+    name: document.getElementById('salaryName').value,
+    grade: document.getElementById('salaryGrade').value,
+    position: document.getElementById('salaryPosition').value,
+    hireDate: document.getElementById('salaryHireDate').value,
+    shift3: document.getElementById('salaryShift3').checked,
+    licenseOther: document.getElementById('salaryLicenseOther').checked,
+    nextYear: document.getElementById('salaryNextYear').checked,
+    year: document.getElementById('salaryYear').value,
+    lunarNY: document.getElementById('salaryLunarNY').value,
+    chuseok: document.getElementById('salaryChuseok').value,
+  };
+  return {jobCategory, candidateName, degreeType, rows, salary};
 }
 
 function saveCurrent(){
@@ -803,6 +815,19 @@ function loadRecord(id){
     recalc(tr.id);
   });
   if(record.rows.length === 0){ addRow(); addRow(); }
+  if(record.salary){
+    const s = record.salary;
+    if(s.name !== undefined) document.getElementById('salaryName').value = s.name;
+    if(s.grade !== undefined) document.getElementById('salaryGrade').value = s.grade;
+    if(s.position !== undefined) document.getElementById('salaryPosition').value = s.position;
+    if(s.hireDate !== undefined) document.getElementById('salaryHireDate').value = s.hireDate;
+    if(s.shift3 !== undefined) document.getElementById('salaryShift3').checked = s.shift3;
+    if(s.licenseOther !== undefined) document.getElementById('salaryLicenseOther').checked = s.licenseOther;
+    if(s.nextYear !== undefined) document.getElementById('salaryNextYear').checked = s.nextYear;
+    if(s.year !== undefined) document.getElementById('salaryYear').value = s.year;
+    if(s.lunarNY !== undefined) document.getElementById('salaryLunarNY').value = s.lunarNY;
+    if(s.chuseok !== undefined) document.getElementById('salaryChuseok').value = s.chuseok;
+  }
   updateHobongDisplay();
   closeHistoryModal();
   window.scrollTo({top:0, behavior:'smooth'});
