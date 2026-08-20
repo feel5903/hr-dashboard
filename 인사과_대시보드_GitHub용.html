@@ -2495,9 +2495,19 @@ function changeMhYear(delta){
   renderMonthlyHeadcountTable();
 }
 
+function normalizeMonthKey(v){
+  if(!v) return '';
+  v=String(v).trim();
+  var m1=v.match(/^(\d{4})-(\d{1,2})/);
+  if(m1) return m1[1]+'-'+String(m1[2]).padStart(2,'0');
+  var d=new Date(v);
+  if(!isNaN(d.getTime())) return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  return v;
+}
+
 function getMonthlyHeadcount(monthKey){
   if(monthKey<MONTHLY_HEADCOUNT_AUTO_START){
-    var rec=(data.monthlyHeadcountManual||[]).find(function(r){return r.month===monthKey;});
+    var rec=(data.monthlyHeadcountManual||[]).find(function(r){return normalizeMonthKey(r.month)===monthKey;});
     if(rec&&rec.count) return {count:rec.count,source:'수기'};
     return {count:null,source:'수기'};
   }
