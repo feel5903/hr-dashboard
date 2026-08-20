@@ -404,6 +404,7 @@
           <table id="historyTable" style="min-width:640px;">
             <thead>
               <tr>
+                <th style="width:34px;">선택</th>
                 <th style="min-width:120px;">지원자명</th>
                 <th>저장일시</th>
                 <th>직종</th>
@@ -414,6 +415,28 @@
             </thead>
             <tbody id="historyBody"></tbody>
           </table>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:8px;">
+          <span class="hint" style="margin:0;">2명 이상 체크하면 경력·연봉을 나란히 비교할 수 있어요 (군경력 유무 등 같은 사람의 다른 버전도 비교 가능).</span>
+          <button class="btn btn-primary" onclick="openComparisonModal()">📊 선택 비교하기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="compareModalOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this) closeComparisonModal()">
+    <div class="modal-box" style="width:min(1000px, 100%);">
+      <div class="modal-head">
+        <h3>경력 · 연봉 비교표</h3>
+        <button class="btn" onclick="downloadComparisonExcel()">⬇ 엑셀로 다운로드</button>
+        <button class="btn btn-ghost" onclick="closeComparisonModal()">닫기 ✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="table-scroll">
+          <table id="compareTable" style="min-width:640px;"></table>
+        </div>
+        <div class="hint" style="margin-top:10px;">
+          연봉 수치는 "연봉표 생성" 패널에 저장된 값(급수·임용일·3교대·면허 등) 기준으로 자동 계산한 추정치입니다. 저장 당시 연봉표 정보가 없는 이력은 경력만 표시됩니다.
         </div>
       </div>
     </div>
@@ -482,6 +505,138 @@ const RATE_TABLE = {
     {label:"동종경력", pct:100},
   ],
 };
+
+let lastComparisonData = null;
+
+function buildComparisonData(){
+  const list = loadHistoryList();
+  const selected = list.filter(r => compareSelection.has(r.id));
+  return selected.map(r=>{
+    const recognizedMonths = computeRecognizedMonthsFromRows(r.rows);
+    const item = {
+      label: r.candidateName || '(이름없음)',
+      jobCategory: categoryLabel(r.jobCategory),
+      recognizedText: monthsToStr(recognizedMonths),
+      hasSalary: false,
+    };
+    const s = r.salary;
+    const DATE_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+    if(s && s.hireDate && DATE_RE.test(s.hireDate) && s.grade && s.year){
+      const params = {
+        M0: recognizedMonths,
+        degree: Number(r.degreeType || 0),
+        gradeKey: s.grade,
+        hireDateStr: s.hireDate,
+        jobCategory: r.jobCategory,
+        shift3: !!s.shift3,
+        licenseOther: !!s.licenseOther,
+        lunarNYMonth: Number(s.lunarNY || 2),
+        chuseokMonth: Number(s.chuseok || 9),
+      };
+      const year1 = Number(s.year);
+      const sum1 = computeAnnualSummary(params, year1, false);
+      const sum2 = computeAnnualSummary(params, year1+1, true);
+      Object.assign(item, {
+        hasSalary: true,
+        grade: s.grade,
+        hireDate: s.hireDate,
+        year1, sum1,
+        year2: year1+1, sum2,
+      });
+    }
+    return item;
+  });
+}
+
+function openComparisonModal(){
+  if(compareSelection.size < 2){
+    alert('비교하려면 2명 이상 선택해주세요.');
+    return;
+  }
+  lastComparisonData = buildComparisonData();
+  renderComparisonTable(lastComparisonData);
+  document.getElementById('compareModalOverlay').style.display = 'flex';
+}
+
+function closeComparisonModal(){
+  document.getElementById('compareModalOverlay').style.display = 'none';
+}
+
+function renderComparisonTable(data){
+  const table = document.getElementById('compareTable');
+  const rows = [
+    {key: 'label', label: '지원자명'},
+    {key: 'jobCategory', label: '직종'},
+    {key: 'grade', label: '급수'},
+    {key: 'hireDate', label: '임용년월일'},
+    {key: 'recognizedText', label: '인정경력 (임용시)'},
+    {key: '__year1_label', label: null},
+    {key: 'sum1.hobongText', label: '입사시 호봉'},
+    {key: 'sum1.promoText', label: '차기승급일'},
+    {key: 'sum1.total', label: '연간 총계(실지급)'},
+    {key: 'sum1.annualEstimate', label: '연봉 추정(월평균×12)'},
+    {key: '__year2_label', label: null},
+    {key: 'sum2.hobongText', label: '1.1 기준 호봉'},
+    {key: 'sum2.total', label: '연간 총계(실지급)'},
+    {key: 'sum2.annualEstimate', label: '연봉 추정(월평균×12)'},
+  ];
+  function getVal(item, key){
+    if(key.startsWith('__')) return null;
+    return key.split('.').reduce((o,k)=> (o==null?null:o[k]), item);
+  }
+  function fmt(v, key){
+    if(v===null || v===undefined) return '-';
+    if(key.includes('total') || key.includes('annualEstimate')) return Number(v).toLocaleString()+'원';
+    return v;
+  }
+  let html = '<thead><tr><th style="min-width:140px;">항목</th>' +
+    data.map(d=>`<th style="min-width:150px;">${escapeHtml(d.label)}</th>`).join('') + '</tr></thead><tbody>';
+  rows.forEach(rowDef=>{
+    if(rowDef.key === '__year1_label'){
+      html += `<tr style="background:var(--teal-100);"><td colspan="${data.length+1}" style="font-weight:700;color:var(--teal-900);">${data[0] && data[0].hasSalary ? data[0].year1+'년도' : '올해'}</td></tr>`;
+      return;
+    }
+    if(rowDef.key === '__year2_label'){
+      html += `<tr style="background:var(--teal-100);"><td colspan="${data.length+1}" style="font-weight:700;color:var(--teal-900);">${data[0] && data[0].hasSalary ? data[0].year2+'년도 (1.1 이어서 계산)' : '다음해'}</td></tr>`;
+      return;
+    }
+    html += `<tr><td style="font-weight:600;">${rowDef.label}</td>` +
+      data.map(d=>{
+        if(rowDef.key.startsWith('sum1') && !d.hasSalary) return '<td>-</td>';
+        if(rowDef.key.startsWith('sum2') && !d.hasSalary) return '<td>-</td>';
+        const v = getVal(d, rowDef.key);
+        return `<td>${escapeHtml(String(fmt(v, rowDef.key)))}</td>`;
+      }).join('') + '</tr>';
+  });
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+function downloadComparisonExcel(){
+  if(!lastComparisonData){ return; }
+  const data = lastComparisonData;
+  const aoa = [];
+  aoa.push(['항목', ...data.map(d=>d.label)]);
+  aoa.push(['직종', ...data.map(d=>d.jobCategory)]);
+  aoa.push(['급수', ...data.map(d=>d.grade || '-')]);
+  aoa.push(['임용년월일', ...data.map(d=>d.hireDate || '-')]);
+  aoa.push(['인정경력(임용시)', ...data.map(d=>d.recognizedText)]);
+  aoa.push([data[0] && data[0].hasSalary ? `${data[0].year1}년도` : '올해']);
+  aoa.push(['입사시 호봉', ...data.map(d=>d.hasSalary ? d.sum1.hobongText : '-')]);
+  aoa.push(['차기승급일', ...data.map(d=>d.hasSalary ? d.sum1.promoText : '-')]);
+  aoa.push(['연간 총계', ...data.map(d=>d.hasSalary ? d.sum1.total : '-')]);
+  aoa.push(['연봉 추정', ...data.map(d=>d.hasSalary ? d.sum1.annualEstimate : '-')]);
+  aoa.push([data[0] && data[0].hasSalary ? `${data[0].year2}년도 (1.1 이어서 계산)` : '다음해']);
+  aoa.push(['1.1 기준 호봉', ...data.map(d=>d.hasSalary ? d.sum2.hobongText : '-')]);
+  aoa.push(['연간 총계', ...data.map(d=>d.hasSalary ? d.sum2.total : '-')]);
+  aoa.push(['연봉 추정', ...data.map(d=>d.hasSalary ? d.sum2.annualEstimate : '-')]);
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:18}].concat(data.map(()=>({wch:16})));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '비교표');
+  XLSX.writeFile(wb, `경력_연봉_비교표.xlsx`);
+}
 
 let rowSeq = 0;
 
@@ -679,6 +834,12 @@ function clearForm(){
 
 // ---- 저장/불러오기 (localStorage) ----
 const HISTORY_KEY = 'seoul_rehab_career_calc_history_v1';
+const compareSelection = new Set();
+
+function onCompareCheckChange(id, checked){
+  if(checked) compareSelection.add(id);
+  else compareSelection.delete(id);
+}
 
 function loadHistoryList(){
   try{ return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
@@ -774,11 +935,12 @@ function renderHistoryList(){
     : list;
 
   if(filtered.length === 0){
-    tbody.innerHTML = `<tr><td colspan="6" style="color:var(--muted);padding:14px;">${keyword ? '검색 결과가 없습니다.' : '저장된 이력이 없습니다.'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="color:var(--muted);padding:14px;">${keyword ? '검색 결과가 없습니다.' : '저장된 이력이 없습니다.'}</td></tr>`;
     return;
   }
   tbody.innerHTML = filtered.map(r=>`
     <tr>
+      <td style="text-align:center;"><input type="checkbox" class="compare-check" value="${r.id}" ${compareSelection.has(r.id) ? 'checked' : ''} onchange="onCompareCheckChange(${r.id}, this.checked)"></td>
       <td>${escapeHtml(r.candidateName)}</td>
       <td>${r.savedAt}</td>
       <td>${escapeHtml(categoryLabel(r.jobCategory))}</td>
@@ -880,6 +1042,154 @@ const LICENSE_AMOUNT = {'1급':100000,'2급':100000,'3급':75000,'4급':50000};
 function pad2(n){ return String(n).length===1 ? '0'+n : String(n); }
 
 function pctForHobong(h){ return h>=11 ? 100 : (JEONGGEUN_PCT[h] || 0); }
+
+// 저장된 근무경력 행들로부터 인정경력 총 개월수를 계산 (recalc()와 동일한 계산 방식)
+function computeRecognizedMonthsFromRows(rows){
+  const DATE_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+  let sum = 0;
+  (rows || []).forEach(r=>{
+    if(!DATE_RE.test(r.start) || !DATE_RE.test(r.end)) return;
+    const start = parseLocalDate(r.start), end = parseLocalDate(r.end);
+    if(end < start) return;
+    const {y,m,d} = diffYMD(start, end);
+    let totalMonths = y*12 + m;
+    if(d >= 15) totalMonths += 1;
+    const pct = Number(r.tierPct) || 0;
+    sum += Math.round(totalMonths * pct / 100);
+  });
+  return sum;
+}
+
+// 연봉표 생성과 동일한 계산식으로, 시트를 만들지 않고 연간 총계·연봉추정치만 계산 (비교표용)
+function computeAnnualSummary(params, year, isContinuation){
+  const { M0, degree, gradeKey, hireDateStr, jobCategory, shift3, licenseOther, lunarNYMonth, chuseokMonth } = params;
+  const hireDate = parseLocalDate(hireDateStr);
+  const hireYear = hireDate.getFullYear(), hireMonth = hireDate.getMonth()+1, hireDay = hireDate.getDate();
+
+  let effHireYear = hireYear, effHireMonth = hireMonth;
+  const daysInHireMonth = new Date(hireYear, hireMonth, 0).getDate();
+  const daysWorkedInHireMonth = daysInHireMonth - hireDay + 1;
+  if(daysWorkedInHireMonth < 15){
+    effHireMonth += 1;
+    if(effHireMonth > 12){ effHireMonth = 1; effHireYear += 1; }
+  }
+  function totalMonthsAtDate(y,m){
+    const elapsed = (y-effHireYear)*12 + (m-effHireMonth);
+    return M0 + Math.max(0, elapsed);
+  }
+  function rawHobongAt(y,m){
+    let h = Math.floor(totalMonthsAtDate(y,m)/12) + degree;
+    if(h>30) h=30; if(h<1) h=1;
+    return h;
+  }
+  function checkpointOnOrBefore(y,m){
+    const cps=[1,4,7,10];
+    const found = cps.filter(c=>c<=m);
+    if(found.length) return {y, m:found[found.length-1]};
+    return {y:y-1, m:10};
+  }
+  function hobongForMonth(y,m){
+    const cp = checkpointOnOrBefore(y,m);
+    return rawHobongAt(cp.y,cp.m);
+  }
+  function nextPromotionDateFrom(fromY,fromM){
+    const curTotal = totalMonthsAtDate(fromY,fromM);
+    const monthsToNext = 12-(curTotal%12);
+    let py=fromY, pm=fromM+monthsToNext;
+    while(pm>12){pm-=12;py+=1;}
+    const promoMonths=[1,4,7,10];
+    let promoMonth = promoMonths.find(m=>m>=pm);
+    let promoYear=py;
+    if(promoMonth===undefined){promoMonth=1;promoYear=py+1;}
+    return {year:promoYear, month:promoMonth};
+  }
+  function salaryFor(h){ return (SALARY_TABLE[h] && SALARY_TABLE[h][gradeKey]) || 0; }
+  function monthActiveAt(y,m){ return (y>hireYear) || (y===hireYear && m>=hireMonth); }
+  function isActive(m){ return monthActiveAt(year,m); }
+
+  const displayHireMonth = isContinuation ? 1 : hireMonth;
+  const displayM0 = isContinuation ? totalMonthsAtDate(year,1) : M0;
+  const displayBaseHobong = isContinuation ? hobongForMonth(year,1) : rawHobongAt(hireYear,hireMonth);
+  const displayPromo = isContinuation ? nextPromotionDateFrom(year,1) : nextPromotionDateFrom(effHireYear,effHireMonth);
+
+  const basePay = {};
+  for(let m=1;m<=12;m++){ basePay[m] = isActive(m) ? salaryFor(hobongForMonth(year,m)) : null; }
+
+  const licenseEligible = (jobCategory === '간호사' || jobCategory === '치료사') || licenseOther;
+  const licenseAmt = (jobCategory === '간호사' || jobCategory === '치료사') ? (LICENSE_AMOUNT[gradeKey]||0) : (licenseOther?50000:0);
+  const shiftAmt = (jobCategory === '간호사' && shift3) ? 150000 : 0;
+
+  function jeongeun(paymentMonth){
+    if(!isActive(paymentMonth) || basePay[paymentMonth]===null) return null;
+    let worked = 0;
+    if(paymentMonth===1){ for(let m=7;m<=12;m++){ if(monthActiveAt(year-1,m)) worked++; } }
+    else { for(let m=1;m<=6;m++){ if(monthActiveAt(year,m)) worked++; } }
+    if(worked<=0) return null;
+    const pct = pctForHobong(hobongForMonth(year,paymentMonth));
+    return Math.round(basePay[paymentMonth]*pct/100/6*worked);
+  }
+  function roundTo10(v){ return Math.floor(v/10)*10; }
+  function getReferenceBasePay(){
+    for(let m=12;m>=1;m--){ if(basePay[m]!==null) return basePay[m]; }
+    return 0;
+  }
+  function prorateAnnual(annualTotal){
+    const monthlyBase = roundTo10(annualTotal/12);
+    const decValue = annualTotal - monthlyBase*11;
+    const byMonth = {};
+    for(let m=1;m<=11;m++) byMonth[m] = monthlyBase;
+    byMonth[12] = decValue;
+    for(let m=1;m<=12;m++){ if(!isActive(m)) byMonth[m] = null; }
+    return byMonth;
+  }
+  const isFullYearHire = isContinuation || (hireMonth===1 && hireDay===1);
+  const refBasePay = getReferenceBasePay();
+  const gyejeongByMonth = isFullYearHire ? null : prorateAnnual(refBasePay*1.0);
+  const hyodoByMonth = isFullYearHire ? null : prorateAnnual(refBasePay*2.0);
+
+  let total = 0;
+  for(let m=1;m<=12;m++){
+    const active = isActive(m);
+    if(active && basePay[m]!==null) total += basePay[m];
+    if(active) total += Math.round(basePay[m]*0.10);
+    if(active) total += 30000;
+    if(active) total += 50000;
+    if(active) total += (hobongForMonth(year,m)<=5 ? 35000 : 90000);
+    if(active) total += 200000;
+    if(isFullYearHire){
+      if(active && (m===4 || m===10)) total += Math.round(basePay[m]*0.5);
+      if(active && (m===lunarNYMonth || m===chuseokMonth)) total += basePay[m];
+    } else {
+      if(gyejeongByMonth[m]) total += gyejeongByMonth[m];
+      if(hyodoByMonth[m]) total += hyodoByMonth[m];
+    }
+    if(active && shiftAmt>0) total += shiftAmt;
+    if(active && licenseEligible && licenseAmt>0) total += licenseAmt;
+    if(active) total += 50000;
+    if(active) total += 100000;
+    if(active) total += 50000;
+    if(active) total += 50000;
+  }
+  // 기말수당 (분기 3개월 기본급 평균 합)
+  [[1,2,3],[4,5,6],[7,8,9],[10,11,12]].forEach(q=>{
+    const sum3 = q.reduce((s,m)=> s+(basePay[m]||0), 0);
+    total += Math.round(sum3/3);
+  });
+  const j1 = jeongeun(1) || 0, j7 = jeongeun(7) || 0;
+  total += j1 + j7;
+
+  const activeMonthCount = Object.values(basePay).filter(v=>v!==null).length || 1;
+  const monthlyAvg = Math.round(total/activeMonthCount);
+  const annualEstimate = monthlyAvg*12;
+
+  return {
+    total, monthlyAvg, annualEstimate, activeMonthCount,
+    hobong: displayBaseHobong,
+    hobongText: displayBaseHobong+'호',
+    careerText: monthsToStr(displayM0),
+    promoText: `${String(displayPromo.year).slice(2)}.${pad2(displayPromo.month)}.01`,
+  };
+}
 
 function salaryStatus(msg, isError){
   const el = document.getElementById('salaryStatus');
