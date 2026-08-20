@@ -357,7 +357,7 @@
         <input type="checkbox" id="salaryShift3" style="width:16px;height:16px;"> 간호사 3교대 근무 (교대수당 150,000원 적용)
       </label>
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);">
-        <input type="checkbox" id="salaryLicenseOther" style="width:16px;height:16px;"> 면허 보유 - 간호사·치료사 외 직종 (면허수당 50,000원 적용)
+        <input type="checkbox" id="salaryLicenseOther" style="width:16px;height:16px;"> 면허 보유
       </label>
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);">
         <input type="checkbox" id="salaryNextYear" style="width:16px;height:16px;"> 다음해 1월1일자 연봉표도 함께 생성 (정근수당 포함, 경력 이어서 계산)
@@ -1340,6 +1340,10 @@ function generateSalarySheet(){
     if(!ws[addr]) ws[addr] = {t:'s', v:''};
     ws[addr].s = Object.assign({}, ws[addr].s, {fill: YELLOW_FILL, border: BORDER_ALL});
   }
+  function addStyle(addr, style){
+    if(!ws[addr]) ws[addr] = {t:'s', v:''};
+    ws[addr].s = Object.assign({}, ws[addr].s, style);
+  }
 
   const displayHireMonth = isContinuation ? 1 : hireMonth;
   const displayHireDay = isContinuation ? 1 : hireDay;
@@ -1349,6 +1353,7 @@ function generateSalarySheet(){
   const displayPromoYear = displayPromo.year, displayPromoMonth = displayPromo.month;
 
   setS('A1','개 인 별 연 봉 표');
+  addStyle('A1', { font: { bold: true, sz: 22 }, alignment: { horizontal: 'center', vertical: 'center' } });
   setS('A3','성  명'); setS('B3','직 위');
   setS('A4', name); setS('B4', document.getElementById('salaryPosition').value);
 
@@ -1383,6 +1388,7 @@ function generateSalarySheet(){
   setN('K6', 0);
   setS('L6', `${String(hireYear).slice(2)}.${pad2(hireMonth)}.${pad2(hireDay)}`);
   setS('M6', `${year}년도`);
+  addStyle('M6', { font: { bold: true, sz: 14 }, alignment: { horizontal: 'left', vertical: 'center' } });
 
   setS('A8','월');
   for(let m=1;m<=12;m++) setN(monthCol(m)+'8', m);
@@ -1465,6 +1471,7 @@ function generateSalarySheet(){
   addYellow('N31'); addYellow('N32'); addYellow('N33');
 
   ws['!ref'] = 'A1:N33';
+  ws['!rows'] = [{hpt: 34}];
   ws['!merges'] = [
     {s:{r:0,c:0}, e:{r:0,c:13}},   // A1:N1
     {s:{r:5,c:12}, e:{r:5,c:13}},  // M6:N6
