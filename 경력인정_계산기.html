@@ -398,6 +398,9 @@
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);">
         <input type="checkbox" id="salaryLicenseOther" style="width:16px;height:16px;"> 면허 보유 - 간호사·치료사 외 직종 (면허수당 50,000원 적용)
       </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);">
+        <input type="checkbox" id="salaryNextYear" style="width:16px;height:16px;"> 다음해 1월1일자 연봉표도 함께 생성 (정근수당 포함, 경력 이어서 계산)
+      </label>
     </div>
     <div class="job-select-row" style="flex-wrap:wrap;gap:10px;margin-top:8px;">
       <label style="font-size:13px;color:var(--muted);">해당 연도</label>
@@ -866,7 +869,8 @@ function generateSalarySheet(){
   const name = document.getElementById('salaryName').value.trim();
   const gradeKey = document.getElementById('salaryGrade').value;
   const hireDateStr = document.getElementById('salaryHireDate').value;
-  const year = Number(document.getElementById('salaryYear').value);
+  const selectedYear = Number(document.getElementById('salaryYear').value);
+  const generateNextYear = document.getElementById('salaryNextYear').checked;
   const lunarNYMonth = Number(document.getElementById('salaryLunarNY').value);
   const chuseokMonth = Number(document.getElementById('salaryChuseok').value);
   const shift3 = document.getElementById('salaryShift3').checked;
@@ -885,13 +889,7 @@ function generateSalarySheet(){
   const hireDay = hireDate.getDate();
 
   const M0 = currentRecognizedTotalMonths;
-  const baseYears = Math.floor(M0 / 12);
-  const remMonths = M0 % 12;
-  let baseHobong = baseYears + degree;
-  if(baseHobong > 30) baseHobong = 30;
-  if(baseHobong < 1) baseHobong = 1;
 
-  // 다음 승급 시점: 누적경력이 다음 12개월 단위를 넘는 달을 계산 후, 가까운 승급월(1,4,7,10)로 반올림
   // 15일 미만 근무한 입사월은 개월수에 포함하지 않음 (그 다음달부터 기산)
   let effHireYear = hireYear, effHireMonth = hireMonth;
   const daysInHireMonth = new Date(hireYear, hireMonth, 0).getDate();
@@ -900,20 +898,46 @@ function generateSalarySheet(){
     effHireMonth += 1;
     if(effHireMonth > 12){ effHireMonth = 1; effHireYear += 1; }
   }
-  const monthsUntilNext = remMonths === 0 ? 12 : (12 - remMonths);
-  let py = effHireYear, pm = effHireMonth + monthsUntilNext;
-  while(pm > 12){ pm -= 12; py += 1; }
-  const promoMonths = [1,4,7,10];
-  let promoMonth = promoMonths.find(m => m >= pm);
-  let promoYear = py;
-  if(promoMonth === undefined){ promoMonth = 1; promoYear = py + 1; }
 
-  function hobongForMonth(y, m){
-    const promoted = (y > promoYear) || (y === promoYear && m >= promoMonth);
-    let h = baseHobong + (promoted ? 1 : 0);
+  // 연속 누적 경력(개월) - 임의 시점 기준. 승급월(1,4,7,10) 체크포인트에서만 반영되는 걸 감안해
+  // hobongForMonth는 "그 달 이전(포함) 가장 최근 체크포인트" 시점의 값을 사용한다.
+  function totalMonthsAtDate(y, m){
+    const elapsed = (y - effHireYear)*12 + (m - effHireMonth);
+    return M0 + Math.max(0, elapsed);
+  }
+  function rawHobongAt(y, m){
+    let h = Math.floor(totalMonthsAtDate(y,m)/12) + degree;
     if(h > 30) h = 30;
+    if(h < 1) h = 1;
     return h;
   }
+  function checkpointOnOrBefore(y, m){
+    const cps = [1,4,7,10];
+    const found = cps.filter(c => c <= m);
+    if(found.length) return {y, m: found[found.length-1]};
+    return {y: y-1, m: 10};
+  }
+  function hobongForMonth(y, m){
+    const cp = checkpointOnOrBefore(y, m);
+    return rawHobongAt(cp.y, cp.m);
+  }
+  function nextPromotionDateFrom(fromY, fromM){
+    const curTotal = totalMonthsAtDate(fromY, fromM);
+    const monthsToNext = 12 - (curTotal % 12);
+    let py = fromY, pm = fromM + monthsToNext;
+    while(pm > 12){ pm -= 12; py += 1; }
+    const promoMonths = [1,4,7,10];
+    let promoMonth = promoMonths.find(m => m >= pm);
+    let promoYear = py;
+    if(promoMonth === undefined){ promoMonth = 1; promoYear = py + 1; }
+    return {year: promoYear, month: promoMonth};
+  }
+
+  const baseHobong = rawHobongAt(hireYear, hireMonth);
+  const promo = nextPromotionDateFrom(effHireYear, effHireMonth);
+  const promoYear = promo.year, promoMonth = promo.month;
+
+  function buildAndDownload(year, isContinuation){
   function salaryFor(h){ return (SALARY_TABLE[h] && SALARY_TABLE[h][gradeKey]) || 0; }
   function monthActiveAt(y, m){ return (y > hireYear) || (y === hireYear && m >= hireMonth); }
   function isActive(m){ return monthActiveAt(year, m); }
@@ -960,7 +984,7 @@ function generateSalarySheet(){
     for(let m=1;m<=12;m++){ if(!isActive(m)) byMonth[m] = null; }
     return byMonth;
   }
-  const isFullYearHire = (hireMonth === 1 && hireDay === 1);
+  const isFullYearHire = isContinuation || (hireMonth === 1 && hireDay === 1);
   const refBasePay = getReferenceBasePay();
   const gyejeongByMonth = isFullYearHire ? null : prorateAnnual(refBasePay * 1.0);   // 가계안정지원비 연 100%(50%+50%)
   const hyodoByMonth = isFullYearHire ? null : prorateAnnual(refBasePay * 2.0);      // 효도휴가비 연 200%(100%+100%)
@@ -984,22 +1008,29 @@ function generateSalarySheet(){
     ws[addr].s = Object.assign({}, ws[addr].s, {fill: YELLOW_FILL, border: BORDER_ALL});
   }
 
+  const displayHireMonth = isContinuation ? 1 : hireMonth;
+  const displayHireDay = isContinuation ? 1 : hireDay;
+  const displayM0 = isContinuation ? totalMonthsAtDate(year, 1) : M0;
+  const displayBaseHobong = isContinuation ? hobongForMonth(year, 1) : baseHobong;
+  const displayPromo = isContinuation ? nextPromotionDateFrom(year, 1) : promo;
+  const displayPromoYear = displayPromo.year, displayPromoMonth = displayPromo.month;
+
   setS('A1','개 인 별 연 봉 표');
   setS('A3','성  명'); setS('B3','직 위');
   setS('A4', name); setS('B4', document.getElementById('salaryPosition').value);
 
-  const frontLabel = `${hireMonth}.${hireDay}`;
+  const frontLabel = `${displayHireMonth}.${displayHireDay}`;
   let backLabel, frontCareerMonths, frontHobong, backCareerMonths, backHobong;
-  if(hireMonth <= 6){
-    frontCareerMonths = M0; frontHobong = baseHobong;
+  if(displayHireMonth <= 6){
+    frontCareerMonths = displayM0; frontHobong = displayBaseHobong;
     backLabel = '7.1';
-    const julyElapsed = (year - hireYear)*12 + (7 - hireMonth);
-    backCareerMonths = M0 + Math.max(0, julyElapsed);
+    const julyElapsed = (year - (isContinuation ? year : hireYear))*12 + (7 - displayHireMonth);
+    backCareerMonths = displayM0 + Math.max(0, julyElapsed);
     backHobong = hobongForMonth(year, 7);
   } else {
     backLabel = frontLabel;
-    frontCareerMonths = backCareerMonths = M0;
-    frontHobong = backHobong = baseHobong;
+    frontCareerMonths = backCareerMonths = displayM0;
+    frontHobong = backHobong = displayBaseHobong;
   }
 
   setS('A5','직  급'); setS('B5', frontLabel+'경력'); setS('C5', frontLabel+'호봉'); setS('D5','차기승급일');
@@ -1009,7 +1040,7 @@ function generateSalarySheet(){
   setS('A6', gradeKey);
   setS('B6', monthsToStr(frontCareerMonths));
   setS('C6', frontHobong+'호');
-  setS('D6', `${String(promoYear).slice(2)}.${pad2(promoMonth)}.01`);
+  setS('D6', `${String(displayPromoYear).slice(2)}.${pad2(displayPromoMonth)}.01`);
   if(basePay[1] !== null) setN('E6', basePay[1]);
   setN('F6', pctForHobong(hobongForMonth(year,1)));
   setS('G6', monthsToStr(backCareerMonths));
@@ -1095,8 +1126,8 @@ function generateSalarySheet(){
   // 차기승급일 강조
   addYellow('D6');
   // 승급월에 해당하는 "월" 헤더 칸(8행) 강조 - 이 표의 연도 안에 승급이 있을 때만
-  if(promoYear === year){
-    addYellow(monthCol(promoMonth)+'8');
+  if(displayPromoYear === year){
+    addYellow(monthCol(displayPromoMonth)+'8');
   }
   addYellow('N31'); addYellow('N32'); addYellow('N33');
 
@@ -1108,11 +1139,24 @@ function generateSalarySheet(){
   ];
   ws['!cols'] = [{wch:14}].concat(Array(12).fill({wch:10})).concat([{wch:12}]);
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, name || '연봉표');
-  XLSX.writeFile(wb, `${name || '연봉표'}_${year}년도_연봉표.xlsx`);
+  return ws;
+  } // buildAndDownload 끝
 
-  salaryStatus('✅ 연봉표 엑셀 파일이 다운로드되었습니다. 가족수당·장기근속수당·직책수당 등 빈칸 항목은 직접 확인 후 입력해주세요.', false);
+  const wb = XLSX.utils.book_new();
+  const ws1 = buildAndDownload(selectedYear, false);
+  XLSX.utils.book_append_sheet(wb, ws1, `${selectedYear}년도`);
+  if(generateNextYear){
+    const ws2 = buildAndDownload(selectedYear + 1, true);
+    XLSX.utils.book_append_sheet(wb, ws2, `${selectedYear+1}년도`);
+  }
+  XLSX.writeFile(wb, `${name || '연봉표'}_연봉표.xlsx`);
+
+  salaryStatus(
+    generateNextYear
+      ? `✅ ${selectedYear}년도, ${selectedYear+1}년도(1월1일자, 경력 이어서 계산) 시트 2개가 담긴 연봉표 파일이 다운로드되었습니다. 가족수당·장기근속수당·직책수당 등 빈칸 항목은 직접 확인 후 입력해주세요.`
+      : '✅ 연봉표 엑셀 파일이 다운로드되었습니다. 가족수당·장기근속수당·직책수당 등 빈칸 항목은 직접 확인 후 입력해주세요.',
+    false
+  );
 }
 
 // initial rows
