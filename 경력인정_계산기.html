@@ -946,7 +946,7 @@ function generateSalarySheet(){
 
   // 1월1일 입사(만근)가 아닌 경우, 가계안정지원비·효도휴가비처럼 연 2회 지급되는 항목을
   // "연간 총액을 12등분(십원단위)하여 1~11월에 배분, 12월에 잔여금액" 방식으로 프로라타 처리
-  function roundTo10(v){ return Math.round(v/10)*10; }
+  function roundTo10(v){ return Math.floor(v/10)*10; }
   function getReferenceBasePay(){
     for(let m=12;m>=1;m--){ if(basePay[m] !== null) return basePay[m]; }
     return 0;
