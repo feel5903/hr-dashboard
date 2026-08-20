@@ -1457,17 +1457,13 @@ function generateSalarySheet(){
   ['A3','B3'].forEach(addBorder);
   ['A4','B4'].forEach(addBorder);
   ['A5','B5','C5','D5','E5','F5','G5','H5','I5','J5','K5','L5'].forEach(addBorder);
-  ['A6','B6','C6','D6','E6','F6','G6','H6','I6','J6','K6','L6','M6'].forEach(addBorder);
+  ['A6','B6','C6','D6','E6','F6','G6','H6','I6','J6','K6','L6'].forEach(addBorder);
   // 월별 표 전체 표선 (8행~33행)
   for(let r=8;r<=33;r++){
     monthColsAll.concat(['A']).forEach(c => addBorder(c+r));
   }
-  // 차기승급일 강조
-  addYellow('D6');
-  // 승급월에 해당하는 "월" 헤더 칸(8행) 강조 - 이 표의 연도 안에 승급이 있을 때만
-  if(displayPromoYear === year){
-    addYellow(monthCol(displayPromoMonth)+'8');
-  }
+  // 승급월에 해당하는 "월" 헤더 칸(8행) 강조
+  addYellow(monthCol(displayPromoMonth)+'8');
   addYellow('N31'); addYellow('N32'); addYellow('N33');
 
   // 금액(9~30행 본문, N31~N33) 외 나머지는 전부 가운데 정렬
