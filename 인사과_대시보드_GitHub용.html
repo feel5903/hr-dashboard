@@ -2527,17 +2527,18 @@ function renderMonthlyHeadcountTable(){
   document.getElementById('mh-year-label').textContent=mhYear+'년';
   var body=document.getElementById('mh-table-body');
   var rows='';
+  var curMonthKey=todayStr.slice(0,7);
   for(var m=1;m<=12;m++){
     var monthKey=mhYear+'-'+String(m).padStart(2,'0');
     var r=getMonthlyHeadcount(monthKey);
+    var isPast=monthKey<curMonthKey;
     var valCell;
     if(r.count===null){
       valCell="<span style='color:#DC2626;font-size:12px'>미입력</span>";
     } else {
-      var badgeColor=r.source==='자동'?'#5C8A1E':'#92400E';
-      valCell="<b>"+r.count+"명</b> <span style='font-size:10.5px;color:"+badgeColor+"'>("+r.source+")</span>";
+      valCell="<b style='color:"+(isPast?"#9CA3AF":"var(--navy)")+"'>"+r.count+"명</b>";
     }
-    rows+="<tr><td style='font-weight:600'>"+m+"월</td><td style='text-align:center'>"+valCell+"</td></tr>";
+    rows+="<tr><td style='font-weight:600;color:"+(isPast?"#9CA3AF":"var(--text)")+"'>"+m+"월</td><td style='text-align:center'>"+valCell+"</td></tr>";
   }
   body.innerHTML=rows;
 }
