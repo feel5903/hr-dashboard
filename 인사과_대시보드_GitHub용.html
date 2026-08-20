@@ -1010,10 +1010,15 @@ async function deleteRowsSafe(tab,ids){
   setSyncStatus("err","⚠ 삭제 실패 (재시도 필요)");
   return false;
 }
-async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동기화 대기)");return;}setSyncStatus("loading","⟳ 동기화 중...");missingIdWarnings=[];try{var d=await callScript({tab:"daily"});var p=await callScript({tab:"project"});var lv=await callScript({tab:"leave"});var tk=await callScript({tab:"task"});
-    var rc=await callScript({tab:"recruit"});
-    var dm=await callScript({tab:"dormitory"});
-    var dt=await callScript({tab:"duties"});var st=await callScript({tab:"staff"});var ad=await callScript({tab:"alerts_dismissed"});var an=await callScript({tab:"annual"});var sl=await callScript({tab:"staff_leaves"});var ot=await callScript({tab:"others"});var ra=await callScript({tab:"rotation_annex"});var dr=await callScript({tab:"oncall_doctors"});var os=await callScript({tab:"oncall_schedule"});var mh=await callScript({tab:"monthly_headcount_manual"});var fd=filterRows(d,"daily").map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p,"project").map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv,"leave").map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk,"task").map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
+async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동기화 대기)");return;}setSyncStatus("loading","⟳ 동기화 중...");missingIdWarnings=[];try{
+    var results=await Promise.all([
+      callScript({tab:"daily"}),callScript({tab:"project"}),callScript({tab:"leave"}),callScript({tab:"task"}),
+      callScript({tab:"recruit"}),callScript({tab:"dormitory"}),callScript({tab:"duties"}),callScript({tab:"staff"}),
+      callScript({tab:"alerts_dismissed"}),callScript({tab:"annual"}),callScript({tab:"staff_leaves"}),callScript({tab:"others"}),
+      callScript({tab:"rotation_annex"}),callScript({tab:"oncall_doctors"}),callScript({tab:"oncall_schedule"}),callScript({tab:"monthly_headcount_manual"})
+    ]);
+    var d=results[0],p=results[1],lv=results[2],tk=results[3],rc=results[4],dm=results[5],dt=results[6],st=results[7],ad=results[8],an=results[9],sl=results[10],ot=results[11],ra=results[12],dr=results[13],os=results[14],mh=results[15];
+    var fd=filterRows(d,"daily").map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p,"project").map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv,"leave").map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk,"task").map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
     var frc=filterRows(rc,"recruit").map(function(r){return normalizeRow(r,"recruit");});
     if(frc.length||!data.recruit.length) data.recruit=frc;
     var fdm=filterRows(dm,"dormitory").map(function(r){return normalizeRow(r,"dormitory");});
