@@ -1429,27 +1429,44 @@ function generateSalarySheet(){
   const j1 = jeongeun(1); if(j1!==null) setN('B11', j1); // 1월 = B열
   const j7 = jeongeun(7); if(j7!==null) setN('H11', j7); // 7월 = H열
 
-  // 기말수당 (분기 마지막달, 해당 분기 3개월 기본급 평균 = 사실상 일할 반영)
-  setF('D10','SUM(B9:D9)/3');
-  setF('G10','SUM(E9:G9)/3');
-  setF('J10','SUM(H9:J9)/3');
-  setF('M10','SUM(K9:M9)/3');
+  function cellNum(addr){ return (ws[addr] && typeof ws[addr].v === 'number') ? ws[addr].v : 0; }
 
-  rowLabels.forEach(([label,row]) => setF('N'+row, `SUM(B${row}:M${row})`));
+  // 기말수당 (분기 마지막달, 해당 분기 3개월 기본급 평균 = 사실상 일할 반영) - 실제 계산값을 캐시로 같이 저장
+  const q1 = Math.round(((basePay[1]||0)+(basePay[2]||0)+(basePay[3]||0))/3);
+  const q2 = Math.round(((basePay[4]||0)+(basePay[5]||0)+(basePay[6]||0))/3);
+  const q3 = Math.round(((basePay[7]||0)+(basePay[8]||0)+(basePay[9]||0))/3);
+  const q4 = Math.round(((basePay[10]||0)+(basePay[11]||0)+(basePay[12]||0))/3);
+  setF('D10','SUM(B9:D9)/3', q1);
+  setF('G10','SUM(E9:G9)/3', q2);
+  setF('J10','SUM(H9:J9)/3', q3);
+  setF('M10','SUM(K9:M9)/3', q4);
 
+  // 각 항목(행)의 총계(N열) - 그 행의 1~12월 실제 값 합계를 캐시로 저장
+  rowLabels.forEach(([label,row]) => {
+    const rowTotal = ['B','C','D','E','F','G','H','I','J','K','L','M']
+      .reduce((s,c)=> s + cellNum(c+row), 0);
+    setF('N'+row, `SUM(B${row}:M${row})`, rowTotal);
+  });
+
+  // 월별 총계(30행) - 그 달의 모든 항목(9~28행) 합계를 캐시로 저장
   for(let m=1;m<=12;m++){
     const col = monthCol(m);
-    setF(col+'30', `SUM(${col}9:${col}28)`);
+    const monthTotal = [];
+    for(let r=9;r<=28;r++){ monthTotal.push(cellNum(col+r)); }
+    const sum = monthTotal.reduce((s,v)=>s+v, 0);
+    setF(col+'30', `SUM(${col}9:${col}28)`, sum);
   }
-  setF('N30','SUM(B30:M30)');
+  const n30 = ['B','C','D','E','F','G','H','I','J','K','L','M'].reduce((s,c)=> s + cellNum(c+'30'), 0);
+  setF('N30','SUM(B30:M30)', n30);
   setS('M31','총계');
-  setF('N31','SUM(N30:N30)');
+  setF('N31','SUM(N30:N30)', n30);
   setS('A32','서 울 재 활 병 원');
   setS('M32','월평균액');
   const activeMonthCount = Object.values(basePay).filter(v=>v!==null).length || 1;
-  setF('N32', `N31/${activeMonthCount}`);
+  const monthlyAvg = Math.round(n30 / activeMonthCount);
+  setF('N32', `N31/${activeMonthCount}`, monthlyAvg);
   setS('M33', `${year}연봉`);
-  setF('N33','N32*12');
+  setF('N33','N32*12', monthlyAvg*12);
 
   // ---- 표선(테두리) 및 노란색 강조 ----
   const monthColsAll = ['B','C','D','E','F','G','H','I','J','K','L','M','N'];
