@@ -2527,6 +2527,7 @@ function getMonthlyHeadcount(monthKey){
     if(rec&&rec.count) return {count:rec.count,source:'수기'};
     return {count:null,source:'수기'};
   }
+  if(monthKey>todayStr.slice(0,7)) return {count:null,source:'future'};
   var parts=monthKey.split('-');
   var y=parseInt(parts[0]),m=parseInt(parts[1]);
   var lastDay=new Date(y,m,0).getDate();
@@ -2550,7 +2551,7 @@ function renderMonthlyHeadcountTable(){
     var isPast=monthKey<curMonthKey;
     var valCell;
     if(r.count===null){
-      valCell="<span style='color:#DC2626;font-size:12px'>미입력</span>";
+      valCell=r.source==='future'?"<span style='color:#D1D5DB;font-size:12px'>-</span>":"<span style='color:#DC2626;font-size:12px'>미입력</span>";
     } else {
       valCell="<b style='color:"+(isPast?"#9CA3AF":"var(--navy)")+"'>"+r.count+"명</b>";
     }
