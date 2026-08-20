@@ -410,9 +410,12 @@ tbody tr:hover{background:#FAFBFC}
     <div class="field"><label>계약종료일 (계약직만)</label><input type="date" id="sf-contractEnd"></div>
     <div class="field"><label>퇴사일 <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(입력하면 직원현황 목록에서 자동으로 빠지고, 월말 재직인원 조회에는 그 날짜까지 포함돼요)</span></label><input type="date" id="sf-resignDate"></div>
     <div class="field"><label>비고</label><input type="text" id="sf-note" placeholder="예: 정규직 전환 예정, 재계약 가능 등"></div>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeStaffModal()">취소</button>
-      <button class="btn primary" onclick="saveStaff()">저장</button>
+    <div class="modal-actions" style="justify-content:space-between">
+      <button class="btn" id="staff-delete-btn" onclick="deleteStaffFromModal()" style="color:#DC2626;border-color:#DC2626;display:none">🗑️ 완전 삭제</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="closeStaffModal()">취소</button>
+        <button class="btn primary" onclick="saveStaff()">저장</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2428,7 +2431,6 @@ function renderStaff() {
       '<td style="text-align:center"><div class="action-btns">'+
         '<button class="edit-btn" data-sid="'+s.id+'" onclick="editStaff(this.dataset.sid)">✏️</button>'+
         '<button class="edit-btn" data-sid="'+s.id+'" onclick="openStaffLeaves(this.dataset.sid)" title="휴가 관리" style="color:#B45309">🏖️</button>'+
-        '<button class="del-btn" data-sid="'+s.id+'" onclick="deleteStaff(this.dataset.sid)">🗑️</button>'+
       '</div></td>'+
     '</tr>';
   }).join('');
@@ -2445,6 +2447,7 @@ function openStaffForm(){
   document.getElementById('sf-contractEnd').value='';
   document.getElementById('sf-resignDate').value='';
   document.getElementById('sf-note').value='';
+  document.getElementById('staff-delete-btn').style.display='none';
   document.getElementById('staff-overlay').classList.add('open');
 }
 
@@ -2463,7 +2466,15 @@ function editStaff(id){
   document.getElementById('sf-contractEnd').value=s.contractEnd||'';
   document.getElementById('sf-resignDate').value=s.resignDate||'';
   document.getElementById('sf-note').value=s.note||'';
+  document.getElementById('staff-delete-btn').style.display='';
   document.getElementById('staff-overlay').classList.add('open');
+}
+
+async function deleteStaffFromModal(){
+  var id=document.getElementById('staff-edit-id').value;
+  if(!id) return;
+  await deleteStaff(id);
+  closeStaffModal();
 }
 
 function closeStaffModal(){document.getElementById('staff-overlay').classList.remove('open');}
