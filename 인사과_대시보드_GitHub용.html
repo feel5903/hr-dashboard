@@ -159,6 +159,7 @@ tbody tr:hover{background:#FAFBFC}
   </div>
   <div class="topbar-date" id="today-label"></div>
 </div>
+<div id="missing-id-banner" style="display:none;background:#FEE2E2;color:#991B1B;font-size:12px;font-weight:600;text-align:center;padding:.5rem 1rem"></div>
 <nav class="sidebar">
   <div class="nav-section">업무 현황</div>
   <div class="nav-item active" onclick="switchNav('daily',this)"><span class="nav-icon">📋</span>일일 업무</div>
@@ -836,7 +837,7 @@ function toggleSidebar(){
   }
 }
 function saveLocalBackup(){try{var backup={daily:data.daily,project:data.project,task:data.task,leave:data.leave,recruit:data.recruit,dormitory:data.dormitory};localStorage.setItem("hr_data_backup",JSON.stringify(backup));}catch(e){}}
-function genId(p){return p+Date.now();}
+function genId(p){return p+Date.now()+Math.random().toString(36).slice(2,7);}
 function saveLocal(){localStorage.setItem("hr_members",JSON.stringify(members));}
 function getMember(n){return members.find(function(m){return m.name===n;})||{name:n,color:"#888",role:""};}
 function badge(s){return "<span class='badge "+s+"'>"+s+"</span>";}
@@ -848,7 +849,21 @@ function getWeekLabel(d){if(!d)return"";var dt=new Date(d);if(isNaN(dt.getTime()
 var day=dt.getDay()||7;var thu=new Date(dt);thu.setDate(dt.getDate()-(day-4));var mon=new Date(dt);mon.setDate(dt.getDate()-(day-1));var month=thu.getMonth()+1;var firstDay=new Date(thu.getFullYear(),thu.getMonth(),1);var wom=Math.ceil((mon.getDate()+((firstDay.getDay()||7)-1))/7);if(mon.getMonth()!==thu.getMonth())wom=1;return thu.getFullYear()+"년 "+month+"월 "+wom+"주차";}
 function formatDateVal(val){if(!val)return"";if(val instanceof Date){if(isNaN(val.getTime()))return"";return val.getFullYear()+"-"+String(val.getMonth()+1).padStart(2,"0")+"-"+String(val.getDate()).padStart(2,"0");}if(typeof val!=="string")return String(val);if(val.indexOf("GMT")>=0||val.indexOf("표준시")>=0){var d=new Date(val);if(!isNaN(d.getTime()))return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}if(val.match(/^\d{4}-\d{2}-\d{2}T/))return val.slice(0,10);var mv=val.match(/^(\d{4})\.(\d{1,2})\.(\d{1,2})$/);if(mv)return mv[1]+"-"+mv[2].padStart(2,"0")+"-"+mv[3].padStart(2,"0");return val;}
 function normalizeRow(row,tab){var df=["end","start","created","date","joinDate","contractEnd"];var out={};Object.keys(row).forEach(function(k){if(!k||k==="")return;var tk=k.trim();if(!tk)return;out[tk]=df.indexOf(tk)>=0?formatDateVal(row[k]):row[k];});if(tab==="daily"){if(!out.feedback)out.feedback="";if(!out.start&&out.created)out.start=out.created;if(!out.created&&out.start)out.created=out.start;}if(tab==="staff"){if(out.joinDate)out.joinDate=formatDateVal(out.joinDate);if(out.contractEnd)out.contractEnd=formatDateVal(out.contractEnd);}return out;}
-function filterRows(rows){var seen={};return(rows||[]).filter(function(r){if(!r.id||r.id==="id"||r.id==="")return false;if(seen[r.id])return false;seen[r.id]=true;return true;});}
+var missingIdWarnings=[];
+function filterRows(rows,tabName){
+  var seen={};
+  return (rows||[]).filter(function(r){
+    if(!r.id||r.id==="id"||r.id===""){
+      // id는 없지만 다른 칸에 실제 내용이 있으면 "빠진 데이터"로 간주해 경고
+      var hasContent=Object.keys(r).some(function(k){return k!=="id"&&r[k]&&String(r[k]).trim()!=="";});
+      if(hasContent&&tabName&&missingIdWarnings.indexOf(tabName)<0) missingIdWarnings.push(tabName);
+      return false;
+    }
+    if(seen[r.id])return false;
+    seen[r.id]=true;
+    return true;
+  });
+}
 function setSyncStatus(t,txt){var b=document.getElementById("sync-btn");b.style.color=t==="ok"?"var(--lime)":t==="err"?"#FCA5A5":"var(--navy-mid)";b.textContent=txt;}
 async function callScript(params){try{var url=SHEET_URL+"?";Object.keys(params).forEach(function(k){url+=k+"="+encodeURIComponent(typeof params[k]==="object"?JSON.stringify(params[k]):params[k])+"&";});url+="t="+Date.now();var r=await fetch(url,{redirect:"follow",mode:"cors"});if(!r.ok)return null;var txt=await r.text();try{return JSON.parse(txt);}catch(e){return null;}}catch(e){return null;}}
 async function overwriteTab(tab){var rows=data[tab]||[];if(tab!=="duties"){var seen={};rows=rows.filter(function(r){if(!r.id||seen[r.id])return false;seen[r.id]=true;return true;});}var df=["end","start","created","date"];rows=rows.map(function(r){var out={};Object.keys(r).forEach(function(k){out[k]=df.indexOf(k)>=0?formatDateVal(r[k]):r[k];});return out;});data[tab]=rows;saveLocalBackup();
@@ -893,6 +908,17 @@ async function saveRow(tab,row){
   }
   setSyncStatus("ok","● 저장됨");
   return {ok:true,message:""};
+}
+
+// saveRow를 감싸서, 실패시 자동으로 한 번 더 재시도하고, 그래도 실패하면 알림을 띄워주는 안전한 저장 함수
+async function saveRowChecked(tab,row,itemDesc){
+  var res=await saveRow(tab,row);
+  if(!res.ok) res=await saveRow(tab,row);
+  if(!res.ok){
+    alert("⚠ 저장에 실패했어요"+(itemDesc?" ("+itemDesc+")":"")+": "+res.message+"\n\n인터넷 연결을 확인하고 다시 시도해주세요. 이 항목은 아직 시트에 저장되지 않았어요.");
+    return false;
+  }
+  return true;
 }
 
 // 안전한 행 수정: 해당 id 행만 정확히 찾아서 업데이트 (전체 덮어쓰기 없음)
@@ -966,33 +992,44 @@ async function deleteRowsSafe(tab,ids){
   setSyncStatus("err","⚠ 삭제 실패 (재시도 필요)");
   return false;
 }
-async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동기화 대기)");return;}setSyncStatus("loading","⟳ 동기화 중...");try{var d=await callScript({tab:"daily"});var p=await callScript({tab:"project"});var lv=await callScript({tab:"leave"});var tk=await callScript({tab:"task"});
+async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동기화 대기)");return;}setSyncStatus("loading","⟳ 동기화 중...");missingIdWarnings=[];try{var d=await callScript({tab:"daily"});var p=await callScript({tab:"project"});var lv=await callScript({tab:"leave"});var tk=await callScript({tab:"task"});
     var rc=await callScript({tab:"recruit"});
     var dm=await callScript({tab:"dormitory"});
-    var dt=await callScript({tab:"duties"});var st=await callScript({tab:"staff"});var ad=await callScript({tab:"alerts_dismissed"});var an=await callScript({tab:"annual"});var sl=await callScript({tab:"staff_leaves"});var ot=await callScript({tab:"others"});var ra=await callScript({tab:"rotation_annex"});var dr=await callScript({tab:"oncall_doctors"});var os=await callScript({tab:"oncall_schedule"});var fd=filterRows(d).map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p).map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv).map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk).map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
-    var frc=filterRows(rc).map(function(r){return normalizeRow(r,"recruit");});
-    data.recruit=frc;
-    var fdm=filterRows(dm).map(function(r){return normalizeRow(r,"dormitory");});
+    var dt=await callScript({tab:"duties"});var st=await callScript({tab:"staff"});var ad=await callScript({tab:"alerts_dismissed"});var an=await callScript({tab:"annual"});var sl=await callScript({tab:"staff_leaves"});var ot=await callScript({tab:"others"});var ra=await callScript({tab:"rotation_annex"});var dr=await callScript({tab:"oncall_doctors"});var os=await callScript({tab:"oncall_schedule"});var fd=filterRows(d,"daily").map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p,"project").map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv,"leave").map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk,"task").map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
+    var frc=filterRows(rc,"recruit").map(function(r){return normalizeRow(r,"recruit");});
+    if(frc.length||!data.recruit.length) data.recruit=frc;
+    var fdm=filterRows(dm,"dormitory").map(function(r){return normalizeRow(r,"dormitory");});
     if(fdm.length) data.dormitory=fdm;
     var fdt=(dt||[]).filter(function(r){return r&&r.category;}).map(function(r){return normalizeRow(r,"duties");});
     if(fdt.length) data.duties=fdt;
-    var fst=filterRows(st).map(function(r){return normalizeRow(r,"staff");});
+    var fst=filterRows(st,"staff").map(function(r){return normalizeRow(r,"staff");});
     if(fst.length) data.staff=fst;
     if(ad&&ad.length) dismissedAlerts=ad;
     var fan=(an||[]).filter(function(r){return r&&r.month;}).map(function(r){return normalizeRow(r,"annual");});
     if(fan.length) data.annual=fan;
-    var fsl=filterRows(sl).map(function(r){return normalizeRow(r,"staff_leaves");});
-    data.staffLeaves=fsl;
-    var fot=filterRows(ot).map(function(r){return normalizeRow(r,"others");});
-    data.others=fot;
-    var fra=filterRows(ra).map(function(r){return normalizeRow(r,"rotation_annex");});
-    data.rotationAnnex=fra;
-    var fdr=filterRows(dr).map(function(r){return normalizeRow(r,"oncall_doctors");});
+    var fsl=filterRows(sl,"staff_leaves").map(function(r){return normalizeRow(r,"staff_leaves");});
+    if(fsl.length||!data.staffLeaves.length) data.staffLeaves=fsl;
+    var fot=filterRows(ot,"others").map(function(r){return normalizeRow(r,"others");});
+    if(fot.length||!data.others.length) data.others=fot;
+    var fra=filterRows(ra,"rotation_annex").map(function(r){return normalizeRow(r,"rotation_annex");});
+    if(fra.length||!data.rotationAnnex.length) data.rotationAnnex=fra;
+    var fdr=filterRows(dr,"oncall_doctors").map(function(r){return normalizeRow(r,"oncall_doctors");});
     if(fdr.length||!data.oncallDoctors.length) data.oncallDoctors=fdr;
-    var fos=filterRows(os).map(function(r){return normalizeRow(r,"oncall_schedule");});
+    var fos=filterRows(os,"oncall_schedule").map(function(r){return normalizeRow(r,"oncall_schedule");});
     if(fos.length||!data.oncallSchedule.length) data.oncallSchedule=fos;
     seedOncallDataIfEmpty();
-    saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
+    saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();showMissingIdWarning();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
+
+function showMissingIdWarning(){
+  var el=document.getElementById("missing-id-banner");
+  if(!el) return;
+  if(missingIdWarnings.length){
+    el.style.display="";
+    el.textContent="⚠ 구글시트에 id 칸이 비어있는 행이 있어서 대시보드에 안 보이는 항목이 있어요 (탭: "+missingIdWarnings.join(", ")+"). 해당 시트의 id 칸에 값을 채워주세요.";
+  } else {
+    el.style.display="none";
+  }
+}
 function updateStats(){
   document.getElementById("s-due").textContent=data.daily.filter(function(x){return isToday(x.end)&&x.status!=="완료";}).length;
   var projCnt=data.project.filter(function(x){return x.status!=="완료";}).length;
@@ -1316,7 +1353,7 @@ function saveMemo(){var wk=document.getElementById("week-select").value;var val=
 function loadMemo(){var wk=document.getElementById("week-select").value;var el=document.getElementById("meeting-memo");if(el)el.value=localStorage.getItem("memo_"+wk)||"";}
 function saveFeedback(id,val){var item=data.daily.find(function(x){return x.id===id;});if(item){item.feedback=val;clearTimeout(window._fbTimer);window._fbTimer=setTimeout(function(){updateRowSafe("daily",item.id,[item.id,item.member,item.content,item.created,item.end,item.status,item.note||"",item.feedback||"",item.link||""]);},1000);}}
 function openLeaveForm(){document.getElementById("lv-member").innerHTML=members.map(function(m){return"<option>"+m.name+"</option>";}).join("");document.getElementById("lv-date").value=todayStr;document.getElementById("lv-note").value="";document.getElementById("leave-overlay").classList.add("open");}
-async function saveLeave(){var date=document.getElementById("lv-date").value;if(!date){alert("날짜를 선택해주세요");return;}var nr={id:genId("lv"),member:document.getElementById("lv-member").value,date:date,type:document.getElementById("lv-type").value,note:document.getElementById("lv-note").value};data.leave.push(nr);await saveRow("leave",Object.values(nr));document.getElementById("leave-overlay").classList.remove("open");renderWeeklySelect();renderWeekly();renderCalendar();}
+async function saveLeave(){var date=document.getElementById("lv-date").value;if(!date){alert("날짜를 선택해주세요");return;}var nr={id:genId("lv"),member:document.getElementById("lv-member").value,date:date,type:document.getElementById("lv-type").value,note:document.getElementById("lv-note").value};var ok=await saveRowChecked("leave",Object.values(nr),"휴가");if(!ok)return;data.leave.push(nr);document.getElementById("leave-overlay").classList.remove("open");renderWeeklySelect();renderWeekly();renderCalendar();}
 async function deleteLeave(id){if(!confirm("휴가를 삭제할까요?"))return;data.leave=data.leave.filter(function(x){return x.id!==id;});await deleteRowSafe("leave",id);renderWeekly();renderCalendar();}
 function renderProject(){var fm=document.getElementById("filter-proj-member")?document.getElementById("filter-proj-member").value:"";var fs=document.getElementById("filter-proj-status")?document.getElementById("filter-proj-status").value:"";var sq=document.getElementById("search-project")?document.getElementById("search-project").value.toLowerCase():"";var checkedStatuses=getCheckedStatuses("proj");var list=document.getElementById("project-list");var filtered=data.project.filter(function(x){return(!fm||x.member===fm)&&(!checkedStatuses.length||checkedStatuses.indexOf(x.status)>=0)&&(!sq||(x.name||"").toLowerCase().indexOf(sq)>=0||(x.note||"").toLowerCase().indexOf(sq)>=0);});if(!filtered.length){list.innerHTML="<div class='empty'>프로젝트가 없습니다</div>";return;}list.innerHTML="";
 filtered.forEach(function(proj){
@@ -1420,9 +1457,9 @@ async function saveTaskInline(pid){
       var ex=data.task.filter(function(t){return t.projectId===pid;});
       var ms=ex.reduce(function(mx,t){return Math.max(mx,parseInt(t.step||0));},0);
       var nr={id:genId("tk"),projectId:pid,step:String(ms+1),content:c2,member:mv,start:stv,end:ev,status:sv,note:nv};
+      var ok=await saveRowChecked("task",Object.values(nr),"세부업무");
+      if(!ok){ if(sbtn){sbtn.disabled=false;sbtn.textContent="저장";} return; }
       data.task.push(nr);
-      // append로 빠르게 저장 (overwrite 대신)
-      await saveRow("task",Object.values(nr));
     }
     // 진행률은 로컬에서 바로 계산 (시트 호출 없이)
     recalcProgressLocal(pid);
@@ -1520,13 +1557,34 @@ async function deleteItem(type,idx){
 function openForm(type){curForm=type;editIdx=null;document.getElementById("modal-title").textContent=type==="daily"?"일일 업무 추가":"프로젝트 추가";document.getElementById("field-start").style.display=type==="project"?"block":"none";document.getElementById("field-created").style.display=type==="daily"?"block":"none";document.getElementById("f-member").innerHTML=members.map(function(m){return"<option>"+m.name+"</option>";}).join("");document.getElementById("f-content").value="";document.getElementById("f-created").value=todayStr;document.getElementById("f-end").value=todayStr;document.getElementById("f-start").value=todayStr;document.getElementById("f-status").value="진행";document.getElementById("f-note").value="";setLinkValues("");var fld=document.getElementById("field-link");if(fld)fld.style.display=type==="daily"?"":"none";document.getElementById("save-btn").textContent="저장";document.getElementById("save-btn").disabled=false;document.getElementById("overlay").classList.add("open");}
 function closeOverlay(){document.getElementById("overlay").classList.remove("open");editIdx=null;document.getElementById("save-btn").textContent="저장";document.getElementById("save-btn").disabled=false;}
 function closeOverlayOutside(e){if(e.target===document.getElementById("overlay"))closeOverlay();}
-async function saveForm(){var btn=document.getElementById("save-btn");if(btn.disabled)return;btn.disabled=true;btn.textContent="저장 중...";var member=document.getElementById("f-member").value;var content=document.getElementById("f-content").value.trim();var end=document.getElementById("f-end").value;var status=document.getElementById("f-status").value;var note=document.getElementById("f-note").value;if(!content){alert("내용을 입력해주세요");btn.disabled=false;btn.textContent="저장";return;}if(editIdx!==null){var x=data[curForm][editIdx];if(curForm==="daily"){x.member=member;x.content=content;x.start=document.getElementById("f-created").value||todayStr;x.created=x.start;x.end=end;x.status=status;x.note=note;x.link=getLinkValues();
-    await updateRowSafe("daily",x.id,[x.id,x.member,x.content,x.created,x.end,x.status,x.note,x.feedback||"",x.link||""]);
-  }else if(curForm==="project"){x.member=member;x.name=content;x.start=document.getElementById("f-start").value;x.end=end;x.status=status;x.note=note;
-    await updateRowSafe("project",x.id,[x.id,x.name,x.member,x.start,x.end,x.progress||0,x.status,x.note]);
+async function saveForm(){var btn=document.getElementById("save-btn");if(btn.disabled)return;btn.disabled=true;btn.textContent="저장 중...";var member=document.getElementById("f-member").value;var content=document.getElementById("f-content").value.trim();var end=document.getElementById("f-end").value;var status=document.getElementById("f-status").value;var note=document.getElementById("f-note").value;if(!content){alert("내용을 입력해주세요");btn.disabled=false;btn.textContent="저장";return;}
+  if(editIdx!==null){
+    var x=data[curForm][editIdx];var ok=false;
+    if(curForm==="daily"){x.member=member;x.content=content;x.start=document.getElementById("f-created").value||todayStr;x.created=x.start;x.end=end;x.status=status;x.note=note;x.link=getLinkValues();
+      ok=await updateRowSafe("daily",x.id,[x.id,x.member,x.content,x.created,x.end,x.status,x.note,x.feedback||"",x.link||""]);
+      if(!ok) ok=await updateRowSafe("daily",x.id,[x.id,x.member,x.content,x.created,x.end,x.status,x.note,x.feedback||"",x.link||""]);
+    }else if(curForm==="project"){x.member=member;x.name=content;x.start=document.getElementById("f-start").value;x.end=end;x.status=status;x.note=note;
+      ok=await updateRowSafe("project",x.id,[x.id,x.name,x.member,x.start,x.end,x.progress||0,x.status,x.note]);
+      if(!ok) ok=await updateRowSafe("project",x.id,[x.id,x.name,x.member,x.start,x.end,x.progress||0,x.status,x.note]);
+    }
+    if(!ok){ alert("⚠ 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요. (수정 내용이 아직 시트에 반영되지 않았어요)"); btn.disabled=false; btn.textContent="저장"; return; }
+    saveLocalBackup();closeOverlay();renderAll();return;
   }
-  saveLocalBackup();closeOverlay();renderAll();return;}if(curForm==="daily"){var sv=document.getElementById("f-created").value||todayStr;var lnk2=getLinkValues();
-    var nr={id:genId("d"),member:member,content:content,created:sv,start:sv,end:end,status:status,note:note,feedback:"",link:lnk2};data.daily.push(nr);await saveRow("daily",[nr.id,nr.member,nr.content,nr.created,nr.end,nr.status,nr.note,nr.feedback,nr.link||""]);}else if(curForm==="project"){var nr={id:genId("p"),name:content,member:member,start:document.getElementById("f-start").value,end:end,progress:0,status:status,note:note};data.project.push(nr);await saveRow("project",Object.values(nr));}closeOverlay();renderAll();}
+  if(curForm==="daily"){
+    var sv=document.getElementById("f-created").value||todayStr;var lnk2=getLinkValues();
+    var nr={id:genId("d"),member:member,content:content,created:sv,start:sv,end:end,status:status,note:note,feedback:"",link:lnk2};
+    var res=await saveRow("daily",[nr.id,nr.member,nr.content,nr.created,nr.end,nr.status,nr.note,nr.feedback,nr.link||""]);
+    if(!res.ok) res=await saveRow("daily",[nr.id,nr.member,nr.content,nr.created,nr.end,nr.status,nr.note,nr.feedback,nr.link||""]);
+    if(!res.ok){ alert("⚠ 저장에 실패했어요: "+res.message+"\n\n인터넷 연결을 확인하고 다시 시도해주세요. (이 업무는 아직 시트에 저장되지 않았어요)"); btn.disabled=false; btn.textContent="저장"; return; }
+    data.daily.push(nr);
+  }else if(curForm==="project"){
+    var nr={id:genId("p"),name:content,member:member,start:document.getElementById("f-start").value,end:end,progress:0,status:status,note:note};
+    var res=await saveRow("project",Object.values(nr));
+    if(!res.ok) res=await saveRow("project",Object.values(nr));
+    if(!res.ok){ alert("⚠ 저장에 실패했어요: "+res.message+"\n\n인터넷 연결을 확인하고 다시 시도해주세요. (이 항목은 아직 시트에 저장되지 않았어요)"); btn.disabled=false; btn.textContent="저장"; return; }
+    data.project.push(nr);
+  }
+  closeOverlay();renderAll();}
 function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").forEach(function(n){n.classList.remove("active");});if(el)el.classList.add("active");document.querySelectorAll(".pane").forEach(function(p){p.classList.remove("active");});document.getElementById("pane-"+name).classList.add("active");if(name==="settings")renderMemberGrid();if(name==="staff")renderStaff();if(name==="staff")renderStaff();if(name==="workdays"&&typeof wdInit==='function')wdInit();if(name==="calendar")renderCalendar();
   if(name==="recruit")renderRecruit();
   if(name==="duties")renderDuties();
@@ -1849,9 +1907,10 @@ async function saveRecruit(){
     await updateRowSafe('recruit',nr.id,[nr.id,nr.type,nr.manager,nr.team,nr.replaceName,nr.reason,nr.status,nr.name,nr.job,nr.date,nr.otTime||'',nr.note||'',nr.schedule||'']);
   } else {
     // 신규 - append만 사용 (빠르고 안전)
+    var ok=await saveRowChecked('recruit', Object.values(nr), '채용 정보');
+    if(!ok) return;
     data.recruit.push(nr);
     saveLocalBackup();
-    await saveRow('recruit', Object.values(nr));
   }
   document.getElementById('recruit-overlay').classList.remove('open');
   renderRecruit();
@@ -2004,8 +2063,9 @@ async function saveDorm(){
     if(idx>=0) data.dormitory[idx]=nr;
     await updateRowSafe('dormitory',nr.id,[nr.id,nr.room,nr.team,nr.name,nr.moveInDate,nr.note,nr.isLeader]);
   } else {
+    var ok=await saveRowChecked('dormitory',Object.values(nr),'기숙사 정보');
+    if(!ok) return;
     data.dormitory.push(nr);
-    await saveRow('dormitory',Object.values(nr));
   }
   saveLocalBackup();
   closeDormModal();
@@ -2290,8 +2350,9 @@ async function saveStaff() {
     if(idx>=0) data.staff[idx] = nr;
     await updateRowSafe('staff', eid, [nr.id,nr.name,nr.dept,nr.position,nr.title,nr.joinDate,nr.contractType,nr.contractEnd,nr.note||'']);
   } else {
+    var ok=await saveRowChecked('staff', [nr.id,nr.name,nr.dept,nr.position,nr.title,nr.joinDate,nr.contractType,nr.contractEnd,nr.note||''], '직원 정보');
+    if(!ok) return;
     data.staff.push(nr);
-    await saveRow('staff', [nr.id,nr.name,nr.dept,nr.position,nr.title,nr.joinDate,nr.contractType,nr.contractEnd,nr.note||'']);
   }
   closeStaffModal();
   renderStaff();
@@ -2387,7 +2448,7 @@ async function saveStaff(){
   if(!data.staff) data.staff=[];
   var row=[nr.id,nr.name,nr.dept,nr.position,nr.title,nr.joinDate,nr.contractType,nr.contractEnd,nr.note||'',nr.location];
   if(eid){var idx=data.staff.findIndex(function(x){return x.id===eid;});if(idx>=0)data.staff[idx]=nr;await updateRowSafe('staff',eid,row);}
-  else{data.staff.push(nr);await saveRow('staff',row);}
+  else{var ok=await saveRowChecked('staff',row,'직원 정보');if(!ok)return;data.staff.push(nr);}
   closeStaffModal();renderStaff();
 }
 
@@ -3172,8 +3233,9 @@ async function addStaffLeave(){
   if(end<start){alert("종료일이 시작일보다 빠를 수 없어요");return;}
   var nr={id:genId("sl"),staffId:staffId,staffName:s?s.name:"",type:type,start:start,end:end};
   if(!data.staffLeaves) data.staffLeaves=[];
+  var ok=await saveRowChecked("staff_leaves",[nr.id,nr.staffId,nr.staffName,nr.type,nr.start,nr.end],"휴가 기록");
+  if(!ok) return;
   data.staffLeaves.push(nr);
-  await saveRow("staff_leaves",[nr.id,nr.staffId,nr.staffName,nr.type,nr.start,nr.end]);
   renderStaffLeaveList(staffId);
 }
 async function deleteStaffLeave(id){
@@ -3305,8 +3367,9 @@ async function saveOther(){
     if(idx>=0) data.others[idx]=nr;
     await updateRowSafe("others",id,row);
   } else {
+    var ok=await saveRowChecked("others",row,"기타인력 정보");
+    if(!ok) return;
     data.others.push(nr);
-    await saveRow("others",row);
   }
   document.getElementById("other-form-overlay").classList.remove("open");
   renderOthersTable();
@@ -3696,8 +3759,9 @@ async function assignOncallDay(name){
     await updateRowSafe("oncall_schedule",oncallId(dateStr),[oncallId(dateStr),dateStr,name]);
   } else {
     var nr={id:oncallId(dateStr),date:dateStr,name:name};
+    var ok=await saveRowChecked("oncall_schedule",[nr.id,nr.date,nr.name],"당직의 배정");
+    if(!ok) return;
     data.oncallSchedule.push(nr);
-    await saveRow("oncall_schedule",[nr.id,nr.date,nr.name]);
   }
   document.getElementById("oncall-picker-overlay").classList.remove("open");
   renderOncallCalendar();
@@ -3739,8 +3803,9 @@ async function addDoctor(){
   if(!name){alert("이름을 입력해주세요");return;}
   var nr={id:genId("dr"),name:name,phone:phone};
   if(!data.oncallDoctors) data.oncallDoctors=[];
+  var ok=await saveRowChecked("oncall_doctors",[nr.id,nr.name,nr.phone],"당직의 명단");
+  if(!ok) return;
   data.oncallDoctors.push(nr);
-  await saveRow("oncall_doctors",[nr.id,nr.name,nr.phone]);
   document.getElementById("dr-new-name").value="";
   document.getElementById("dr-new-phone").value="";
   renderDoctorRosterList();
