@@ -316,45 +316,6 @@
   </div>
 
   <div class="panel">
-    <h2><span class="num">3</span>저장 / 불러오기</h2>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-      <button class="btn btn-primary" onclick="saveCurrent()">💾 현재 입력 저장</button>
-      <button class="btn btn-ghost" onclick="clearForm()">🗑 새로 작성(초기화)</button>
-      <button class="btn" onclick="openHistoryModal()">📂 저장 이력 보기 <span id="historyCountBadge">(0)</span></button>
-    </div>
-    <div class="hint" style="margin-top:10px;">
-      저장한 이력은 이 컴퓨터의 브라우저에만 저장됩니다(다른 PC와 공유되지 않음). 시크릿 모드이거나 브라우저 데이터를 삭제하면 사라질 수 있으니, 중요한 결과는 인쇄 또는 캡처로 별도 보관해 주세요.
-    </div>
-  </div>
-
-  <div id="historyModalOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this) closeHistoryModal()">
-    <div class="modal-box">
-      <div class="modal-head">
-        <h3>저장된 이력</h3>
-        <input type="text" id="historySearch" placeholder="지원자명 검색" oninput="renderHistoryList()">
-        <button class="btn btn-ghost" onclick="closeHistoryModal()">닫기 ✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="table-scroll">
-          <table id="historyTable" style="min-width:640px;">
-            <thead>
-              <tr>
-                <th style="min-width:120px;">지원자명</th>
-                <th>저장일시</th>
-                <th>직종</th>
-                <th>경력 건수</th>
-                <th>인정경력 합계</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="historyBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="panel">
     <div class="summary">
       <div class="stat">
         <div class="label">전 경력 합계 (인정비율 적용 전)</div>
@@ -372,7 +333,7 @@
   </div>
 
   <div class="panel">
-    <h2><span class="num">4</span>연봉표 생성</h2>
+    <h2><span class="num">3</span>연봉표 생성</h2>
     <div class="job-select-row" style="flex-wrap:wrap;gap:10px;">
       <input type="text" id="salaryName" placeholder="성명" style="padding:9px 12px;border:1px solid var(--line);border-radius:6px;min-width:110px;">
       <select id="salaryPosition" style="padding:9px 12px;border:1px solid var(--line);border-radius:6px;">
@@ -416,6 +377,45 @@
     <div id="salaryStatus" class="hint" style="display:none;margin-top:10px;"></div>
     <div class="hint" style="margin-top:10px;">
       직종 선택·경력 입력을 먼저 완료해주세요. 자동 계산: 기본급(호봉표+승급시점)·기말수당·정근수당·직무수당·가계보조수당·교통비·정액급식비·종사자복지수당·가계안정지원비(4·10월)·효도휴가비(설·추석월)·특수업무수당·직급보조수당·균형수당·근골격계질환예방수당·(간호사 3교대 시)교대수당·(간호사·치료사)면허수당. <b>가족수당·장기근속수당·직책수당·조정수당·간호간병통합수당·(3교대 아닌 경우)교대수당·(간호사·치료사 외)면허수당은 빈칸으로 두니 직접 확인 후 입력해주세요.</b> 생성된 파일은 일반 엑셀처럼 자유롭게 수정 가능합니다.
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2><span class="num">4</span>저장 / 불러오기</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <button class="btn btn-primary" onclick="saveCurrent()">💾 현재 입력 저장</button>
+      <button class="btn btn-ghost" onclick="clearForm()">🗑 새로 작성(초기화)</button>
+      <button class="btn" onclick="openHistoryModal()">📂 저장 이력 보기 <span id="historyCountBadge">(0)</span></button>
+    </div>
+    <div class="hint" style="margin-top:10px;">
+      "저장"을 누르면 위의 <b>근무경력 입력 내용과 연봉표 생성 패널 입력값이 한 세트로 같이 저장</b>됩니다. 저장한 이력은 이 컴퓨터의 브라우저에만 저장됩니다(다른 PC와 공유되지 않음). 시크릿 모드이거나 브라우저 데이터를 삭제하면 사라질 수 있으니, 중요한 결과는 인쇄 또는 캡처로 별도 보관해 주세요.
+    </div>
+  </div>
+
+  <div id="historyModalOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this) closeHistoryModal()">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>저장된 이력</h3>
+        <input type="text" id="historySearch" placeholder="지원자명 검색" oninput="renderHistoryList()">
+        <button class="btn btn-ghost" onclick="closeHistoryModal()">닫기 ✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="table-scroll">
+          <table id="historyTable" style="min-width:640px;">
+            <thead>
+              <tr>
+                <th style="min-width:120px;">지원자명</th>
+                <th>저장일시</th>
+                <th>직종</th>
+                <th>경력 건수</th>
+                <th>인정경력 합계</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
