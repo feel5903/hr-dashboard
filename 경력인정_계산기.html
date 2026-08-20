@@ -1494,6 +1494,11 @@ function generateSalarySheet(){
   ];
   ws['!cols'] = [{wch:14}].concat(Array(12).fill({wch:10})).concat([{wch:12}]);
 
+  // 인쇄 설정: 여백 좁게 + 가로방향 + 한 페이지에 맞춤
+  ws['!margins'] = { left: 0.25, right: 0.25, top: 0.35, bottom: 0.35, header: 0.15, footer: 0.15 };
+  ws['!pageSetup'] = { orientation: 'landscape', fitToWidth: 1, fitToHeight: 1, scale: 100 };
+  ws['!sheetPr'] = { fitToPage: true };
+
   return ws;
   } // buildAndDownload 끝
 
