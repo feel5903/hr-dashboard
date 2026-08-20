@@ -395,6 +395,9 @@
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);">
         <input type="checkbox" id="salaryShift3" style="width:16px;height:16px;"> 간호사 3교대 근무 (교대수당 150,000원 적용)
       </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);">
+        <input type="checkbox" id="salaryLicenseOther" style="width:16px;height:16px;"> 면허 보유 - 간호사·치료사 외 직종 (면허수당 50,000원 적용)
+      </label>
     </div>
     <div class="job-select-row" style="flex-wrap:wrap;gap:10px;margin-top:8px;">
       <label style="font-size:13px;color:var(--muted);">해당 연도</label>
@@ -919,8 +922,10 @@ function generateSalarySheet(){
   for(let m=1;m<=12;m++){ basePay[m] = isActive(m) ? salaryFor(hobongForMonth(year,m)) : null; }
 
   // 면허수당
-  const licenseEligible = (jobCategory === '간호사' || jobCategory === '치료사');
-  const licenseAmt = LICENSE_AMOUNT[gradeKey] || 0;
+  const licenseEligible = (jobCategory === '간호사' || jobCategory === '치료사') || document.getElementById('salaryLicenseOther').checked;
+  const licenseAmt = (jobCategory === '간호사' || jobCategory === '치료사')
+    ? (LICENSE_AMOUNT[gradeKey] || 0)
+    : (document.getElementById('salaryLicenseOther').checked ? 50000 : 0);
 
   // 교대(겸직)수당 - 간호사 3교대만 자동
   const shiftAmt = (jobCategory === '간호사' && shift3) ? 150000 : 0;
@@ -938,6 +943,27 @@ function generateSalarySheet(){
     const pct = pctForHobong(hobongForMonth(year, paymentMonth));
     return Math.round(basePay[paymentMonth] * pct / 100 / 6 * worked);
   }
+
+  // 1월1일 입사(만근)가 아닌 경우, 가계안정지원비·효도휴가비처럼 연 2회 지급되는 항목을
+  // "연간 총액을 12등분(십원단위)하여 1~11월에 배분, 12월에 잔여금액" 방식으로 프로라타 처리
+  function roundTo10(v){ return Math.round(v/10)*10; }
+  function getReferenceBasePay(){
+    for(let m=12;m>=1;m--){ if(basePay[m] !== null) return basePay[m]; }
+    return 0;
+  }
+  function prorateAnnual(annualTotal){
+    const monthlyBase = roundTo10(annualTotal/12);
+    const decValue = annualTotal - monthlyBase*11;
+    const byMonth = {};
+    for(let m=1;m<=11;m++) byMonth[m] = monthlyBase;
+    byMonth[12] = decValue;
+    for(let m=1;m<=12;m++){ if(!isActive(m)) byMonth[m] = null; }
+    return byMonth;
+  }
+  const isFullYearHire = (hireMonth === 1 && hireDay === 1);
+  const refBasePay = getReferenceBasePay();
+  const gyejeongByMonth = isFullYearHire ? null : prorateAnnual(refBasePay * 1.0);   // 가계안정지원비 연 100%(50%+50%)
+  const hyodoByMonth = isFullYearHire ? null : prorateAnnual(refBasePay * 2.0);      // 효도휴가비 연 200%(100%+100%)
 
   // ---- 워크시트 구성 ----
   const ws = {};
@@ -1016,8 +1042,13 @@ function generateSalarySheet(){
     if(active) setN(col+'14', 50000);
     if(active) setN(col+'16', hobongForMonth(year,m)<=5 ? 35000 : 90000);
     if(active) setN(col+'18', 200000);
-    if(active && (m===4 || m===10)) setN(col+'19', Math.round(basePay[m]*0.5));
-    if(active && (m===lunarNYMonth || m===chuseokMonth)) setN(col+'20', basePay[m]);
+    if(isFullYearHire){
+      if(active && (m===4 || m===10)) setN(col+'19', Math.round(basePay[m]*0.5));
+      if(active && (m===lunarNYMonth || m===chuseokMonth)) setN(col+'20', basePay[m]);
+    } else {
+      setN(col+'19', gyejeongByMonth[m]);
+      setN(col+'20', hyodoByMonth[m]);
+    }
     if(active && shiftAmt>0) setN(col+'23', shiftAmt);
     if(active && licenseEligible && licenseAmt>0) setN(col+'24', licenseAmt);
     if(active) setN(col+'25', 50000);
