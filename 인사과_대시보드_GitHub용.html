@@ -340,6 +340,7 @@ tbody tr:hover{background:#FAFBFC}
     <div class="card-head">
       <span class="card-title">👤 직원현황 <span style="font-size:12px;font-weight:400;color:var(--text-muted)">(총 <span id="staff-total-count">0</span>명)</span></span>
       <div class="card-actions">
+        <button class="btn" onclick="openMonthlyHeadcountModal()" style="border-color:#4338CA;color:#4338CA">📊 월말 재직인원 조회</button>
         <div style="position:relative;display:inline-flex;align-items:center">
           <span style="position:absolute;left:8px;font-size:13px">🔍</span>
           <input type="text" id="staff-search" oninput="renderStaff()" placeholder="이름/부서 검색..."
@@ -373,6 +374,23 @@ tbody tr:hover{background:#FAFBFC}
 </div>
 
 <!-- 직원 추가/수정 모달 -->
+<!-- 월말 재직인원 조회 모달 -->
+<div class="overlay" id="monthly-headcount-overlay">
+  <div class="modal" style="width:460px">
+    <h3>📊 월말 재직인원 조회</h3>
+    <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:10px">
+      <button class="btn" onclick="changeMhYear(-1)">◀</button>
+      <span id="mh-year-label" style="font-size:16px;font-weight:700;color:var(--navy);min-width:70px;text-align:center"></span>
+      <button class="btn" onclick="changeMhYear(1)">▶</button>
+    </div>
+    <table>
+      <thead><tr><th>월</th><th>말일 기준 재직인원</th></tr></thead>
+      <tbody id="mh-table-body"></tbody>
+    </table>
+    <div class="modal-actions"><button class="btn" onclick="document.getElementById('monthly-headcount-overlay').classList.remove('open')">닫기</button></div>
+  </div>
+</div>
+
 <div class="overlay" id="staff-overlay">
   <div class="modal" style="width:440px">
     <h3 id="staff-modal-title">직원 추가</h3>
@@ -391,6 +409,7 @@ tbody tr:hover{background:#FAFBFC}
       </div>
     </div>
     <div class="field"><label>계약종료일 (계약직만)</label><input type="date" id="sf-contractEnd"></div>
+    <div class="field"><label>퇴사일 <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(입력하면 직원현황 목록에서 자동으로 빠지고, 월말 재직인원 조회에는 그 날짜까지 포함돼요)</span></label><input type="date" id="sf-resignDate"></div>
     <div class="field"><label>비고</label><input type="text" id="sf-note" placeholder="예: 정규직 전환 예정, 재계약 가능 등"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeStaffModal()">취소</button>
@@ -823,7 +842,7 @@ var PALETTE=["#44546E","#2563EB","#5C8A1E","#7C3AED","#D97706","#DC2626","#0891B
 var members=JSON.parse(localStorage.getItem("hr_members")||"null")||[{name:"김재용",role:"인사과장",color:"#44546E"},{name:"배지은",role:"주임",color:"#2563EB"},{name:"공지현",role:"주임",color:"#5C8A1E"},{name:"최필상",role:"사원",color:"#7C3AED"}];
 var curMonth={y:TODAY.getFullYear(),m:TODAY.getMonth()};
 var curForm="daily",editMemberIdx=null,editIdx=null;
-var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[],duties:[],staff:[],annual:[],staffLeaves:[],others:[],rotationAnnex:[],oncallDoctors:[],oncallSchedule:[]};
+var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[],duties:[],staff:[],annual:[],staffLeaves:[],others:[],rotationAnnex:[],oncallDoctors:[],oncallSchedule:[],monthlyHeadcountManual:[]};
 var dismissedAlerts=[];
 var isEditing=false; // 입력 중 동기화 방지 플래그
 (function(){try{var b=localStorage.getItem("hr_data_backup");if(b){var p=JSON.parse(b);if(p.daily)data.daily=p.daily;if(p.project)data.project=p.project;if(p.task)data.task=p.task;if(p.leave)data.leave=p.leave;if(p.recruit)data.recruit=p.recruit;if(p.dormitory)data.dormitory=p.dormitory;}}catch(e){}})();
@@ -995,7 +1014,7 @@ async function deleteRowsSafe(tab,ids){
 async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동기화 대기)");return;}setSyncStatus("loading","⟳ 동기화 중...");missingIdWarnings=[];try{var d=await callScript({tab:"daily"});var p=await callScript({tab:"project"});var lv=await callScript({tab:"leave"});var tk=await callScript({tab:"task"});
     var rc=await callScript({tab:"recruit"});
     var dm=await callScript({tab:"dormitory"});
-    var dt=await callScript({tab:"duties"});var st=await callScript({tab:"staff"});var ad=await callScript({tab:"alerts_dismissed"});var an=await callScript({tab:"annual"});var sl=await callScript({tab:"staff_leaves"});var ot=await callScript({tab:"others"});var ra=await callScript({tab:"rotation_annex"});var dr=await callScript({tab:"oncall_doctors"});var os=await callScript({tab:"oncall_schedule"});var fd=filterRows(d,"daily").map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p,"project").map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv,"leave").map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk,"task").map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
+    var dt=await callScript({tab:"duties"});var st=await callScript({tab:"staff"});var ad=await callScript({tab:"alerts_dismissed"});var an=await callScript({tab:"annual"});var sl=await callScript({tab:"staff_leaves"});var ot=await callScript({tab:"others"});var ra=await callScript({tab:"rotation_annex"});var dr=await callScript({tab:"oncall_doctors"});var os=await callScript({tab:"oncall_schedule"});var mh=await callScript({tab:"monthly_headcount_manual"});var fd=filterRows(d,"daily").map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p,"project").map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv,"leave").map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk,"task").map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
     var frc=filterRows(rc,"recruit").map(function(r){return normalizeRow(r,"recruit");});
     if(frc.length||!data.recruit.length) data.recruit=frc;
     var fdm=filterRows(dm,"dormitory").map(function(r){return normalizeRow(r,"dormitory");});
@@ -1017,6 +1036,8 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
     if(fdr.length||!data.oncallDoctors.length) data.oncallDoctors=fdr;
     var fos=filterRows(os,"oncall_schedule").map(function(r){return normalizeRow(r,"oncall_schedule");});
     if(fos.length||!data.oncallSchedule.length) data.oncallSchedule=fos;
+    var fmh=filterRows(mh,"monthly_headcount_manual").map(function(r){return normalizeRow(r,"monthly_headcount_manual");});
+    if(fmh.length||!data.monthlyHeadcountManual.length) data.monthlyHeadcountManual=fmh;
     seedOncallDataIfEmpty();
     saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();showMissingIdWarning();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
 
@@ -2369,7 +2390,7 @@ async function deleteStaff(id) {
 function renderStaff() {
   var sq = (document.getElementById('staff-search')||{value:''}).value.toLowerCase();
   var ft = (document.getElementById('staff-filter-type')||{value:''}).value;
-  var list = data.staff || [];
+  var list = (data.staff||[]).filter(function(s){ return !s.resignDate || s.resignDate > todayStr; });
   var totalCountEl=document.getElementById('staff-total-count');
   if(totalCountEl) totalCountEl.textContent=list.length;
   var filtered = list.filter(function(s) {
@@ -2418,6 +2439,7 @@ function openStaffForm(){
   document.getElementById('sf-contractType').value='정규직';
   document.getElementById('sf-location').value='본관';
   document.getElementById('sf-contractEnd').value='';
+  document.getElementById('sf-resignDate').value='';
   document.getElementById('sf-note').value='';
   document.getElementById('staff-overlay').classList.add('open');
 }
@@ -2435,6 +2457,7 @@ function editStaff(id){
   document.getElementById('sf-contractType').value=s.contractType||'정규직';
   document.getElementById('sf-location').value=s.location||'본관';
   document.getElementById('sf-contractEnd').value=s.contractEnd||'';
+  document.getElementById('sf-resignDate').value=s.resignDate||'';
   document.getElementById('sf-note').value=s.note||'';
   document.getElementById('staff-overlay').classList.add('open');
 }
@@ -2443,10 +2466,10 @@ function closeStaffModal(){document.getElementById('staff-overlay').classList.re
 
 async function saveStaff(){
   var eid=document.getElementById('staff-edit-id').value;
-  var nr={id:eid||('st'+Date.now()),name:document.getElementById('sf-name').value.trim(),dept:document.getElementById('sf-dept').value.trim(),position:document.getElementById('sf-position').value.trim(),title:document.getElementById('sf-title').value.trim(),joinDate:document.getElementById('sf-joinDate').value,contractType:document.getElementById('sf-contractType').value,contractEnd:document.getElementById('sf-contractEnd').value,note:document.getElementById('sf-note').value.trim(),location:document.getElementById('sf-location').value};
+  var nr={id:eid||('st'+Date.now()),name:document.getElementById('sf-name').value.trim(),dept:document.getElementById('sf-dept').value.trim(),position:document.getElementById('sf-position').value.trim(),title:document.getElementById('sf-title').value.trim(),joinDate:document.getElementById('sf-joinDate').value,contractType:document.getElementById('sf-contractType').value,contractEnd:document.getElementById('sf-contractEnd').value,note:document.getElementById('sf-note').value.trim(),location:document.getElementById('sf-location').value,resignDate:document.getElementById('sf-resignDate').value};
   if(!nr.name){alert('이름을 입력해주세요');return;}
   if(!data.staff) data.staff=[];
-  var row=[nr.id,nr.name,nr.dept,nr.position,nr.title,nr.joinDate,nr.contractType,nr.contractEnd,nr.note||'',nr.location];
+  var row=[nr.id,nr.name,nr.dept,nr.position,nr.title,nr.joinDate,nr.contractType,nr.contractEnd,nr.note||'',nr.location,nr.resignDate||''];
   if(eid){var idx=data.staff.findIndex(function(x){return x.id===eid;});if(idx>=0)data.staff[idx]=nr;await updateRowSafe('staff',eid,row);}
   else{var ok=await saveRowChecked('staff',row,'직원 정보');if(!ok)return;data.staff.push(nr);}
   closeStaffModal();renderStaff();
@@ -2454,9 +2477,60 @@ async function saveStaff(){
 
 async function deleteStaff(id){
   var s=(data.staff||[]).find(function(x){return x.id===id;});
-  if(!s||!confirm(s.name+'을 삭제할까요?')) return;
+  if(!s||!confirm(s.name+'을 삭제할까요?\n\n⚠️ 퇴사 처리라면 삭제 대신 "수정"에서 퇴사일을 입력해주세요 — 그래야 월말 재직인원 조회에 정확히 반영돼요. 삭제하면 이 사람 기록이 완전히 사라져요.')) return;
   data.staff=data.staff.filter(function(x){return x.id!==id;});
   await deleteRowSafe('staff',id);renderStaff();
+}
+
+var MONTHLY_HEADCOUNT_AUTO_START='2026-08'; // 이 달부터는 퇴사일 기록 기반 자동 계산, 이전 달은 수기입력값 사용
+var mhYear=null;
+
+function openMonthlyHeadcountModal(){
+  mhYear=parseInt(todayStr.slice(0,4));
+  renderMonthlyHeadcountTable();
+  document.getElementById('monthly-headcount-overlay').classList.add('open');
+}
+
+function changeMhYear(delta){
+  mhYear+=delta;
+  renderMonthlyHeadcountTable();
+}
+
+function getMonthlyHeadcount(monthKey){
+  if(monthKey<MONTHLY_HEADCOUNT_AUTO_START){
+    var rec=(data.monthlyHeadcountManual||[]).find(function(r){return r.month===monthKey;});
+    if(rec&&rec.count) return {count:rec.count,source:'수기'};
+    return {count:null,source:'수기'};
+  }
+  var parts=monthKey.split('-');
+  var y=parseInt(parts[0]),m=parseInt(parts[1]);
+  var lastDay=new Date(y,m,0).getDate();
+  var monthEndStr=y+'-'+String(m).padStart(2,'0')+'-'+String(lastDay).padStart(2,'0');
+  var count=(data.staff||[]).filter(function(s){
+    if(!s.joinDate||s.joinDate>monthEndStr) return false;
+    if(s.resignDate&&s.resignDate<monthEndStr) return false;
+    return true;
+  }).length;
+  return {count:count,source:'자동'};
+}
+
+function renderMonthlyHeadcountTable(){
+  document.getElementById('mh-year-label').textContent=mhYear+'년';
+  var body=document.getElementById('mh-table-body');
+  var rows='';
+  for(var m=1;m<=12;m++){
+    var monthKey=mhYear+'-'+String(m).padStart(2,'0');
+    var r=getMonthlyHeadcount(monthKey);
+    var valCell;
+    if(r.count===null){
+      valCell="<span style='color:#DC2626;font-size:12px'>미입력</span>";
+    } else {
+      var badgeColor=r.source==='자동'?'#5C8A1E':'#92400E';
+      valCell="<b>"+r.count+"명</b> <span style='font-size:10.5px;color:"+badgeColor+"'>("+r.source+")</span>";
+    }
+    rows+="<tr><td style='font-weight:600'>"+m+"월</td><td style='text-align:center'>"+valCell+"</td></tr>";
+  }
+  body.innerHTML=rows;
 }
 
 async function toggleStaffLocation(id){
