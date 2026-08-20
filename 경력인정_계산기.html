@@ -618,6 +618,19 @@ function downloadComparisonExcel(){
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols'] = [{wch:14},{wch:12},{wch:8},{wch:14},{wch:14},{wch:50}];
+
+  // 비고(F열) 줄바꿈이 실제로 보이도록 줄바꿈 스타일 지정 + 줄 수에 맞춰 행 높이 자동 조정
+  const rowHeights = [{hpt:18}]; // 헤더행
+  for(let r = 1; r < aoa.length; r++){
+    const addr = XLSX.utils.encode_cell({r, c:5});
+    if(ws[addr]){
+      ws[addr].s = Object.assign({}, ws[addr].s, { alignment: { wrapText: true, vertical: 'top' } });
+    }
+    const lineCount = (String(aoa[r][5] || '').split('\n').length) || 1;
+    rowHeights.push({ hpt: Math.max(18, lineCount * 15) });
+  }
+  ws['!rows'] = rowHeights;
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '비교표');
   XLSX.writeFile(wb, `경력_연봉_비교표.xlsx`);
