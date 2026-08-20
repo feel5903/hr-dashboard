@@ -513,11 +513,19 @@ function buildComparisonData(){
   const selected = list.filter(r => compareSelection.has(r.id));
   return selected.map(r=>{
     const recognizedMonths = computeRecognizedMonthsFromRows(r.rows);
+    const detailText = (r.rows || [])
+      .filter(row => row.start && row.end)
+      .map(row => `${row.start}~${row.end} ${row.name || '(근무처 미입력)'} ${row.tierPct}%`)
+      .join('\n');
+
     const item = {
       label: r.candidateName || '(이름없음)',
-      jobCategory: categoryLabel(r.jobCategory),
       recognizedText: monthsToStr(recognizedMonths),
+      detailText: detailText || '(입력된 경력 없음)',
       hasSalary: false,
+      hobongText: '-',
+      year1: null, amount1: null,
+      year2: null, amount2: null,
     };
     const s = r.salary;
     const DATE_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
@@ -538,10 +546,9 @@ function buildComparisonData(){
       const sum2 = computeAnnualSummary(params, year1+1, true);
       Object.assign(item, {
         hasSalary: true,
-        grade: s.grade,
-        hireDate: s.hireDate,
-        year1, sum1,
-        year2: year1+1, sum2,
+        hobongText: sum1.hobongText,
+        year1, amount1: sum1.annualEstimate,
+        year2: year1+1, amount2: sum2.annualEstimate,
       });
     }
     return item;
@@ -564,49 +571,28 @@ function closeComparisonModal(){
 
 function renderComparisonTable(data){
   const table = document.getElementById('compareTable');
-  const rows = [
-    {key: 'label', label: '지원자명'},
-    {key: 'jobCategory', label: '직종'},
-    {key: 'grade', label: '급수'},
-    {key: 'hireDate', label: '임용년월일'},
-    {key: 'recognizedText', label: '인정경력 (임용시)'},
-    {key: '__year1_label', label: null},
-    {key: 'sum1.hobongText', label: '입사시 호봉'},
-    {key: 'sum1.promoText', label: '차기승급일'},
-    {key: 'sum1.total', label: '연간 총계(실지급)'},
-    {key: 'sum1.annualEstimate', label: '연봉 추정(월평균×12)'},
-    {key: '__year2_label', label: null},
-    {key: 'sum2.hobongText', label: '1.1 기준 호봉'},
-    {key: 'sum2.total', label: '연간 총계(실지급)'},
-    {key: 'sum2.annualEstimate', label: '연봉 추정(월평균×12)'},
-  ];
-  function getVal(item, key){
-    if(key.startsWith('__')) return null;
-    return key.split('.').reduce((o,k)=> (o==null?null:o[k]), item);
-  }
-  function fmt(v, key){
-    if(v===null || v===undefined) return '-';
-    if(key.includes('total') || key.includes('annualEstimate')) return Number(v).toLocaleString()+'원';
-    return v;
-  }
-  let html = '<thead><tr><th style="min-width:140px;">항목</th>' +
-    data.map(d=>`<th style="min-width:150px;">${escapeHtml(d.label)}</th>`).join('') + '</tr></thead><tbody>';
-  rows.forEach(rowDef=>{
-    if(rowDef.key === '__year1_label'){
-      html += `<tr style="background:var(--teal-100);"><td colspan="${data.length+1}" style="font-weight:700;color:var(--teal-900);">${data[0] && data[0].hasSalary ? data[0].year1+'년도' : '올해'}</td></tr>`;
-      return;
-    }
-    if(rowDef.key === '__year2_label'){
-      html += `<tr style="background:var(--teal-100);"><td colspan="${data.length+1}" style="font-weight:700;color:var(--teal-900);">${data[0] && data[0].hasSalary ? data[0].year2+'년도 (1.1 이어서 계산)' : '다음해'}</td></tr>`;
-      return;
-    }
-    html += `<tr><td style="font-weight:600;">${rowDef.label}</td>` +
-      data.map(d=>{
-        if(rowDef.key.startsWith('sum1') && !d.hasSalary) return '<td>-</td>';
-        if(rowDef.key.startsWith('sum2') && !d.hasSalary) return '<td>-</td>';
-        const v = getVal(d, rowDef.key);
-        return `<td>${escapeHtml(String(fmt(v, rowDef.key)))}</td>`;
-      }).join('') + '</tr>';
+  const year1Label = data.find(d=>d.hasSalary) ? data.find(d=>d.hasSalary).year1 : '2026';
+  const year2Label = data.find(d=>d.hasSalary) ? data.find(d=>d.hasSalary).year2 : '2027';
+  const won = v => v===null || v===undefined ? '-' : Number(v).toLocaleString()+'원';
+
+  let html = `<thead><tr>
+    <th style="min-width:110px;">이름</th>
+    <th style="min-width:110px;">경력</th>
+    <th style="min-width:70px;">호봉</th>
+    <th style="min-width:120px;">${year1Label}</th>
+    <th style="min-width:120px;">${year2Label}</th>
+    <th style="min-width:260px;text-align:left;">비고</th>
+  </tr></thead><tbody>`;
+
+  data.forEach(d=>{
+    html += `<tr>
+      <td>${escapeHtml(d.label)}</td>
+      <td>${escapeHtml(d.recognizedText)}</td>
+      <td>${escapeHtml(d.hobongText)}</td>
+      <td>${won(d.amount1)}</td>
+      <td>${won(d.amount2)}</td>
+      <td style="text-align:left;white-space:pre-wrap;font-size:12px;">${escapeHtml(d.detailText)}</td>
+    </tr>`;
   });
   html += '</tbody>';
   table.innerHTML = html;
@@ -615,24 +601,23 @@ function renderComparisonTable(data){
 function downloadComparisonExcel(){
   if(!lastComparisonData){ return; }
   const data = lastComparisonData;
-  const aoa = [];
-  aoa.push(['항목', ...data.map(d=>d.label)]);
-  aoa.push(['직종', ...data.map(d=>d.jobCategory)]);
-  aoa.push(['급수', ...data.map(d=>d.grade || '-')]);
-  aoa.push(['임용년월일', ...data.map(d=>d.hireDate || '-')]);
-  aoa.push(['인정경력(임용시)', ...data.map(d=>d.recognizedText)]);
-  aoa.push([data[0] && data[0].hasSalary ? `${data[0].year1}년도` : '올해']);
-  aoa.push(['입사시 호봉', ...data.map(d=>d.hasSalary ? d.sum1.hobongText : '-')]);
-  aoa.push(['차기승급일', ...data.map(d=>d.hasSalary ? d.sum1.promoText : '-')]);
-  aoa.push(['연간 총계', ...data.map(d=>d.hasSalary ? d.sum1.total : '-')]);
-  aoa.push(['연봉 추정', ...data.map(d=>d.hasSalary ? d.sum1.annualEstimate : '-')]);
-  aoa.push([data[0] && data[0].hasSalary ? `${data[0].year2}년도 (1.1 이어서 계산)` : '다음해']);
-  aoa.push(['1.1 기준 호봉', ...data.map(d=>d.hasSalary ? d.sum2.hobongText : '-')]);
-  aoa.push(['연간 총계', ...data.map(d=>d.hasSalary ? d.sum2.total : '-')]);
-  aoa.push(['연봉 추정', ...data.map(d=>d.hasSalary ? d.sum2.annualEstimate : '-')]);
+  const year1Label = data.find(d=>d.hasSalary) ? data.find(d=>d.hasSalary).year1 : '2026';
+  const year2Label = data.find(d=>d.hasSalary) ? data.find(d=>d.hasSalary).year2 : '2027';
+
+  const aoa = [['이름','경력','호봉', String(year1Label), String(year2Label), '비고']];
+  data.forEach(d=>{
+    aoa.push([
+      d.label,
+      d.recognizedText,
+      d.hobongText,
+      d.amount1===null ? '-' : d.amount1,
+      d.amount2===null ? '-' : d.amount2,
+      d.detailText,
+    ]);
+  });
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{wch:18}].concat(data.map(()=>({wch:16})));
+  ws['!cols'] = [{wch:14},{wch:12},{wch:8},{wch:14},{wch:14},{wch:50}];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '비교표');
   XLSX.writeFile(wb, `경력_연봉_비교표.xlsx`);
