@@ -1388,7 +1388,7 @@ function generateSalarySheet(){
   setN('K6', 0);
   setS('L6', `${String(hireYear).slice(2)}.${pad2(hireMonth)}.${pad2(hireDay)}`);
   setS('M6', `${year}년도`);
-  addStyle('M6', { font: { bold: true, sz: 14 }, alignment: { horizontal: 'left', vertical: 'center' } });
+  addStyle('M6', { font: { bold: true, sz: 14 }, alignment: { horizontal: 'right', vertical: 'center' } });
 
   setS('A8','월');
   for(let m=1;m<=12;m++) setN(monthCol(m)+'8', m);
@@ -1469,6 +1469,25 @@ function generateSalarySheet(){
     addYellow(monthCol(displayPromoMonth)+'8');
   }
   addYellow('N31'); addYellow('N32'); addYellow('N33');
+
+  // 금액(9~30행 본문, N31~N33) 외 나머지는 전부 가운데 정렬
+  function isMoneyAddr(addr){
+    const match = addr.match(/^([A-Z]+)(\d+)$/);
+    if(!match) return false;
+    const col = match[1], row = Number(match[2]);
+    if(col === 'A') return false;
+    if(row >= 9 && row <= 30) return true;
+    if(addr === 'N31' || addr === 'N32' || addr === 'N33') return true;
+    if(addr === 'E6' || addr === 'I6') return true;
+    return false;
+  }
+  Object.keys(ws).forEach(addr=>{
+    if(addr.startsWith('!')) return;
+    if(isMoneyAddr(addr)) return;
+    const cell = ws[addr];
+    if(cell.s && cell.s.alignment) return; // 이미 정렬이 지정된 셀(제목, 년도 등)은 유지
+    cell.s = Object.assign({}, cell.s, { alignment: { horizontal: 'center', vertical: 'center' } });
+  });
 
   ws['!ref'] = 'A1:N33';
   ws['!rows'] = [{hpt: 34}];
