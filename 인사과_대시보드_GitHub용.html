@@ -351,7 +351,7 @@ tbody tr:hover{background:#FAFBFC}
           <option value="계약직">계약직</option>
         </select>
         <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-muted);cursor:pointer">
-          <input type="checkbox" id="staff-show-resigned" onchange="renderStaff()"> 퇴사자도 보기
+          <input type="checkbox" id="staff-show-resigned" onchange="renderStaff()"> 퇴사자 보기
         </label>
         <button class="btn lime" onclick="openStaffForm()">+ 직원 추가</button>
         <button class="btn" onclick="openOthersModal()" style="border-color:#6366F1;color:#4338CA">🧑‍💼 기타인력</button>
@@ -2456,7 +2456,7 @@ function renderStaff() {
   var activeList = (data.staff||[]).filter(function(s){ return !s.resignDate || s.resignDate > todayStr; });
   var totalCountEl=document.getElementById('staff-total-count');
   if(totalCountEl) totalCountEl.textContent=activeList.length;
-  var list = showResigned ? (data.staff||[]) : activeList;
+  var list = showResigned ? (data.staff||[]).filter(function(s){ return s.resignDate && s.resignDate<=todayStr; }) : activeList;
   var filtered = list.filter(function(s) {
     if(ft && s.contractType !== ft) return false;
     if(sq && (s.name||'').toLowerCase().indexOf(sq)<0 && (s.dept||'').toLowerCase().indexOf(sq)<0) return false;
