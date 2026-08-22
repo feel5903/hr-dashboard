@@ -302,7 +302,7 @@ tbody tr:hover{background:#FAFBFC}
       <div class="card-head"><span class="card-title">🗓️ 입사 예정</span>
         <div class="card-actions"><button class="btn lime" onclick="openRecruitForm('입사예정')">+ 입사예정 추가</button></div>
       </div>
-      <table><thead><tr><th>담당자</th><th>입사일</th><th>이름</th><th>직무</th><th>대체자</th><th style="min-width:100px">사유</th><th>비고</th><th>관리</th></tr></thead>
+      <table><thead><tr><th>담당자</th><th>입사일</th><th>이름</th><th>직무</th><th>대체자</th><th style="min-width:100px">사유</th><th>계약기간</th><th>OT</th><th>관리</th></tr></thead>
       <tbody id="recruit-hire-tbody"></tbody></table>
     </div>
   </div>
@@ -783,7 +783,8 @@ tbody tr:hover{background:#FAFBFC}
       <div class="field"><label>직무</label><input type="text" id="r-job" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" placeholder=""></div>
       <div class="field"><label>대체자</label><input type="text" id="r-hire-replace" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" placeholder=""></div>
       <div class="field"><label>사유</label><select id="r-hire-reason"><option>퇴사대체</option><option>육휴대체</option><option>출산대체</option><option>출산/육휴대체</option><option>계약만료</option><option>증원</option><option>기타</option></select></div>
-      <div class="field"><label>비고</label><textarea id="r-hire-note" autocomplete="off" placeholder="비고" style="height:60px;resize:vertical"></textarea></div>
+      <div class="field"><label>계약기간</label><input type="text" id="r-hire-contractPeriod" autocomplete="off" placeholder="예: ~27.12.31"></div>
+      <div class="field"><label>OT</label><input type="text" id="r-hire-ot" autocomplete="off" placeholder="예: 08:30"></div>
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="document.getElementById('recruit-overlay').classList.remove('open')">취소</button>
@@ -1822,7 +1823,7 @@ function renderRecruit(){
   var tbody2=document.getElementById('recruit-hire-tbody');
   if(tbody2){
     if(!hires.length){
-      tbody2.innerHTML='<tr><td colspan="8" class="empty">입사 예정자가 없습니다</td></tr>';
+      tbody2.innerHTML='<tr><td colspan="9" class="empty">입사 예정자가 없습니다</td></tr>';
     } else {
       tbody2.innerHTML='';
       hires.forEach(function(x){
@@ -1835,8 +1836,8 @@ function renderRecruit(){
           '<td style="font-size:12px">'+(x.job||'')+'</td>'+
           '<td>'+(x.replaceName||'')+'</td>'+
           '<td><span style="font-size:11px;color:var(--text-muted)">'+(x.reason||'')+'</span></td>'+
-          
-          '<td style="font-size:12px;color:var(--text-muted);min-width:160px;white-space:pre-wrap">'+(x.note||'')+'</td>'+
+          '<td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td>'+
+          '<td style="font-size:12px;color:var(--text-muted)">'+(x.otTime||'')+'</td>'+
           '<td style="width:80px"><div class="action-btns">'+
           '<button class="edit-btn" onclick="editRecruit('+i+')">✏️</button>'+
           '<button class="del-btn" onclick="deleteRecruit('+i+')">🗑️</button>'+
@@ -1872,7 +1873,8 @@ function openRecruitForm(type){
   document.getElementById('r-name').value='';
   document.getElementById('r-job').value='';
   document.getElementById('r-hire-replace').value='';
-  document.getElementById('r-hire-note').value='';
+  document.getElementById('r-hire-contractPeriod').value='';
+  document.getElementById('r-hire-ot').value='';
   document.getElementById('r-date').value=todayStr;
   document.getElementById('recruit-overlay').classList.add('open');
 }
@@ -1903,7 +1905,8 @@ function editRecruit(i){
     document.getElementById('r-job').value=x.job||'';
     document.getElementById('r-hire-replace').value=x.replaceName||'';
     document.getElementById('r-hire-reason').value=x.reason||'퇴사대체';
-    document.getElementById('r-hire-note').value=x.note||'';
+    document.getElementById('r-hire-contractPeriod').value=x.note||'';
+    document.getElementById('r-hire-ot').value=x.otTime||'';
   }
   document.getElementById('recruit-overlay').classList.add('open');
 }
@@ -1924,7 +1927,7 @@ async function saveRecruit(){
     nr={id:eid||genId('rh'),type:'입사예정',manager:document.getElementById('r-hire-manager').value,team:'',replaceName:document.getElementById('r-hire-replace').value,
       reason:document.getElementById('r-hire-reason').value,status:'',name:name,
       job:document.getElementById('r-job').value,date:document.getElementById('r-date').value,
-      otTime:'',note:document.getElementById('r-hire-note').value};
+      otTime:document.getElementById('r-hire-ot').value,note:document.getElementById('r-hire-contractPeriod').value};
   }
   if(!data.recruit) data.recruit=[];
   if(eid){
