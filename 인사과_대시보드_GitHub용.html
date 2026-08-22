@@ -350,6 +350,9 @@ tbody tr:hover{background:#FAFBFC}
           <option value="정규직">정규직</option>
           <option value="계약직">계약직</option>
         </select>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-muted);cursor:pointer">
+          <input type="checkbox" id="staff-show-resigned" onchange="renderStaff()"> 퇴사자도 보기
+        </label>
         <button class="btn lime" onclick="openStaffForm()">+ 직원 추가</button>
         <button class="btn" onclick="openOthersModal()" style="border-color:#6366F1;color:#4338CA">🧑‍💼 기타인력</button>
         <button class="btn" onclick="showLeavesByType()" style="border-color:#B45309;color:#92400E">🏖️ 휴가별 현황</button>
@@ -1080,8 +1083,12 @@ function updateStats(){
   var recCnt=(data.recruit||[]).filter(function(x){return x.type==="채용";}).length;
   var recBadge=document.getElementById("badge-recruit");
   if(recBadge){recBadge.textContent=recCnt;recBadge.style.display=recCnt>0?"":"none";}
-  // 재직인원 자동
-  if(data.staff&&data.staff.length){var hcEl=document.getElementById("headcount-display");if(hcEl)hcEl.textContent=data.staff.length;}
+function getActiveStaffCount(){
+  return (data.staff||[]).filter(function(s){ return !s.resignDate || s.resignDate > todayStr; }).length;
+}
+
+  // 재직인원 자동 (퇴사자 제외)
+  if(data.staff&&data.staff.length){var hcEl=document.getElementById("headcount-display");if(hcEl)hcEl.textContent=getActiveStaffCount();}
   renderMainAlerts();
 }
 function renderMemberUI(){document.getElementById("topbar-staff").innerHTML=members.map(function(m){return"<div class='t-avatar' style='background:"+m.color+"' title='"+m.name+"'>"+m.name[0]+"</div>";}).join("");var mo="<option value=''>전체 담당자</option>"+members.map(function(m){return"<option>"+m.name+"</option>";}).join("");["filter-member","filter-weekly-member","filter-proj-member"].forEach(function(id){var el=document.getElementById(id);if(!el)return;var cur=el.value;el.innerHTML=mo;if(cur)el.value=cur;});}
@@ -1515,10 +1522,12 @@ async function saveTaskInline(pid){
 }
 async function toggleTaskDone(cb,taskId,pid){
   var t=data.task.find(function(x){return x.id===taskId;});if(!t)return;
+  var prevStatus=t.status;
   t.status=cb.checked?"완료":"대기";
   recalcProgressLocal(pid); // 즉시 UI 업데이트
   renderProjectKeepOpen(pid); // 화면 먼저 갱신
-  await updateRowSafe("task",t.id,[t.id,t.projectId,t.step||"",t.content,t.member,t.start,t.end,t.status,t.note||""]); // 안전하게 해당 행만 업데이트
+  var ok=await updateRowSafe("task",t.id,[t.id,t.projectId,t.step||"",t.content,t.member,t.start,t.end,t.status,t.note||""]);
+  if(!ok){ t.status=prevStatus; recalcProgressLocal(pid); renderProjectKeepOpen(pid); alert('⚠ 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'); }
 }
 async function deleteTask(taskId,pid){
   if(!confirm("이 단계를 삭제할까요?"))return;
@@ -1711,7 +1720,7 @@ function printReport(){
   var thisWk=document.getElementById("week-select").value||getWeekKey(todayStr);
   var prevWk=getPrevWeekKey(thisWk);
   var thisRange=getWeekRange(thisWk);
-  var headcount=(data.staff&&data.staff.length)?data.staff.length:(localStorage.getItem("hr_headcount")||"266");
+  var headcount=(data.staff&&data.staff.length)?getActiveStaffCount():(localStorage.getItem("hr_headcount")||"266");
 
   var win=window.open("","_blank");
   win.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>인사과 주간업무 회의록</title><style>");
@@ -1946,9 +1955,16 @@ async function saveRecruit(){
   if(eid){
     // 수정: 해당 행만 안전하게 업데이트
     var idx=data.recruit.findIndex(function(x){return x.id===eid;});
+    var prevRc=idx>=0?Object.assign({},data.recruit[idx]):null;
     if(idx>=0) data.recruit[idx]=nr;
+    var okRc=await updateRowSafe('recruit',nr.id,[nr.id,nr.type,nr.manager,nr.team,nr.replaceName,nr.reason,nr.status,nr.name,nr.job,nr.date,nr.otTime||'',nr.note||'',nr.schedule||'']);
+    if(!okRc) okRc=await updateRowSafe('recruit',nr.id,[nr.id,nr.type,nr.manager,nr.team,nr.replaceName,nr.reason,nr.status,nr.name,nr.job,nr.date,nr.otTime||'',nr.note||'',nr.schedule||'']);
+    if(!okRc){
+      if(idx>=0&&prevRc) data.recruit[idx]=prevRc;
+      alert('⚠ 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요. (수정 내용이 아직 시트에 반영되지 않았어요)');
+      return;
+    }
     saveLocalBackup();
-    await updateRowSafe('recruit',nr.id,[nr.id,nr.type,nr.manager,nr.team,nr.replaceName,nr.reason,nr.status,nr.name,nr.job,nr.date,nr.otTime||'',nr.note||'',nr.schedule||'']);
   } else {
     // 신규 - append만 사용 (빠르고 안전)
     var ok=await saveRowChecked('recruit', Object.values(nr), '채용 정보');
@@ -2104,8 +2120,15 @@ async function saveDorm(){
   if(!data.dormitory) data.dormitory=[];
   if(eid){
     var idx=data.dormitory.findIndex(function(x){return x.id===eid;});
+    var prevDm=idx>=0?Object.assign({},data.dormitory[idx]):null;
     if(idx>=0) data.dormitory[idx]=nr;
-    await updateRowSafe('dormitory',nr.id,[nr.id,nr.room,nr.team,nr.name,nr.moveInDate,nr.note,nr.isLeader]);
+    var okDm=await updateRowSafe('dormitory',nr.id,[nr.id,nr.room,nr.team,nr.name,nr.moveInDate,nr.note,nr.isLeader]);
+    if(!okDm) okDm=await updateRowSafe('dormitory',nr.id,[nr.id,nr.room,nr.team,nr.name,nr.moveInDate,nr.note,nr.isLeader]);
+    if(!okDm){
+      if(idx>=0&&prevDm) data.dormitory[idx]=prevDm;
+      alert('⚠ 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.');
+      return;
+    }
   } else {
     var ok=await saveRowChecked('dormitory',Object.values(nr),'기숙사 정보');
     if(!ok) return;
@@ -2413,9 +2436,11 @@ async function deleteStaff(id) {
 function renderStaff() {
   var sq = (document.getElementById('staff-search')||{value:''}).value.toLowerCase();
   var ft = (document.getElementById('staff-filter-type')||{value:''}).value;
-  var list = (data.staff||[]).filter(function(s){ return !s.resignDate || s.resignDate > todayStr; });
+  var showResigned = (document.getElementById('staff-show-resigned')||{checked:false}).checked;
+  var activeList = (data.staff||[]).filter(function(s){ return !s.resignDate || s.resignDate > todayStr; });
   var totalCountEl=document.getElementById('staff-total-count');
-  if(totalCountEl) totalCountEl.textContent=list.length;
+  if(totalCountEl) totalCountEl.textContent=activeList.length;
+  var list = showResigned ? (data.staff||[]) : activeList;
   var filtered = list.filter(function(s) {
     if(ft && s.contractType !== ft) return false;
     if(sq && (s.name||'').toLowerCase().indexOf(sq)<0 && (s.dept||'').toLowerCase().indexOf(sq)<0) return false;
@@ -2434,8 +2459,9 @@ function renderStaff() {
   tbody.innerHTML=filtered.map(function(s,i){
     var ic=s.contractType==='계약직';
     var ce=s.contractEnd||'';
-    return '<tr>'+
-      '<td style="font-weight:600">'+(s.name||'')+'</td>'+
+    var isResigned=s.resignDate&&s.resignDate<=todayStr;
+    return '<tr'+(isResigned?' style="opacity:.55"':'')+'>'+
+      '<td style="font-weight:600">'+(s.name||'')+(isResigned?' <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;background:#FEE2E2;color:#991B1B">퇴사 '+s.resignDate+'</span>':'')+'</td>'+
       '<td style="font-size:12px">'+(s.dept||'')+(s.location==='별관'?' <button onclick="toggleStaffLocation(\''+s.id+'\')" title="클릭하면 본관으로 전환됩니다" style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:8px;border:none;cursor:pointer;background:#E0E7FF;color:#4338CA">별관</button>':'')+'</td>'+
       '<td style="text-align:center;font-size:12px">'+(s.position||'')+'</td>'+
       '<td style="text-align:center;font-size:12px">'+(s.title||'')+'</td>'+
@@ -2501,8 +2527,19 @@ async function saveStaff(){
   if(!nr.name){alert('이름을 입력해주세요');return;}
   if(!data.staff) data.staff=[];
   var row=[nr.id,nr.name,nr.dept,nr.position,nr.title,nr.joinDate,nr.contractType,nr.contractEnd,nr.note||'',nr.location,nr.resignDate||''];
-  if(eid){var idx=data.staff.findIndex(function(x){return x.id===eid;});if(idx>=0)data.staff[idx]=nr;await updateRowSafe('staff',eid,row);}
-  else{var ok=await saveRowChecked('staff',row,'직원 정보');if(!ok)return;data.staff.push(nr);}
+  if(eid){
+    var idx=data.staff.findIndex(function(x){return x.id===eid;});
+    var prev=idx>=0?Object.assign({},data.staff[idx]):null;
+    if(idx>=0)data.staff[idx]=nr;
+    var ok=await updateRowSafe('staff',eid,row);
+    if(!ok) ok=await updateRowSafe('staff',eid,row);
+    if(!ok){
+      if(idx>=0&&prev) data.staff[idx]=prev;
+      alert('⚠ 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요. (퇴사일 등 수정하신 내용이 아직 시트에 반영되지 않았어요)');
+      return;
+    }
+  }
+  else{var ok2=await saveRowChecked('staff',row,'직원 정보');if(!ok2)return;data.staff.push(nr);}
   closeStaffModal();renderStaff();
 }
 
@@ -2579,10 +2616,12 @@ function renderMonthlyHeadcountTable(){
 async function toggleStaffLocation(id){
   var s=(data.staff||[]).find(function(x){return x.id===id;});
   if(!s) return;
+  var prevLocation=s.location;
   s.location=(s.location==='별관')?'본관':'별관';
   renderStaff();
-  var row=[s.id,s.name,s.dept,s.position,s.title,s.joinDate,s.contractType,s.contractEnd,s.note||'',s.location];
-  await updateRowSafe('staff',s.id,row);
+  var row=[s.id,s.name,s.dept,s.position,s.title,s.joinDate,s.contractType,s.contractEnd,s.note||'',s.location,s.resignDate||''];
+  var ok=await updateRowSafe('staff',s.id,row);
+  if(!ok){ s.location=prevLocation; renderStaff(); alert('⚠ 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'); }
 }
 
 // ════════ 메인 알림 ════════
@@ -3481,8 +3520,15 @@ async function saveOther(){
   var row=[nr.id,nr.name,nr.dept,nr.category,nr.start,nr.end,nr.note,nr.count,nr.annexCount,nr.location];
   if(id){
     var idx=data.others.findIndex(function(x){return x.id===id;});
+    var prevOt=idx>=0?Object.assign({},data.others[idx]):null;
     if(idx>=0) data.others[idx]=nr;
-    await updateRowSafe("others",id,row);
+    var okOt=await updateRowSafe("others",id,row);
+    if(!okOt) okOt=await updateRowSafe("others",id,row);
+    if(!okOt){
+      if(idx>=0&&prevOt) data.others[idx]=prevOt;
+      alert('⚠ 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.');
+      return;
+    }
   } else {
     var ok=await saveRowChecked("others",row,"기타인력 정보");
     if(!ok) return;
