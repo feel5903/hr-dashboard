@@ -864,6 +864,21 @@ function toggleSidebar(){
 function saveLocalBackup(){try{var backup={daily:data.daily,project:data.project,task:data.task,leave:data.leave,recruit:data.recruit,dormitory:data.dormitory};localStorage.setItem("hr_data_backup",JSON.stringify(backup));}catch(e){}}
 function genId(p){return p+Date.now()+Math.random().toString(36).slice(2,7);}
 
+// 시트에서 날짜가 이상한 형식(예: Mon Aug 31 2026 00:00:00 GMT+0900...)으로 자동변환되어 와도 YYYY-MM-DD만 뽑아냄
+var MONTH_ABBR_MAP={Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+function normalizeDateStr(v){
+  if(!v) return '';
+  var s=String(v).trim();
+  var m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return m[0];
+  // JS Date.toString() 기본 형식(예: "Mon Aug 31 2026 00:00:00 GMT+0900...")은 타임존에 안전하게 직접 파싱
+  var m2=s.match(/^\w{3}\s+(\w{3})\s+(\d{1,2})\s+(\d{4})/);
+  if(m2&&MONTH_ABBR_MAP[m2[1]]) return m2[3]+'-'+String(MONTH_ABBR_MAP[m2[1]]).padStart(2,'0')+'-'+String(parseInt(m2[2])).padStart(2,'0');
+  var d=new Date(s);
+  if(!isNaN(d.getTime())) return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  return s;
+}
+
 // 시트에서 "08:30" 같은 시간이 날짜형식(예: Sat Dec 30 1899 08:30:00...)으로 자동변환되어 와도 시:분만 뽑아냄
 function extractTimeOnly(v){
   if(!v) return '';
@@ -1047,6 +1062,7 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
     if(fdt.length) data.duties=fdt;
     var fst=filterRows(st,"staff").map(function(r){return normalizeRow(r,"staff");});
     if(fst.length) data.staff=fst;
+    data.staff.forEach(function(s){ if(s.resignDate) s.resignDate=normalizeDateStr(s.resignDate); });
     if(ad&&ad.length) dismissedAlerts=ad;
     var fan=(an||[]).filter(function(r){return r&&r.month;}).map(function(r){return normalizeRow(r,"annual");});
     if(fan.length) data.annual=fan;
