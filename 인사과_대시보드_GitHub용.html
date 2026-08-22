@@ -302,7 +302,7 @@ tbody tr:hover{background:#FAFBFC}
       <div class="card-head"><span class="card-title">🗓️ 입사 예정</span>
         <div class="card-actions"><button class="btn lime" onclick="openRecruitForm('입사예정')">+ 입사예정 추가</button></div>
       </div>
-      <table><thead><tr><th>담당자</th><th>입사일</th><th>이름</th><th>직무</th><th>대체자</th><th style="min-width:100px">사유</th><th style="width:120px">계약기간</th><th style="width:70px">OT</th><th>관리</th></tr></thead>
+      <table><thead><tr><th>담당자</th><th>입사일</th><th>이름</th><th>직무</th><th>대체자</th><th style="min-width:100px">사유</th><th>계약기간</th><th>OT</th><th>관리</th></tr></thead>
       <tbody id="recruit-hire-tbody"></tbody></table>
     </div>
   </div>
@@ -860,6 +860,19 @@ function toggleSidebar(){
 }
 function saveLocalBackup(){try{var backup={daily:data.daily,project:data.project,task:data.task,leave:data.leave,recruit:data.recruit,dormitory:data.dormitory};localStorage.setItem("hr_data_backup",JSON.stringify(backup));}catch(e){}}
 function genId(p){return p+Date.now()+Math.random().toString(36).slice(2,7);}
+
+// 시트에서 "08:30" 같은 시간이 날짜형식(예: Sat Dec 30 1899 08:30:00...)으로 자동변환되어 와도 시:분만 뽑아냄
+function extractTimeOnly(v){
+  if(!v) return '';
+  var s=String(v).trim();
+  var m=s.match(/^(\d{1,2}):(\d{2})/);
+  if(m) return m[1].padStart(2,'0')+':'+m[2];
+  var m2=s.match(/(\d{1,2}):(\d{2}):\d{2}/);
+  if(m2) return m2[1].padStart(2,'0')+':'+m2[2];
+  var d=new Date(s);
+  if(!isNaN(d.getTime())) return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  return s;
+}
 function saveLocal(){localStorage.setItem("hr_members",JSON.stringify(members));}
 function getMember(n){return members.find(function(m){return m.name===n;})||{name:n,color:"#888",role:""};}
 function badge(s){return "<span class='badge "+s+"'>"+s+"</span>";}
@@ -1837,7 +1850,7 @@ function renderRecruit(){
           '<td>'+(x.replaceName||'')+'</td>'+
           '<td><span style="font-size:11px;color:var(--text-muted)">'+(x.reason||'')+'</span></td>'+
           '<td style="font-size:12px;color:var(--text-muted)">'+(x.note||'')+'</td>'+
-          '<td style="font-size:12px;color:var(--text-muted)">'+(x.otTime||'')+'</td>'+
+          '<td style="font-size:12px;color:var(--text-muted)">'+extractTimeOnly(x.otTime)+'</td>'+
           '<td style="width:80px"><div class="action-btns">'+
           '<button class="edit-btn" onclick="editRecruit('+i+')">✏️</button>'+
           '<button class="del-btn" onclick="deleteRecruit('+i+')">🗑️</button>'+
@@ -1906,7 +1919,7 @@ function editRecruit(i){
     document.getElementById('r-hire-replace').value=x.replaceName||'';
     document.getElementById('r-hire-reason').value=x.reason||'퇴사대체';
     document.getElementById('r-hire-contractPeriod').value=x.note||'';
-    document.getElementById('r-hire-ot').value=x.otTime||'';
+    document.getElementById('r-hire-ot').value=extractTimeOnly(x.otTime);
   }
   document.getElementById('recruit-overlay').classList.add('open');
 }
