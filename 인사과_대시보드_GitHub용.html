@@ -1091,6 +1091,9 @@ function showMissingIdWarning(){
     el.style.display="none";
   }
 }
+function getActiveStaffCount(){
+  return (data.staff||[]).filter(function(s){ return !s.resignDate || s.resignDate > todayStr; }).length;
+}
 function updateStats(){
   document.getElementById("s-due").textContent=data.daily.filter(function(x){return isToday(x.end)&&x.status!=="완료";}).length;
   var projCnt=data.project.filter(function(x){return x.status!=="완료";}).length;
@@ -1099,10 +1102,6 @@ function updateStats(){
   var recCnt=(data.recruit||[]).filter(function(x){return x.type==="채용";}).length;
   var recBadge=document.getElementById("badge-recruit");
   if(recBadge){recBadge.textContent=recCnt;recBadge.style.display=recCnt>0?"":"none";}
-function getActiveStaffCount(){
-  return (data.staff||[]).filter(function(s){ return !s.resignDate || s.resignDate > todayStr; }).length;
-}
-
   // 재직인원 자동 (퇴사자 제외)
   if(data.staff&&data.staff.length){var hcEl=document.getElementById("headcount-display");if(hcEl)hcEl.textContent=getActiveStaffCount();}
   renderMainAlerts();
