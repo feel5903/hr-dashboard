@@ -532,8 +532,8 @@ function buildComparisonData(){
       detailText: detailText || '(입력된 경력 없음)',
       hasSalary: false,
       hobongText: '-',
-      year1: null, amount1: null,
-      year2: null, amount2: null,
+      year1: null, amount1: null, monthly1: null,
+      year2: null, amount2: null, monthly2: null,
     };
     const s = r.salary;
     const DATE_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
@@ -556,8 +556,8 @@ function buildComparisonData(){
       Object.assign(item, {
         hasSalary: true,
         hobongText: sum1.hobongText,
-        year1, amount1: sum1.annualEstimate,
-        year2: year1+1, amount2: sum2.annualEstimate,
+        year1, amount1: sum1.annualEstimate, monthly1: sum1.monthlyAvg,
+        year2: year1+1, amount2: sum2.annualEstimate, monthly2: sum2.monthlyAvg,
       });
     }
     return item;
@@ -583,13 +583,14 @@ function renderComparisonTable(data){
   const year1Label = data.find(d=>d.hasSalary) ? data.find(d=>d.hasSalary).year1 : '2026';
   const year2Label = data.find(d=>d.hasSalary) ? data.find(d=>d.hasSalary).year2 : '2027';
   const won = v => v===null || v===undefined ? '-' : Number(v).toLocaleString()+'원';
+  const payCell = (annual, monthly) => annual===null ? '-' : `연봉 ${won(annual)}<br>월급 ${won(monthly)}`;
 
   let html = `<thead><tr>
     <th style="min-width:110px;">이름</th>
     <th style="min-width:110px;">경력</th>
     <th style="min-width:70px;">호봉</th>
-    <th style="min-width:120px;">${year1Label}</th>
-    <th style="min-width:120px;">${year2Label}</th>
+    <th style="min-width:140px;">${year1Label}</th>
+    <th style="min-width:140px;">${year2Label}</th>
     <th style="min-width:260px;text-align:left;">비고</th>
   </tr></thead><tbody>`;
 
@@ -598,8 +599,8 @@ function renderComparisonTable(data){
       <td>${escapeHtml(d.label)}</td>
       <td>${escapeHtml(d.recognizedText)}</td>
       <td>${escapeHtml(d.hobongText)}</td>
-      <td>${won(d.amount1)}</td>
-      <td>${won(d.amount2)}</td>
+      <td style="line-height:1.6;">${payCell(d.amount1, d.monthly1)}</td>
+      <td style="line-height:1.6;">${payCell(d.amount2, d.monthly2)}</td>
       <td style="text-align:left;white-space:pre-wrap;font-size:12px;">${escapeHtml(d.detailText)}</td>
     </tr>`;
   });
@@ -613,29 +614,32 @@ function downloadComparisonExcel(){
   const year1Label = data.find(d=>d.hasSalary) ? data.find(d=>d.hasSalary).year1 : '2026';
   const year2Label = data.find(d=>d.hasSalary) ? data.find(d=>d.hasSalary).year2 : '2027';
 
-  const aoa = [['이름','경력','호봉', String(year1Label), String(year2Label), '비고']];
+  const aoa = [['이름','경력','호봉', `${year1Label} 연봉`, `${year1Label} 월급`, `${year2Label} 연봉`, `${year2Label} 월급`, '비고']];
   data.forEach(d=>{
     aoa.push([
       d.label,
       d.recognizedText,
       d.hobongText,
       d.amount1===null ? '-' : d.amount1,
+      d.monthly1===null ? '-' : d.monthly1,
       d.amount2===null ? '-' : d.amount2,
+      d.monthly2===null ? '-' : d.monthly2,
       d.detailText,
     ]);
   });
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{wch:14},{wch:12},{wch:8},{wch:14},{wch:14},{wch:50}];
+  ws['!cols'] = [{wch:14},{wch:12},{wch:8},{wch:14},{wch:14},{wch:14},{wch:14},{wch:50}];
 
-  // 비고(F열) 줄바꿈이 실제로 보이도록 줄바꿈 스타일 지정 + 줄 수에 맞춰 행 높이 자동 조정
+  // 비고(H열, 인덱스 7) 줄바꿈이 실제로 보이도록 줄바꿈 스타일 지정 + 줄 수에 맞춰 행 높이 자동 조정
+  const noteCol = 7;
   const rowHeights = [{hpt:18}]; // 헤더행
   for(let r = 1; r < aoa.length; r++){
-    const addr = XLSX.utils.encode_cell({r, c:5});
+    const addr = XLSX.utils.encode_cell({r, c:noteCol});
     if(ws[addr]){
       ws[addr].s = Object.assign({}, ws[addr].s, { alignment: { wrapText: true, vertical: 'top' } });
     }
-    const lineCount = (String(aoa[r][5] || '').split('\n').length) || 1;
+    const lineCount = (String(aoa[r][noteCol] || '').split('\n').length) || 1;
     rowHeights.push({ hpt: Math.max(18, lineCount * 15) });
   }
   ws['!rows'] = rowHeights;
