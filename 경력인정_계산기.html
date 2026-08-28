@@ -360,6 +360,14 @@
         <input type="checkbox" id="salaryLicenseOther" style="width:16px;height:16px;"> 면허 보유
       </label>
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);">
+        특수업무수당:
+        <select id="salarySpecialDuty" style="padding:6px 8px;border:1px solid var(--line);border-radius:6px;">
+          <option value="none">없음</option>
+          <option value="general">일반업무직 (간호사·치료사·사회복지사 등)</option>
+          <option value="property">재산·재정관리 (회계·전산·시설관리·안전요원)</option>
+        </select>
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);">
         <input type="checkbox" id="salaryNextYear" style="width:16px;height:16px;"> 다음해 1월1일자 연봉표도 함께 생성 (정근수당 포함, 경력 이어서 계산)
       </label>
     </div>
@@ -540,6 +548,7 @@ function buildComparisonData(){
         licenseOther: !!s.licenseOther,
         lunarNYMonth: Number(s.lunarNY || 2),
         chuseokMonth: Number(s.chuseok || 9),
+        specialDutyTrack: s.specialDutyTrack || 'none',
       };
       const year1 = Number(s.year);
       const sum1 = computeAnnualSummary(params, year1, false);
@@ -883,6 +892,7 @@ function gatherCurrentState(){
     hireDate: document.getElementById('salaryHireDate').value,
     shift3: document.getElementById('salaryShift3').checked,
     licenseOther: document.getElementById('salaryLicenseOther').checked,
+    specialDutyTrack: document.getElementById('salarySpecialDuty').value,
     nextYear: document.getElementById('salaryNextYear').checked,
     year: document.getElementById('salaryYear').value,
     lunarNY: document.getElementById('salaryLunarNY').value,
@@ -983,6 +993,7 @@ function loadRecord(id){
     if(s.hireDate !== undefined) document.getElementById('salaryHireDate').value = s.hireDate;
     if(s.shift3 !== undefined) document.getElementById('salaryShift3').checked = s.shift3;
     if(s.licenseOther !== undefined) document.getElementById('salaryLicenseOther').checked = s.licenseOther;
+    if(s.specialDutyTrack !== undefined) document.getElementById('salarySpecialDuty').value = s.specialDutyTrack;
     if(s.nextYear !== undefined) document.getElementById('salaryNextYear').checked = s.nextYear;
     if(s.year !== undefined) document.getElementById('salaryYear').value = s.year;
     if(s.lunarNY !== undefined) document.getElementById('salaryLunarNY').value = s.lunarNY;
@@ -1039,6 +1050,14 @@ const LICENSE_AMOUNT = {'1급':100000,'2급':100000,'3급':75000,'4급':50000};
 // 장기근속수당: 근속연수 구간별 (고용직 / 그외). 변경월 1,7월 기준
 const JANGGEUN_TABLE_OTHER = [[25,130000],[20,110000],[15,80000],[10,60000],[5,50000]];
 const JANGGEUN_TABLE_EMPLOYMENT = [[25,80000],[20,60000],[15,50000],[10,45000],[5,40000]];
+const SPECIAL_DUTY_GENERAL = {'1급':100000,'2급':100000,'3급':75000,'4급':50000};
+const SPECIAL_DUTY_PROPERTY = {'1급':200000,'2급':200000,'3급':150000,'4급':100000};
+
+function specialDutyAmount(track, gradeKey){
+  if(track === 'general') return SPECIAL_DUTY_GENERAL[gradeKey] || 0;
+  if(track === 'property') return SPECIAL_DUTY_PROPERTY[gradeKey] || 0;
+  return 0;
+}
 
 function jangGeunAmount(years, jobCategory){
   const table = (jobCategory === '고용직') ? JANGGEUN_TABLE_EMPLOYMENT : JANGGEUN_TABLE_OTHER;
@@ -1069,7 +1088,7 @@ function computeRecognizedMonthsFromRows(rows){
 
 // 연봉표 생성과 동일한 계산식으로, 시트를 만들지 않고 연간 총계·연봉추정치만 계산 (비교표용)
 function computeAnnualSummary(params, year, isContinuation){
-  const { M0, degree, gradeKey, hireDateStr, jobCategory, shift3, licenseOther, lunarNYMonth, chuseokMonth } = params;
+  const { M0, degree, gradeKey, hireDateStr, jobCategory, shift3, licenseOther, lunarNYMonth, chuseokMonth, specialDutyTrack } = params;
   const hireDate = parseLocalDate(hireDateStr);
   const hireYear = hireDate.getFullYear(), hireMonth = hireDate.getMonth()+1, hireDay = hireDate.getDate();
 
@@ -1126,7 +1145,7 @@ function computeAnnualSummary(params, year, isContinuation){
   const licenseAmt = (jobCategory === '간호사' || jobCategory === '치료사') ? (LICENSE_AMOUNT[gradeKey]||0) : (licenseOther?50000:0);
   const shiftAmt = (jobCategory === '간호사' && shift3) ? 150000 : 0;
 
-  // 장기근속수당: 이 병원 근속연수(승급 체크포인트와 별개로 1,7월 기준 적용)
+  // 장기근속수당: 총 인정경력 기준(호봉과 동일한 기준), 1·7월 체크포인트 적용
   function checkpoint17OnOrBefore(y,m){
     const cps=[1,7];
     const found = cps.filter(c=>c<=m);
@@ -1135,7 +1154,7 @@ function computeAnnualSummary(params, year, isContinuation){
   }
   function serviceYearsForMonth(y,m){
     const cp = checkpoint17OnOrBefore(y,m);
-    const months = Math.max(0, (cp.y-hireYear)*12 + (cp.m-hireMonth));
+    const months = totalMonthsAtDate(cp.y, cp.m);
     return Math.floor(months/12);
   }
 
@@ -1191,7 +1210,7 @@ function computeAnnualSummary(params, year, isContinuation){
     }
     if(active && shiftAmt>0) total += shiftAmt;
     if(active && licenseEligible && licenseAmt>0) total += licenseAmt;
-    if(active) total += 50000;
+    if(active) total += specialDutyAmount(specialDutyTrack, gradeKey);
     if(active) total += 100000;
     if(active) total += 50000;
     if(active) total += 50000;
@@ -1306,7 +1325,7 @@ function generateSalarySheet(){
   const basePay = {};
   for(let m=1;m<=12;m++){ basePay[m] = isActive(m) ? salaryFor(hobongForMonth(year,m)) : null; }
 
-  // 장기근속수당: 이 병원 근속연수 (1,7월 체크포인트 기준)
+  // 장기근속수당: 총 인정경력 기준(호봉과 동일한 기준), 1·7월 체크포인트 적용
   function checkpoint17OnOrBefore(y,m){
     const cps=[1,7];
     const found = cps.filter(c=>c<=m);
@@ -1315,7 +1334,7 @@ function generateSalarySheet(){
   }
   function serviceYearsForMonth(y,m){
     const cp = checkpoint17OnOrBefore(y,m);
-    const months = Math.max(0, (cp.y-hireYear)*12 + (cp.m-hireMonth));
+    const months = totalMonthsAtDate(cp.y, cp.m);
     return Math.floor(months/12);
   }
 
@@ -1471,7 +1490,11 @@ function generateSalarySheet(){
     }
     if(active && shiftAmt>0) setN(col+'23', shiftAmt);
     if(active && licenseEligible && licenseAmt>0) setN(col+'24', licenseAmt);
-    if(active) setN(col+'25', 50000);
+    {
+      const specialDutyTrack = document.getElementById('salarySpecialDuty').value;
+      const sdAmt = specialDutyAmount(specialDutyTrack, gradeKey);
+      if(active && sdAmt>0) setN(col+'25', sdAmt);
+    }
     if(active) setN(col+'26', 100000);
     if(active) setN(col+'27', 50000);
     if(active) setN(col+'28', 50000);
