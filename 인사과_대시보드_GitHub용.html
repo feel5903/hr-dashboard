@@ -2718,7 +2718,7 @@ function renderMainAlerts(){
   window._alertData={award:awards,sabbatical:sabbaticals,contract:contracts,pension:pensions};
   var hasAny=awards.length||sabbaticals.length||contracts.length||pensions.length;
   var noMsg=document.getElementById('no-alerts-msg');if(noMsg)noMsg.style.display=hasAny?'none':'';
-  function setBtn(id,cntId,items){var btn=document.getElementById(id),cnt=document.getElementById(cntId);if(!btn)return;btn.style.display=items.length?'':'none';if(cnt&&items.length)cnt.textContent=items.length+'명';}
+  function setBtn(id,cntId,items){var btn=document.getElementById(id),cnt=document.getElementById(cntId);if(!btn)return;btn.style.display='';if(cnt)cnt.textContent=items.length+'명';}
   setBtn('btn-alert-award','cnt-award',awards);
   setBtn('btn-alert-sabbatical','cnt-sabbatical',sabbaticals);
   setBtn('btn-alert-contract','cnt-contract',contracts);
@@ -2727,9 +2727,18 @@ function renderMainAlerts(){
 
 function showAlertPopup(type){
   var items=(window._alertData||{})[type]||[];
-  if(!items.length) return;
-  items.sort(function(a,b){return a.diff-b.diff;});
   var titles={award:'🎖️ 포상 대상자',sabbatical:'🌿 안식휴가 대상자',contract:'📋 계약만료 대상자',pension:'💰 근속1년 퇴직연금 대상자'};
+  if(!items.length){
+    var existing0=document.getElementById('alert-popup-modal');
+    if(existing0) existing0.remove();
+    var modal0=document.createElement('div');
+    modal0.id='alert-popup-modal';
+    modal0.className='overlay open';
+    modal0.innerHTML='<div class="modal" style="width:320px;text-align:center"><h3>'+(titles[type]||'알림')+'</h3><div style="padding:2rem 0;color:var(--text-muted);font-size:13px">현재 해당자가 없습니다</div><div class="modal-actions"><button class="btn primary" onclick="document.getElementById(\'alert-popup-modal\').remove()">닫기</button></div></div>';
+    document.body.appendChild(modal0);
+    return;
+  }
+  items.sort(function(a,b){return a.diff-b.diff;});
   var title=titles[type]||'알림';
   var existing=document.getElementById('alert-popup-modal');
   if(existing) existing.remove();
