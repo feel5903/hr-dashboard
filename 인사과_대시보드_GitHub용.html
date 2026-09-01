@@ -167,6 +167,7 @@ tbody tr:hover{background:#FAFBFC}
   <div class="nav-item" onclick="switchNav('project',this)"><span class="nav-icon">🗂️</span>프로젝트<span class="nav-badge" id="badge-project" style="display:none">0</span></div>
   <div class="nav-item" onclick="switchNav('recruit',this)"><span class="nav-icon">👥</span>채용현황<span class="nav-badge" id="badge-recruit" style="display:none">0</span></div>
   <div class="nav-item" onclick="switchNav('oncall',this)"><span class="nav-icon">🩺</span>당직의 급여계산기</div>
+  <div class="nav-item" onclick="switchNav('workdays',this)"><span class="nav-icon">🧮</span>치료과 근무일수</div>
 
   <div class="nav-divider"></div>
   <div class="nav-item" onclick="switchNav('annual',this)"><span class="nav-icon">📅</span>연간중요일정</div>
@@ -462,7 +463,7 @@ tbody tr:hover{background:#FAFBFC}
       <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px">+ 새 휴가 추가</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <div class="field" style="margin:0"><label>종류</label>
-          <select id="sl-type" onchange="toggleSlHours()"><option>출산휴가</option><option>육아휴직</option><option>안식휴가</option><option>병가</option><option>단축근무</option><option>기타</option></select>
+          <select id="sl-type" onchange="toggleSlHours()"><option>출산휴가</option><option>육아휴직</option><option>안식휴가</option><option>병가</option><option>육아기 근로단축</option><option>임신기 근로단축</option><option>기타</option></select>
         </div>
         <div class="field" style="margin:0" id="sl-hours-field"><label>주당 근무시간</label><input type="number" id="sl-hours" placeholder="예: 30" step="0.5"></div>
         <div class="field" style="margin:0"><label>시작일</label><input type="date" id="sl-start"></div>
@@ -681,6 +682,30 @@ tbody tr:hover{background:#FAFBFC}
             </tbody>
           </table>
         </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="pane-workdays" class="pane">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">🧮 치료과 근무일수 통계</span>
+      </div>
+      <div style="padding:1rem 1.25rem">
+        <div style="background:var(--lime-light);border:1px solid var(--lime-dark);border-radius:8px;padding:.6rem .9rem;font-size:12px;color:var(--lime-dark);margin-bottom:1rem">
+          ✅ 직원현황·휴가관리(출산휴가·육아휴직·안식휴가·병가·육아기/임신기 근로단축) 데이터를 그대로 가져와서 계산해요. 입사일·퇴사일도 자동 반영돼요 (퇴사일이 그 달 말일이면 그 달엔 포함돼요).
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:1rem">
+          <div class="field" style="margin:0"><label>시작일</label><input type="date" id="wd-start"></div>
+          <div class="field" style="margin:0"><label>종료일</label><input type="date" id="wd-end"></div>
+          <div class="field" style="margin:0"><label>추가 공휴일 (쉼표로 구분, YYYY-MM-DD)</label><input type="text" id="wd-extra-holidays" placeholder="예: 2026-08-17" style="width:220px"></div>
+          <button class="btn lime" onclick="calcWorkdays()">📊 계산하기</button>
+        </div>
+
+        <div id="workdays-result">
+          <div class="empty">계산하기를 눌러주세요</div>
         </div>
       </div>
     </div>
@@ -1068,6 +1093,7 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
     if(fan.length) data.annual=fan;
     var fsl=filterRows(sl,"staff_leaves").map(function(r){return normalizeRow(r,"staff_leaves");});
     if(fsl.length||!data.staffLeaves.length) data.staffLeaves=fsl;
+    data.staffLeaves.forEach(function(l){ if(l.type==="단축근무") l.type="육아기 근로단축"; });
     var fot=filterRows(ot,"others").map(function(r){return normalizeRow(r,"others");});
     if(fot.length||!data.others.length) data.others=fot;
     var fra=filterRows(ra,"rotation_annex").map(function(r){return normalizeRow(r,"rotation_annex");});
@@ -1657,6 +1683,7 @@ function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").f
   if(name==="dormitory")renderDormitory();if(name==="project")renderProject();if(name==="weekly"){renderWeeklySelect();renderWeekly();}
   if(name==="annual")renderAnnual();
   if(name==="oncall")salInit();
+  if(name==="workdays")wdInit();
   if(name==="checklist"){renderChecklist();renderNotes();}}
 
 
@@ -3380,10 +3407,11 @@ function openStaffLeaves(staffId){
   renderStaffLeaveList(staffId);
   document.getElementById("staff-leave-overlay").classList.add("open");
 }
+function isShortHourType(type){ return type==="육아기 근로단축"||type==="임신기 근로단축"; }
 function toggleSlHours(){
   var type=document.getElementById("sl-type").value;
   var field=document.getElementById("sl-hours-field");
-  if(field) field.style.display=(type==="단축근무")?"":"none";
+  if(field) field.style.display=isShortHourType(type)?"":"none";
 }
 function closeStaffLeaveModal(){
   document.getElementById("staff-leave-overlay").classList.remove("open");
@@ -3403,7 +3431,7 @@ function renderStaffLeaveList(staffId){
     var start=l.start||"",end=l.end||"";
     var isCurrent=todayStr>=start&&todayStr<=end;
     var days=calcLeaveDays(start,end);
-    var hoursLabel=(l.type==="단축근무"&&l.hours)?" · 주"+l.hours+"시간":"";
+    var hoursLabel=(isShortHourType(l.type)&&l.hours)?" · 주"+l.hours+"시간":"";
     return "<div style='display:flex;align-items:center;gap:8px;padding:.4rem .2rem;border-bottom:1px solid #f3f4f6'>"+
       "<span style='font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:"+(isCurrent?"#FEF3C7":"#F3F4F6")+";color:"+(isCurrent?"#92400E":"#6B7280")+";white-space:nowrap'>"+l.type+hoursLabel+(isCurrent?" · 진행중":"")+"</span>"+
       "<span style='flex:1;font-size:12px;color:var(--text)'>"+start+" ~ "+end+(days?" <span style='color:#9CA3AF'>("+days+"일)</span>":"")+"</span>"+
@@ -3420,8 +3448,8 @@ async function addStaffLeave(){
   var end=document.getElementById("sl-end").value;
   if(!start||!end){alert("시작일과 종료일을 입력해주세요");return;}
   if(end<start){alert("종료일이 시작일보다 빠를 수 없어요");return;}
-  if(type==="단축근무"&&!hours){alert("주당 근무시간을 입력해주세요");return;}
-  var nr={id:genId("sl"),staffId:staffId,staffName:s?s.name:"",type:type,start:start,end:end,hours:type==="단축근무"?hours:""};
+  if(isShortHourType(type)&&!hours){alert("주당 근무시간을 입력해주세요");return;}
+  var nr={id:genId("sl"),staffId:staffId,staffName:s?s.name:"",type:type,start:start,end:end,hours:isShortHourType(type)?hours:""};
   if(!data.staffLeaves) data.staffLeaves=[];
   var ok=await saveRowChecked("staff_leaves",[nr.id,nr.staffId,nr.staffName,nr.type,nr.start,nr.end,nr.hours],"휴가 기록");
   if(!ok) return;
@@ -4258,6 +4286,177 @@ function salInit(){
   salLoadHistory();
   salRenderHistory();
   salRenderScenarioTotals();
+}
+
+// ── 치료과 근무일수 통계 ──
+var TREATMENT_GROUPS={
+  '치료1과':['신경계물리치료팀','성인작업치료팀','성인언어치료팀','성인재활심리팀','근골격계물리치료팀'],
+  '치료2과':['소아청소년언어치료팀','소아청소년재활심리팀','소아물리치료팀','소아작업치료팀','청소년물리치료팀','청소년작업치료팀']
+};
+var wdInited=false;
+
+function wdInit(){
+  if(wdInited) return;
+  wdInited=true;
+  var d=new Date();
+  var y=d.getFullYear(),m=d.getMonth();
+  var start=new Date(y,m,1), end=new Date(y,m+1,0);
+  document.getElementById('wd-start').value=twDateStr(start);
+  document.getElementById('wd-end').value=twDateStr(end);
+}
+
+function twDateStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+function twParseDate(s){
+  if(!s) return null;
+  s=String(s).trim();
+  var m=s.match(/^(\d{2,4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
+  if(m){ var y=m[1].length===2?'20'+m[1]:m[1]; return new Date(y+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0')); }
+  var d=new Date(s);
+  return isNaN(d.getTime())?null:d;
+}
+
+function twGetWeekdaySet(extraHolidaysStr){
+  var set=new Set(Object.keys(KR_HOLIDAYS_2026||{}));
+  if(extraHolidaysStr){
+    extraHolidaysStr.split(',').forEach(function(s){
+      s=s.trim();
+      if(s) set.add(s);
+    });
+  }
+  return set;
+}
+
+// 비고에서 출장/난임휴가/가족돌봄휴가/공가/특별휴가 날짜만 뽑아서 평일기준 차감 (단축근무 등은 휴가관리 구조화 데이터로 처리)
+function twParseExtraNoteDates(note, start, end, holidaySet){
+  if(!note) return [];
+  var dateSet={};
+  function parseDayDate(mo,dd){ return new Date(start.getFullYear()+'-'+String(mo).padStart(2,'0')+'-'+String(dd).padStart(2,'0')); }
+  function pushWeekday(d){
+    if(d&&!isNaN(d.getTime())&&d>=start&&d<=end&&d.getDay()!==0&&d.getDay()!==6&&!holidaySet.has(twDateStr(d))) dateSet[twDateStr(d)]=true;
+  }
+  var dateTok='\\d{1,4}[.\\/]\\d{1,2}(?:[.\\/]\\d{1,2})?';
+  function toDate(tok){
+    var parts=tok.split(/[.\/]/);
+    if(parts.length===3) return twParseDate(tok);
+    if(parts.length===2){ var mo=parseInt(parts[0]),dd=parseInt(parts[1]); if(mo>=1&&mo<=12&&dd>=1&&dd<=31) return parseDayDate(mo,dd); }
+    return null;
+  }
+  var extraTypes='출장|난임휴가|가족돌봄휴가|공가|특별휴가';
+  function collectFrom(str){
+    var rangeRe=new RegExp('('+dateTok+')\\s*[~\\-]\\s*('+dateTok+')','g');
+    var rm;
+    while((rm=rangeRe.exec(str))!==null){
+      var d1=toDate(rm[1]), d2=toDate(rm[2]);
+      if(!d1||!d2) continue;
+      var cur=new Date(d1);
+      while(cur<=d2){ pushWeekday(new Date(cur)); cur.setDate(cur.getDate()+1); }
+    }
+    var rest=str.replace(rangeRe,' ');
+    var singleRe=new RegExp('('+dateTok+'|\\d{1,2}월\\s*\\d{1,2}일?)','g');
+    var sm;
+    while((sm=singleRe.exec(rest))!==null){
+      var tok=sm[1];
+      var mmatch=tok.match(/(\d{1,2})월\s*(\d{1,2})/);
+      if(mmatch) pushWeekday(parseDayDate(parseInt(mmatch[1]),parseInt(mmatch[2])));
+      else pushWeekday(toDate(tok));
+    }
+  }
+  var p1=new RegExp('('+dateTok+'|\\d{1,2}월\\s*\\d{1,2}일?)\\s*(?:'+extraTypes+')','g');
+  var m1;
+  while((m1=p1.exec(note))!==null) collectFrom(m1[1]);
+  var p2=new RegExp('(?:'+extraTypes+')\\s*([\\d./~\\-,\\s월일]+)','g');
+  var m2;
+  while((m2=p2.exec(note))!==null) collectFrom(m2[1]);
+  return Object.keys(dateSet);
+}
+
+// 직원 1명의 기간 내 근무일수 계산
+function computeMemberWorkdays(staff, periodStart, periodEnd, holidaySet){
+  var effStart=periodStart, effEnd=periodEnd;
+  if(staff.joinDate){ var jd=twParseDate(staff.joinDate); if(jd&&jd>effStart) effStart=jd; }
+  if(staff.resignDate){ var rd=twParseDate(staff.resignDate); if(rd&&rd<effEnd) effEnd=rd; }
+  if(effStart>effEnd) return {total:0,note:'재직기간 아님'};
+
+  var leaves=(data.staffLeaves||[]).filter(function(l){ return l.staffId===staff.id; });
+  var extraDates={};
+  twParseExtraNoteDates(staff.note, effStart, effEnd, holidaySet).forEach(function(ds){ extraDates[ds]=true; });
+
+  var total=0;
+  var d=new Date(effStart);
+  while(d<=effEnd){
+    if(d.getDay()!==0 && d.getDay()!==6 && !holidaySet.has(twDateStr(d))){
+      var ds=twDateStr(d);
+      var dayValue=1;
+      for(var i=0;i<leaves.length;i++){
+        var lv=leaves[i];
+        if(ds>=lv.start && ds<=lv.end){
+          var cand=isShortHourType(lv.type)?((parseFloat(lv.hours)||40)/40):0;
+          dayValue=Math.min(dayValue,cand);
+        }
+      }
+      if(extraDates[ds]) dayValue=0;
+      total+=dayValue;
+    }
+    d.setDate(d.getDate()+1);
+  }
+  var typesUsed={};
+  leaves.forEach(function(lv){
+    if(lv.start<=twDateStr(effEnd)&&lv.end>=twDateStr(effStart)){
+      typesUsed[lv.type + (isShortHourType(lv.type)?'(주'+lv.hours+'h)':'')]=true;
+    }
+  });
+  if(staff.joinDate && twParseDate(staff.joinDate)>=periodStart && twParseDate(staff.joinDate)<=periodEnd) typesUsed['입사('+staff.joinDate+')']=true;
+  if(staff.resignDate && twParseDate(staff.resignDate)>=periodStart && twParseDate(staff.resignDate)<=periodEnd) typesUsed['퇴사('+staff.resignDate+')']=true;
+  return {total:Math.round(total*1000)/1000, note:Object.keys(typesUsed).join(', ')};
+}
+
+function calcWorkdays(){
+  var startStr=document.getElementById('wd-start').value;
+  var endStr=document.getElementById('wd-end').value;
+  if(!startStr||!endStr){ alert('시작일과 종료일을 입력해주세요'); return; }
+  var periodStart=new Date(startStr), periodEnd=new Date(endStr);
+  if(periodStart>periodEnd){ alert('종료일이 시작일보다 빠를 수 없어요'); return; }
+  var holidaySet=twGetWeekdaySet(document.getElementById('wd-extra-holidays').value);
+  var baseWeekdays=0;
+  var dd=new Date(periodStart);
+  while(dd<=periodEnd){
+    if(dd.getDay()!==0&&dd.getDay()!==6&&!holidaySet.has(twDateStr(dd))) baseWeekdays++;
+    dd.setDate(dd.getDate()+1);
+  }
+
+  var html='<div style="font-size:12.5px;color:var(--text-muted);margin-bottom:.75rem">기간 내 기본 평일수: <b style="color:var(--navy)">'+baseWeekdays+'일</b></div>';
+  var grandTotal=0, grandCount=0;
+
+  Object.keys(TREATMENT_GROUPS).forEach(function(groupName){
+    var teams=TREATMENT_GROUPS[groupName];
+    var groupTotal=0, groupCount=0;
+    var groupHtml='';
+    teams.forEach(function(teamName){
+      var members=(data.staff||[]).filter(function(s){
+        return s.dept===teamName && (!s.resignDate || s.resignDate>=startStr);
+      });
+      if(!members.length) return;
+      var teamTotal=0;
+      var rows='';
+      members.forEach(function(s){
+        var r=computeMemberWorkdays(s, periodStart, periodEnd, holidaySet);
+        teamTotal+=r.total;
+        rows+='<tr><td style="padding-left:1.5rem">'+s.name+'</td><td style="text-align:center">'+r.total+'일</td><td style="font-size:11px;color:var(--text-muted)">'+(r.note||'')+'</td></tr>';
+      });
+      groupHtml+='<tr style="background:var(--gray-light)"><td style="font-weight:700">'+teamName+' ('+members.length+'명)</td><td style="text-align:center;font-weight:700">'+(Math.round(teamTotal*1000)/1000)+'일</td><td></td></tr>'+rows;
+      groupTotal+=teamTotal;
+      groupCount+=members.length;
+    });
+    if(!groupCount) return;
+    html+='<div style="font-size:14px;font-weight:700;color:var(--navy);margin:1rem 0 .5rem">'+groupName+' — 총 '+groupCount+'명, 합계 '+(Math.round(groupTotal*1000)/1000)+'일</div>';
+    html+='<table><thead><tr><th>팀/직원</th><th style="width:90px">근무일수</th><th>비고</th></tr></thead><tbody>'+groupHtml+'</tbody></table>';
+    grandTotal+=groupTotal; grandCount+=groupCount;
+  });
+
+  html+='<div style="margin-top:1rem;padding:.75rem 1rem;background:var(--lime-light);border-radius:8px;font-weight:700;color:var(--lime-dark)">전체 합계: '+grandCount+'명, '+(Math.round(grandTotal*1000)/1000)+'일</div>';
+
+  document.getElementById('workdays-result').innerHTML=html;
 }
 
 
