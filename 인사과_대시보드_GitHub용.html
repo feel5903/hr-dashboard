@@ -462,9 +462,9 @@ tbody tr:hover{background:#FAFBFC}
       <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px">+ 새 휴가 추가</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <div class="field" style="margin:0"><label>종류</label>
-          <select id="sl-type"><option>출산휴가</option><option>육아휴직</option><option>안식휴가</option><option>병가</option><option>기타</option></select>
+          <select id="sl-type" onchange="toggleSlHours()"><option>출산휴가</option><option>육아휴직</option><option>안식휴가</option><option>병가</option><option>단축근무</option><option>기타</option></select>
         </div>
-        <div></div>
+        <div class="field" style="margin:0" id="sl-hours-field"><label>주당 근무시간</label><input type="number" id="sl-hours" placeholder="예: 30" step="0.5"></div>
         <div class="field" style="margin:0"><label>시작일</label><input type="date" id="sl-start"></div>
         <div class="field" style="margin:0"><label>종료일</label><input type="date" id="sl-end"></div>
       </div>
@@ -3373,10 +3373,17 @@ function openStaffLeaves(staffId){
   var s=(data.staff||[]).find(function(x){return x.id===staffId;});
   document.getElementById("staff-leave-title").textContent=(s?s.name:"")+" 휴가 관리";
   document.getElementById("sl-type").value="출산휴가";
+  document.getElementById("sl-hours").value="";
   document.getElementById("sl-start").value=todayStr;
   document.getElementById("sl-end").value=todayStr;
+  toggleSlHours();
   renderStaffLeaveList(staffId);
   document.getElementById("staff-leave-overlay").classList.add("open");
+}
+function toggleSlHours(){
+  var type=document.getElementById("sl-type").value;
+  var field=document.getElementById("sl-hours-field");
+  if(field) field.style.display=(type==="단축근무")?"":"none";
 }
 function closeStaffLeaveModal(){
   document.getElementById("staff-leave-overlay").classList.remove("open");
@@ -3396,8 +3403,9 @@ function renderStaffLeaveList(staffId){
     var start=l.start||"",end=l.end||"";
     var isCurrent=todayStr>=start&&todayStr<=end;
     var days=calcLeaveDays(start,end);
+    var hoursLabel=(l.type==="단축근무"&&l.hours)?" · 주"+l.hours+"시간":"";
     return "<div style='display:flex;align-items:center;gap:8px;padding:.4rem .2rem;border-bottom:1px solid #f3f4f6'>"+
-      "<span style='font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:"+(isCurrent?"#FEF3C7":"#F3F4F6")+";color:"+(isCurrent?"#92400E":"#6B7280")+";white-space:nowrap'>"+l.type+(isCurrent?" · 진행중":"")+"</span>"+
+      "<span style='font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:"+(isCurrent?"#FEF3C7":"#F3F4F6")+";color:"+(isCurrent?"#92400E":"#6B7280")+";white-space:nowrap'>"+l.type+hoursLabel+(isCurrent?" · 진행중":"")+"</span>"+
       "<span style='flex:1;font-size:12px;color:var(--text)'>"+start+" ~ "+end+(days?" <span style='color:#9CA3AF'>("+days+"일)</span>":"")+"</span>"+
       "<button onclick='deleteStaffLeave(\""+l.id+"\")' style='background:none;border:none;color:#DC2626;cursor:pointer;font-size:12px'>✕</button>"+
     "</div>";
@@ -3407,13 +3415,15 @@ async function addStaffLeave(){
   var staffId=document.getElementById("sl-staff-id").value;
   var s=(data.staff||[]).find(function(x){return x.id===staffId;});
   var type=document.getElementById("sl-type").value;
+  var hours=document.getElementById("sl-hours").value;
   var start=document.getElementById("sl-start").value;
   var end=document.getElementById("sl-end").value;
   if(!start||!end){alert("시작일과 종료일을 입력해주세요");return;}
   if(end<start){alert("종료일이 시작일보다 빠를 수 없어요");return;}
-  var nr={id:genId("sl"),staffId:staffId,staffName:s?s.name:"",type:type,start:start,end:end};
+  if(type==="단축근무"&&!hours){alert("주당 근무시간을 입력해주세요");return;}
+  var nr={id:genId("sl"),staffId:staffId,staffName:s?s.name:"",type:type,start:start,end:end,hours:type==="단축근무"?hours:""};
   if(!data.staffLeaves) data.staffLeaves=[];
-  var ok=await saveRowChecked("staff_leaves",[nr.id,nr.staffId,nr.staffName,nr.type,nr.start,nr.end],"휴가 기록");
+  var ok=await saveRowChecked("staff_leaves",[nr.id,nr.staffId,nr.staffName,nr.type,nr.start,nr.end,nr.hours],"휴가 기록");
   if(!ok) return;
   data.staffLeaves.push(nr);
   renderStaffLeaveList(staffId);
