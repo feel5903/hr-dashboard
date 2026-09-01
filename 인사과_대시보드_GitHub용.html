@@ -1113,7 +1113,7 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
     if(fdt.length) data.duties=fdt;
     var fst=filterRows(st,"staff").map(function(r){return normalizeRow(r,"staff");});
     if(fst.length) data.staff=fst;
-    data.staff.forEach(function(s){ if(s.resignDate) s.resignDate=normalizeDateStr(s.resignDate); });
+    data.staff.forEach(function(s){ if(s.resignDate) s.resignDate=normalizeDateStr(s.resignDate); if(s.joinDate) s.joinDate=normalizeDateStr(s.joinDate); });
     if(ad&&ad.length) dismissedAlerts=ad;
     var fan=(an||[]).filter(function(r){return r&&r.month;}).map(function(r){return normalizeRow(r,"annual");});
     if(fan.length) data.annual=fan;
