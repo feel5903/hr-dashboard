@@ -7,6 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>인사과 업무 통합 대시보드</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
@@ -4382,17 +4383,75 @@ function twParseExtraNoteDates(note, start, end, holidaySet){
 }
 
 // 직원 1명의 기간 내 근무일수 계산
+var wdLeaveData={}; // {성명: 업로드 엑셀 기준 휴가일수 합계} - 연차/반차/시간차 등
+var wdLastResults=null; // 엑셀 다운로드용 마지막 계산 결과 캐시
+
+function wdHandleFile(file){
+  if(!file) return;
+  if(typeof XLSX==='undefined'){ alert('엑셀 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침 후 다시 시도해주세요.'); return; }
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var wb=XLSX.read(e.target.result,{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+
+      var headerRow=-1;
+      for(var i=0;i<rows.length;i++){
+        var joined=rows[i].join('');
+        if(joined.indexOf('근태일자')>=0 && joined.indexOf('사원명')>=0){ headerRow=i; break; }
+      }
+      if(headerRow<0) headerRow=1;
+
+      var headers=rows[headerRow];
+      var colName=-1, colAmt=-1;
+      for(var ci=0;ci<headers.length;ci++){
+        var h=String(headers[ci]||'');
+        if(h.indexOf('사원명')>=0) colName=ci;
+        else if(h.indexOf('근태수')>=0) colAmt=ci;
+      }
+      if(colName<0) colName=2; if(colAmt<0) colAmt=4;
+
+      wdLeaveData={};
+      for(var i=headerRow+1;i<rows.length;i++){
+        var row=rows[i];
+        if(!row[colName]||String(row[colName]).trim()==='') continue;
+        var rawName=String(row[colName]).trim();
+        var name=rawName.replace(/\s*외\s*\d+건.*/,'').trim();
+        if(!name) continue;
+        var amt=parseFloat(row[colAmt])||0;
+        wdLeaveData[name]=(wdLeaveData[name]||0)+amt;
+      }
+
+      document.getElementById('wd-upload-text').innerHTML='✅ '+file.name+'<br><span style="font-size:11px;color:var(--lime-dark)">'+Object.keys(wdLeaveData).length+'명 휴가 데이터 로드됨</span>';
+      document.getElementById('wd-upload-area').style.borderColor='var(--lime-dark)';
+      document.getElementById('wd-clear-upload-btn').style.display='';
+    }catch(err){
+      alert('엑셀 파일을 읽는 중 오류가 발생했어요: '+err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function wdClearUpload(){
+  wdLeaveData={};
+  document.getElementById('wd-file-input').value='';
+  document.getElementById('wd-upload-text').innerHTML='📂 클릭하거나 파일을 여기에 드래그<br><span style="font-size:11px;color:#9CA3AF">EPD021M 휴가내역 엑셀 파일 (연차·반차·시간차 등)</span>';
+  document.getElementById('wd-upload-area').style.borderColor='var(--gray-border)';
+  document.getElementById('wd-clear-upload-btn').style.display='none';
+}
+
 function computeMemberWorkdays(staff, periodStart, periodEnd, holidaySet){
   var effStart=periodStart, effEnd=periodEnd;
   if(staff.joinDate){ var jd=twParseDate(staff.joinDate); if(jd&&jd>effStart) effStart=jd; }
   if(staff.resignDate){ var rd=twParseDate(staff.resignDate); if(rd&&rd<effEnd) effEnd=rd; }
-  if(effStart>effEnd) return {total:0,note:'재직기간 아님'};
+  if(effStart>effEnd) return {total:0,baseWeekdays:0,uploadLeave:0,note:'재직기간 아님'};
 
   var leaves=(data.staffLeaves||[]).filter(function(l){ return l.staffId===staff.id; });
   var extraDates={};
   twParseExtraNoteDates(staff.note, effStart, effEnd, holidaySet).forEach(function(ds){ extraDates[ds]=true; });
 
-  var total=0;
+  var baseTotal=0;
   var d=new Date(effStart);
   while(d<=effEnd){
     if(d.getDay()!==0 && d.getDay()!==6 && !holidaySet.has(twDateStr(d))){
@@ -4406,10 +4465,16 @@ function computeMemberWorkdays(staff, periodStart, periodEnd, holidaySet){
         }
       }
       if(extraDates[ds]) dayValue=0;
-      total+=dayValue;
+      baseTotal+=dayValue;
     }
     d.setDate(d.getDate()+1);
   }
+  baseTotal=Math.round(baseTotal*1000)/1000;
+
+  var uploadLeave=Math.round((wdLeaveData[staff.name]||0)*1000)/1000;
+  var total=Math.round((baseTotal-uploadLeave)*1000)/1000;
+  if(total<0) total=0;
+
   var typesUsed={};
   leaves.forEach(function(lv){
     if(lv.start<=twDateStr(effEnd)&&lv.end>=twDateStr(effStart)){
@@ -4418,7 +4483,8 @@ function computeMemberWorkdays(staff, periodStart, periodEnd, holidaySet){
   });
   if(staff.joinDate && twParseDate(staff.joinDate)>=periodStart && twParseDate(staff.joinDate)<=periodEnd) typesUsed['입사('+staff.joinDate+')']=true;
   if(staff.resignDate && twParseDate(staff.resignDate)>=periodStart && twParseDate(staff.resignDate)<=periodEnd) typesUsed['퇴사('+staff.resignDate+')']=true;
-  return {total:Math.round(total*1000)/1000, note:Object.keys(typesUsed).join(', ')};
+  if(uploadLeave>0) typesUsed['업로드 휴가 '+uploadLeave+'일']=true;
+  return {total:total, baseWeekdays:baseTotal, uploadLeave:uploadLeave, note:Object.keys(typesUsed).join(', ')};
 }
 
 function calcWorkdays(){
@@ -4437,6 +4503,7 @@ function calcWorkdays(){
 
   var html='<div style="font-size:12.5px;color:var(--text-muted);margin-bottom:.75rem">기간 내 기본 평일수: <b style="color:var(--navy)">'+baseWeekdays+'일</b></div>';
   var grandTotal=0, grandCount=0;
+  var resultsByTeam={};
 
   Object.keys(TREATMENT_GROUPS).forEach(function(groupName){
     var teams=TREATMENT_GROUPS[groupName];
@@ -4449,14 +4516,17 @@ function calcWorkdays(){
       if(!members.length) return;
       var teamTotal=0;
       var rows='';
+      var teamRows=[];
       members.forEach(function(s){
         var r=computeMemberWorkdays(s, periodStart, periodEnd, holidaySet);
         teamTotal+=r.total;
         rows+='<tr><td style="padding-left:1.5rem">'+s.name+'</td><td style="text-align:center">'+r.total+'일</td><td style="font-size:11px;color:var(--text-muted)">'+(r.note||'')+'</td></tr>';
+        teamRows.push({name:s.name, baseWeekdays:r.baseWeekdays, uploadLeave:r.uploadLeave, total:r.total, note:r.note});
       });
       groupHtml+='<tr style="background:var(--gray-light)"><td style="font-weight:700">'+teamName+' ('+members.length+'명)</td><td style="text-align:center;font-weight:700">'+(Math.round(teamTotal*1000)/1000)+'일</td><td></td></tr>'+rows;
       groupTotal+=teamTotal;
       groupCount+=members.length;
+      resultsByTeam[teamName]={group:groupName, rows:teamRows, total:Math.round(teamTotal*1000)/1000};
     });
     if(!groupCount) return;
     html+='<div style="font-size:14px;font-weight:700;color:var(--navy);margin:1rem 0 .5rem">'+groupName+' — 총 '+groupCount+'명, 합계 '+(Math.round(groupTotal*1000)/1000)+'일</div>';
@@ -4467,8 +4537,31 @@ function calcWorkdays(){
   html+='<div style="margin-top:1rem;padding:.75rem 1rem;background:var(--lime-light);border-radius:8px;font-weight:700;color:var(--lime-dark)">전체 합계: '+grandCount+'명, '+(Math.round(grandTotal*1000)/1000)+'일</div>';
 
   document.getElementById('workdays-result').innerHTML=html;
+  wdLastResults={startStr:startStr, endStr:endStr, resultsByTeam:resultsByTeam};
 }
 
+function wdExportExcel(){
+  if(!wdLastResults){ alert('먼저 계산하기를 눌러주세요'); return; }
+  if(typeof XLSX==='undefined'){ alert('엑셀 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침 후 다시 시도해주세요.'); return; }
+  var start=new Date(wdLastResults.startStr);
+  var mn=(start.getMonth()+1)+'월';
+  var wb=XLSX.utils.book_new();
+
+  Object.keys(wdLastResults.resultsByTeam).forEach(function(teamName){
+    var teamData=wdLastResults.resultsByTeam[teamName];
+    var rows=[['소속','성명',mn+' 평일근무일','휴가','근무일수','비고']];
+    teamData.rows.forEach(function(r){
+      rows.push([teamData.group, r.name, r.baseWeekdays, r.uploadLeave||'', r.total, r.note]);
+    });
+    rows.push(['','합계','','',teamData.total,'']);
+    var ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:12},{wch:10},{wch:14},{wch:8},{wch:10},{wch:30}];
+    var sheetName=teamName.slice(0,28);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
+  XLSX.writeFile(wb, mn+'_치료과_근무일수_통계.xlsx');
+}
 
 function addLinkInput(){
   var container=document.getElementById('link-inputs');
@@ -4594,750 +4687,6 @@ function goToDueToday(){
 
 function renderAll(){updateStats();renderMemberUI();renderDaily();renderWeeklySelect();renderWeekly();renderProject();renderCalendar();renderRecruit();renderAnnualAlertBtn();renderAnnual();}
 loadHeadcount();renderAll();syncAll();setInterval(syncAll,60000);
-
-
-// ── 근무일수 통계 모듈 ──
-// ── 데이터 ──
-var groups = {}; // {과명: [부서들]}
-var depts = [];
-var holidays = [];
-var leaveData = {}; // {사원명: 근태수합계}
-var currentDept = 0;
-var currentGroup = '치료2과';
-
-// ── 초기 데이터 (소아작업치료팀 기본 세팅) ──
-var DEFAULT_GROUPS = {
-  '치료1과': [
-    { name: '신경계물리치료팀', members: [
-      {name:'추도연', note:''},{name:'박성국', note:''},{name:'정영환', note:''},
-      {name:'김정수', note:''},{name:'신건준', note:'25.6.8-26.6.21 안식휴가'},
-      {name:'이성철', note:''},{name:'권순인', note:''},{name:'김문형', note:''},
-      {name:'이영민', note:'26.3.3-26.6.2 주32시간 단축 6/3복직'},
-      {name:'길지혜', note:''},{name:'최영우', note:''},{name:'박도혁', note:''},
-      {name:'한보배', note:'25.05.14-26.08.11 출산육아'},
-      {name:'송시진', note:''},{name:'정인화', note:''},{name:'김진경', note:'25.12.01-26.06.01 주25시간 단축 6/2복직'},
-      {name:'조유빈', note:''},{name:'손보경', note:''},{name:'윤지원', note:''},
-      {name:'진선영', note:''},{name:'서예랑', note:''},{name:'박성진', note:''},
-      {name:'정채빈', note:''}
-    ]},
-    { name: '성인작업치료팀', members: [
-      {name:'손수영', note:''},{name:'이은혜', note:''},{name:'이용수', note:''},
-      {name:'강현영', note:''},{name:'김은정', note:''},
-      {name:'정예지', note:'26.5.11-27.8.8 출산 육아휴직'},
-      {name:'박진영', note:'26.05.04-27.05.03 주30시간 단축'},
-      {name:'박혜인', note:''},{name:'박휘인', note:''},{name:'정혜지', note:''},
-      {name:'양희경', note:''},{name:'한광원', note:''},{name:'김희수', note:''},
-      {name:'최하영', note:''},{name:'민소현', note:''},{name:'유지숙', note:''}
-    ]},
-    { name: '성인언어치료팀', members: [
-      {name:'이상훈', note:''},{name:'이혜원', note:''}
-    ]},
-    { name: '성인재활심리팀', members: [
-      {name:'김우석', note:''}
-    ]},
-    { name: '근골격계물리치료팀', members: [
-      {name:'박경춘', note:''},{name:'배유리', note:''},{name:'김가람', note:''},
-      {name:'김지영', note:''},{name:'이혜빈', note:''},{name:'한당찬', note:''},
-      {name:'심우일', note:''}
-    ]}
-  ],
-  '치료2과': [
-    { name: '소아청소년언어치료팀', members: [
-      {name:'박현미', note:'26.01.01-26.12.31 주32시간 단축(화,목 4시간)'},
-      {name:'이장춘', note:''},{name:'김남윤', note:''},{name:'정은혜', note:''},
-      {name:'정서현', note:''},{name:'허용균', note:''},{name:'서예은', note:''}
-    ]},
-    { name: '소아청소년재활심리팀', members: [
-      {name:'김미나', note:''},{name:'임문희', note:''},{name:'손민정', note:''},
-      {name:'최지혜', note:''},{name:'이은혜B', note:''},{name:'박은지', note:''},{name:'도유진', note:''}
-    ]},
-    { name: '소아물리치료팀', members: [
-      {name:'황윤태', note:''},{name:'오지혜', note:''},
-      {name:'이지영B', note:'26.01.26-27.04.30 출산 육아휴직'},
-      {name:'유태호', note:''},{name:'유혜연', note:'26.04.09-27.07.07 출산 육아휴직'},
-      {name:'한재인', note:''},{name:'김도희', note:''},{name:'한승희', note:''},
-      {name:'권예은', note:''},{name:'김은애', note:''},{name:'최한영', note:''},
-      {name:'강다영', note:''},{name:'이현미', note:''},{name:'유단비', note:''},
-      {name:'양현', note:''},{name:'최경아', note:''},{name:'안란', note:''},
-      {name:'임하은', note:''},{name:'이정은', note:''},{name:'권은희', note:''},
-      {name:'이유빈', note:''},{name:'김지은', note:''}
-    ]},
-    { name: '소아작업치료팀', members: [
-      {name:'전지혜', note:'26.03.05-26.06.02 주35시간 단축 6/3복직'},
-      {name:'곽보경', note:'26.06.02-27.07.30 출산 육아휴직'},
-      {name:'이민희', note:''},{name:'정현주', note:''},{name:'성현욱', note:''},
-      {name:'이지선B', note:''},{name:'전민희', note:''},{name:'허혜현', note:''},
-      {name:'윤하정', note:''},{name:'최주예', note:''},
-      {name:'임주영', note:'25.06.19-26.09.16 출산육아'},
-      {name:'최한설', note:''},{name:'김재민', note:''},{name:'위성은', note:''},
-      {name:'나상빈', note:''},{name:'정주하', note:''},{name:'이민채', note:''},
-      {name:'엄예향', note:'6/22 입사'}
-    ]},
-    { name: '청소년물리치료팀', members: [
-      {name:'박상덕', note:''},{name:'박준호', note:''},
-      {name:'김진희B', note:''},{name:'김호상', note:''},
-      {name:'백효진', note:''},{name:'김성용', note:'26.04.01-27.03.31 육아휴직'},
-      {name:'김동환', note:'26.05.11-26.06.02 출산휴가 6/3복직'},
-      {name:'차미지', note:''},{name:'천유진', note:''},{name:'오준규', note:''},
-      {name:'김솔지', note:''},{name:'서다연', note:'일 2.5시간 원내근무(우진학교)'},
-      {name:'김경미', note:''},{name:'박기정', note:''},{name:'손가을', note:''},
-      {name:'박정연', note:''},{name:'정예지B', note:''},{name:'최유정', note:''},
-      {name:'김태웅', note:''}
-    ]},
-    { name: '청소년작업치료팀', members: [
-      {name:'한보라', note:''},{name:'김영태', note:''},{name:'조한샘', note:''},
-      {name:'우지은', note:'2026.04.19-27.04.18 육아휴직'},
-      {name:'박찬화', note:''},{name:'오상화', note:''},{name:'옥동찬', note:''},
-      {name:'김현경', note:''},{name:'송현아', note:''},{name:'최정윤', note:''},
-      {name:'서찬이', note:''},{name:'김하빈', note:'6/12 퇴사'},
-      {name:'황나영', note:'6/12 입사'}
-    ]}
-  ]
-};
-var DEFAULT_DATA = DEFAULT_GROUPS['치료2과'];
-
-// ── 초기화 ──
-function wdInit() {
-  // 그룹 데이터 로드
-  var savedGroups = localStorage.getItem('wd_groups');
-  if(savedGroups) { try { groups = JSON.parse(savedGroups); } catch(e) { groups = JSON.parse(JSON.stringify(DEFAULT_GROUPS)); } }
-  else { groups = JSON.parse(JSON.stringify(DEFAULT_GROUPS)); }
-
-  var savedGroup = localStorage.getItem('wd_cur_group');
-  currentGroup = savedGroup || '치료2과';
-  depts = groups[currentGroup] || [];
-
-  var savedH = localStorage.getItem('wd_holidays');
-  if(savedH) { try { holidays = JSON.parse(savedH); } catch(e) { holidays = ['2026-06-03']; } }
-  else { holidays = ['2026-06-03']; }
-
-  wdRenderGroupTabs();
-  wdRenderDeptTabs();
-  wdRenderHolidays();
-}
-
-// ── 날짜 유틸 ──
-function wdParseDate(s) {
-  if(!s) return null;
-  s = s.toString().trim();
-  // 26.6.8 또는 26.6.21 형식 처리 (점/슬래시/하이픈 구분자)
-  var m = s.match(/^(\d{2,4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})$/);
-  if(m) {
-    var y = m[1].length===2 ? '20'+m[1] : m[1];
-    var mo = m[2].padStart(2,'0');
-    var dd = m[3].padStart(2,'0');
-    return new Date(y+'-'+mo+'-'+dd);
-  }
-  var d = new Date(s);
-  return isNaN(d) ? null : d;
-}
-
-function wdDateStr(d) {
-  if(!d) return '';
-  return d.toISOString().slice(0,10);
-}
-
-function addDays(d, n) {
-  var r = new Date(d); r.setDate(r.getDate()+n); return r;
-}
-
-function wdGetWeekdays(start, end, holidaySet) {
-  var count = 0;
-  var d = new Date(start);
-  var e = new Date(end);
-  while(d <= e) {
-    var ds = wdDateStr(d);
-    if(d.getDay() !== 0 && d.getDay() !== 6 && !holidaySet.has(ds)) count++;
-    d.setDate(d.getDate()+1);
-  }
-  return count;
-}
-
-// ── 비고 파싱 ──
-function wdParseNote(note, startStr, endStr) {
-  var start = new Date(startStr);
-  var end = new Date(endStr);
-  var holidaySet = new Set(holidays);
-
-  var result = {
-    isZero: false,
-    shortHours: null,
-    shortDays: null,
-    entryDate: null,
-    exitDate: null,
-    returnDate: null,
-    shortEndDate: null,
-    shortStartDate: null,
-    leaveStartDate: null,
-    extraLeaveDays: 0,   // 비고에서 직접 차감할 휴가일수
-    noteClean: note
-  };
-
-  // 단축근무 주시간
-  var shortMatch = note.match(/주(\d+)시간/);
-  if(shortMatch) result.shortHours = parseInt(shortMatch[1]);
-
-  // 특정 요일 단축: (화,목 4시간)
-  var dayShortMatch = note.match(/[(（]([가-힣,\s]+)\s+(\d+)시간[)）]/);
-  if(dayShortMatch) {
-    var dayStr = dayShortMatch[1];
-    var hPerDay = parseInt(dayShortMatch[2]);
-    var dayMap = {'월':1,'화':2,'수':3,'목':4,'금':5};
-    var shortDays = [];
-    dayStr.split(/[,\s]+/).forEach(function(d){ if(dayMap[d.trim()]!==undefined) shortDays.push(dayMap[d.trim()]); });
-    if(shortDays.length) result.shortDays = {days: shortDays, hoursPerDay: hPerDay};
-  }
-
-  // 6.5시간 단축 (주시간이 아닌 일시간)
-  var dailyShortMatch = note.match(/(\d+(?:\.\d+)?)\s*시간\s*단축/);
-  if(dailyShortMatch && !result.shortHours) {
-    result.dailyHours = parseFloat(dailyShortMatch[1]);
-  }
-
-  // 입사/퇴사/복직 날짜
-  var entryMatch = note.match(/(\d{1,2})\/(\d{1,2})\s*입사/);
-  var exitMatch = note.match(/(\d{1,2})\/(\d{1,2})\s*퇴사/);
-  var returnMatch = note.match(/(\d{1,2})\/(\d{1,2})\s*복직/);
-  if(entryMatch) result.entryDate = new Date(start.getFullYear()+'-'+entryMatch[1].padStart(2,'0')+'-'+entryMatch[2].padStart(2,'0'));
-  if(exitMatch) result.exitDate = new Date(start.getFullYear()+'-'+exitMatch[1].padStart(2,'0')+'-'+exitMatch[2].padStart(2,'0'));
-  if(returnMatch) result.returnDate = new Date(start.getFullYear()+'-'+returnMatch[1].padStart(2,'0')+'-'+returnMatch[2].padStart(2,'0'));
-
-  // 날짜범위 파싱 (26.06.02-27.07.30 또는 25.6.8~26.6.21 형식)
-  // 안식 키워드 있으면 날짜범위 파싱 자체를 무시
-  var hasAnsik = note.indexOf('안식') >= 0;
-  var rangeMatch = !hasAnsik ? note.match(/(\d{2,4}[.\-]\d{1,2}[.\-]\d{1,2})\s*[~\-]\s*(\d{2,4}[.\-]\d{1,2}[.\-]\d{1,2})/) : null;
-  if(rangeMatch) {
-    var rs = wdParseDate(rangeMatch[1]);
-    var re2 = wdParseDate(rangeMatch[2]);
-    var zeroKeywords = ['육아휴직','출산육아','출산 육아','병가','출산휴가'];
-    var isZeroType = zeroKeywords.some(function(k){ return note.indexOf(k)>=0; });
-    if(isZeroType) {
-      result.leaveStartDate = rs;
-      result.leaveEndDate = re2;
-      // 복직 키워드 없으면 종료일 다음날을 복직일로
-      if(!result.returnDate && re2) {
-        var nextDay = new Date(re2);
-        nextDay.setDate(nextDay.getDate()+1);
-        // 다음날이 계산 기간 안에 있으면 복직일로 설정
-        if(nextDay >= start && nextDay <= end) {
-          result.returnDate = nextDay;
-        }
-      }
-    }
-    if(result.shortHours || result.dailyHours) {
-      result.shortStartDate = rs;
-      result.shortEndDate = re2;
-    }
-  }
-
-  // 날짜 문자열 파싱 헬퍼 (6/22, 6.22, 06.22, 6월22일 등 다양한 형식)
-  function parseDayDate(mo, dd) {
-    return new Date(start.getFullYear()+'-'+String(mo).padStart(2,'0')+'-'+String(dd).padStart(2,'0'));
-  }
-  function extractDates(str) {
-    var dates = [];
-    var patterns = [
-      /(\d{1,2})\/(\d{1,2})/g,          // 6/22
-      /(\d{1,2})\.(\d{1,2})/g,          // 6.22
-      /(\d{1,2})월\s*(\d{1,2})일?/g,    // 6월22일, 6월 22일
-    ];
-    patterns.forEach(function(p) {
-      var m; p.lastIndex=0;
-      while((m=p.exec(str))!==null) {
-        var mo=parseInt(m[1]), dd=parseInt(m[2]);
-        if(mo>=1&&mo<=12&&dd>=1&&dd<=31) {
-          var d=parseDayDate(mo,dd);
-          if(d>=start&&d<=end) dates.push(d);
-        }
-      }
-    });
-    return dates;
-  }
-
-  // 비고에서 직접 차감할 휴가 (난임휴가, 가족돌봄휴가 등 날짜 명시)
-  var extraHolidayTypes = '난임휴가|가족돌봄휴가|공가|특별휴가';
-  var extraDates = [];
-  // 패턴1: 날짜 먼저 - "6/22 난임휴가"
-  var p1re = new RegExp('([\\d./]+|\\d{1,2}월\\s*\\d{1,2}일?)\\s*(?:'+extraHolidayTypes+')', 'g');
-  var m1re;
-  while((m1re=p1re.exec(note))!==null) {
-    extractDates(m1re[1]).forEach(function(d){ extraDates.push(d); });
-  }
-  // 패턴2: 휴가명 먼저 - "가족돌봄휴가 6/18, 6/23"
-  var p2re = new RegExp('(?:'+extraHolidayTypes+')\\s*([\\d./,\\s월일]+)', 'g');
-  var m2re;
-  while((m2re=p2re.exec(note))!==null) {
-    extractDates(m2re[1]).forEach(function(d){ extraDates.push(d); });
-  }
-  // 중복 제거
-  var seenMap = {};
-  extraDates = extraDates.filter(function(d){ var k=d.toISOString().slice(0,10); if(seenMap[k]) return false; seenMap[k]=true; return true; });
-  result.extraLeaveDays = extraDates.length;
-
-  return result;
-}
-
-function wdCalcMember(member, startStr, endStr) {
-  var start = new Date(startStr);
-  var end = new Date(endStr);
-  var holidaySet = new Set(holidays);
-  var p = wdParseNote(member.note, startStr, endStr);
-
-  var zeroKeywords = ['육아휴직','출산육아','출산 육아','병가','출산휴가'];
-  // 안식 키워드는 계산에서 완전 제외 (휴가파일에서 처리)
-  var isZeroFull = zeroKeywords.some(function(k){ return member.note.indexOf(k)>=0; });
-
-  // 복직일 있으면 전체 0이 아님
-  var hasReturn = !!p.returnDate;
-
-  // 기간 내 완전 0 (복직 없는 육아/병가)
-  if(isZeroFull && !hasReturn) {
-    // 육아휴직 시작일이 기간 내인 경우 (예: 6/2 육아휴직)
-    if(p.leaveStartDate && p.leaveStartDate > start && p.leaveStartDate <= end) {
-      // 기간 시작 ~ 육아휴직 전날까지 근무
-      var workEnd = new Date(p.leaveStartDate); workEnd.setDate(workEnd.getDate()-1);
-      var wd = wdGetWeekdays(start, workEnd, holidaySet);
-      return { weekdays: wd, isZero: false, partial: true };
-    }
-    return { weekdays: 0, isZero: true };
-  }
-
-  // 단축근무 + 복직 혼합 (예: 6/3 복직, 6/1~6/2는 단축)
-  if((p.shortHours || p.dailyHours) && p.returnDate && p.returnDate >= start && p.returnDate <= end) {
-    // 복직 전: 단축 기간
-    var beforeReturn = new Date(p.returnDate); beforeReturn.setDate(beforeReturn.getDate()-1);
-    var wdBefore = (beforeReturn >= start) ? wdGetWeekdays(start, beforeReturn, holidaySet) : 0;
-    var wdBeforeAdj = p.dailyHours ? wdBefore * p.dailyHours / 8 : wdBefore * p.shortHours / 40;
-    // 복직 후: 정상
-    var wdAfter = wdGetWeekdays(p.returnDate, end, holidaySet);
-    var extraLeave = p.extraLeaveDays || 0;
-    var totalWd = Math.round((wdBeforeAdj + wdAfter - extraLeave) * 1000) / 1000;
-    var shortLabel = p.dailyHours ? p.dailyHours+'시간 단축→복직' : '주'+p.shortHours+'시간→복직';
-    return { weekdays: totalWd, isZero: false, isShort: true, shortNote: shortLabel };
-  }
-
-  // 육아휴직 후 복직 혼합
-  if(isZeroFull && hasReturn && p.returnDate >= start && p.returnDate <= end) {
-    var wdAfterReturn = wdGetWeekdays(p.returnDate, end, holidaySet);
-    var extraLeave = p.extraLeaveDays || 0;
-    return { weekdays: wdAfterReturn - extraLeave, isZero: false, partial: true };
-  }
-
-  // 출산휴가 + 복직 (출산휴가 키워드, 복직일 있음)
-  if(member.note.indexOf('출산휴가')>=0 && hasReturn && p.returnDate >= start) {
-    var wdAfterReturn2 = wdGetWeekdays(p.returnDate, end, holidaySet);
-    return { weekdays: wdAfterReturn2, isZero: false, partial: true };
-  }
-
-  // 입사일
-  if(p.entryDate && p.entryDate >= start) {
-    var wd = wdGetWeekdays(p.entryDate, end, holidaySet);
-    return { weekdays: wd, isZero: false };
-  }
-
-  // 퇴사일
-  if(p.exitDate && p.exitDate >= start && p.exitDate <= end) {
-    var wd = wdGetWeekdays(start, p.exitDate, holidaySet);
-    return { weekdays: wd, isZero: false };
-  }
-
-  // 특정 요일만 단축 (예: 화,목 4시간) - shortHours보다 먼저 체크
-  if(p.shortDays) {
-    var sd = p.shortDays;
-    var ratio = sd.hoursPerDay / 8; // 4시간 → 0.5
-    var normalCount = 0, shortCount = 0;
-    var dd = new Date(start);
-    while(dd <= end) {
-      var dsdd = wdDateStr(dd);
-      if(dd.getDay() !== 0 && dd.getDay() !== 6 && !holidaySet.has(dsdd)) {
-        if(sd.days.indexOf(dd.getDay()) >= 0) shortCount++;
-        else normalCount++;
-      }
-      dd.setDate(dd.getDate()+1);
-    }
-    var totalAdj = Math.round((normalCount + shortCount * ratio) * 1000) / 1000;
-    return { weekdays: totalAdj, isZero: false, isShort: true, shortNote: '주'+p.shortHours+'시간('+sd.days.map(function(d){return ['','월','화','수','목','금'][d];}).join(',')+'요일 단축)' };
-  }
-
-  // 단축근무 전체 기간
-  if(p.shortHours) {
-    var totalWd = wdGetWeekdays(start, end, holidaySet);
-    var adj = Math.round(totalWd * p.shortHours / 40 * 1000) / 1000;
-    return { weekdays: adj, isZero: false, isShort: true, shortNote: '주'+p.shortHours+'시간 단축' };
-  }
-
-  // 특수 근무 (우진학교 등)
-  var baseWd = wdGetWeekdays(start, end, holidaySet);
-  var extraLeave = p.extraLeaveDays || 0;
-  return { weekdays: baseWd - extraLeave, isZero: false };
-}
-
-// ── 계산 ──
-function wdCalcAll() {
-  var startStr = document.getElementById('wd-date-start').value;
-  var endStr = document.getElementById('wd-date-end').value;
-  if(!startStr || !endStr) { alert('기간을 설정해주세요'); return; }
-
-  var start = new Date(startStr);
-  var end = new Date(endStr);
-  var holidaySet = new Set(holidays);
-  var totalWd = wdGetWeekdays(start, end, holidaySet);
-
-  // 기간 레이블
-  var startD = new Date(startStr);
-  var endD = new Date(endStr);
-  document.getElementById('wd-period-label').textContent =
-    (startD.getMonth()+1)+'/'+startD.getDate()+'~'+(endD.getMonth()+1)+'/'+endD.getDate()+' (평일 '+totalWd+'일)';
-
-  var html = '<div class="result-wrap"><table><thead><tr>'+
-    '<th>소속</th><th>성명</th><th>평일근무일</th><th>휴가</th><th>근무일수</th><th>비고</th>'+
-    '</tr></thead><tbody>';
-
-  depts.forEach(function(dept) {
-    var deptTotal = 0;
-    html += '<tr class="dept-header"><td colspan="6">▶ '+dept.name+'</td></tr>';
-
-    dept.members.forEach(function(m) {
-      var calc = wdCalcMember(m, startStr, endStr);
-      var leave = Math.round((leaveData[m.name] || 0) * 1000) / 1000;
-      var workDays = calc.isZero ? 0 : Math.round((calc.weekdays - leave) * 1000) / 1000;
-      if(workDays < 0) workDays = 0;
-      deptTotal += workDays;
-
-      var trClass = calc.isZero ? 'zero-work' : (calc.partial ? 'partial-work' : '');
-      var noteDisplay = m.note || '';
-      // 행정 부분 제거 (행정 숫자)
-      noteDisplay = noteDisplay.replace(/행정\s*[\d.]+\s*/g,'').trim();
-      if(calc.shortNote) noteDisplay = (calc.shortNote+(noteDisplay?' / '+noteDisplay:'')).trim();
-
-      html += '<tr class="'+trClass+'">'+
-        '<td></td>'+
-        '<td style="text-align:left;font-weight:600">'+m.name+'</td>'+
-        '<td>'+(calc.isZero ? '-' : calc.weekdays)+'</td>'+
-        '<td>'+(leave > 0 ? leave : '')+'</td>'+
-        '<td style="font-weight:700;color:'+(workDays===0?'#9CA3AF':'var(--navy)')+'">'+workDays+'</td>'+
-        '<td class="note-cell">'+noteDisplay+'</td>'+
-        '</tr>';
-    });
-
-    html += '<tr class="total-row"><td></td><td>합 계</td><td></td><td></td>'+
-      '<td>'+Math.round(deptTotal*1000)/1000+'</td><td></td></tr>';
-  });
-
-  html += '</tbody></table></div>';
-  document.getElementById('wd-result-area').innerHTML = html;
-}
-
-// ── 엑셀 다운로드 ──
-function wdExportExcel() {
-  var startStr = document.getElementById('wd-date-start').value;
-  var endStr = document.getElementById('wd-date-end').value;
-  var start = new Date(startStr);
-  var end = new Date(endStr);
-  var mn = (start.getMonth()+1)+'월';
-
-  var wb = XLSX.utils.book_new();
-
-  depts.forEach(function(dept) {
-    var rows = [];
-    // 헤더행
-    rows.push(['소속', '성명', mn+' 평일 근무일', '휴가', '근무일수', '비고']);
-
-    var deptTotal = 0;
-    dept.members.forEach(function(m) {
-      var calc = wdCalcMember(m, startStr, endStr);
-      var leave = Math.round((leaveData[m.name] || 0) * 1000) / 1000;
-      var workDays = calc.isZero ? 0 : Math.round((calc.weekdays - leave) * 1000) / 1000;
-      if(workDays < 0) workDays = 0;
-      deptTotal += workDays;
-      var noteDisplay = m.note.replace(/행정\s*[\d.]+\s*/g,'').trim();
-      if(calc.shortNote) noteDisplay = (calc.shortNote+(noteDisplay?' / '+noteDisplay:'')).trim();
-      rows.push([
-        dept.name, m.name,
-        calc.isZero ? 0 : calc.weekdays,
-        leave || '',
-        workDays,
-        noteDisplay
-      ]);
-    });
-    rows.push(['', '합 계', '', '', Math.round(deptTotal*1000)/1000, '']);
-
-    var ws = XLSX.utils.aoa_to_sheet(rows);
-
-    // 컬럼 너비 설정
-    ws['!cols'] = [
-      {wch:18}, {wch:10}, {wch:14}, {wch:8}, {wch:10}, {wch:30}
-    ];
-
-    // 스타일: 헤더 배경색 (xlsx는 기본 스타일 제한적이라 배경색 생략, 굵게만)
-    var range = XLSX.utils.decode_range(ws['!ref']);
-    for(var C=range.s.c; C<=range.e.c; C++) {
-      var addr = XLSX.utils.encode_cell({r:0, c:C});
-      if(!ws[addr]) continue;
-      ws[addr].s = { font:{bold:true}, alignment:{horizontal:'center'} };
-    }
-    // 합계행 굵게
-    var lastRow = rows.length - 1;
-    for(var C=range.s.c; C<=range.e.c; C++) {
-      var addr2 = XLSX.utils.encode_cell({r:lastRow, c:C});
-      if(ws[addr2]) ws[addr2].s = { font:{bold:true} };
-    }
-
-    // 시트명 (부서명 일부, 31자 제한)
-    var sheetName = dept.name.slice(0,28);
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
-  });
-
-  XLSX.writeFile(wb, mn+'_치료과_근무일수_통계.xlsx');
-}
-
-// ── 휴가내역 파일 처리 ──
-function wdClearUpload() {
-  leaveData = {};
-  document.getElementById('wd-upload-text').innerHTML = '📂 클릭하거나 파일을 여기에 드래그<br><span style="font-size:11px;color:#9CA3AF">EPD021M 휴가내역 엑셀 파일</span>';
-  document.getElementById('wd-upload-area').style.borderColor = '';
-  document.getElementById('wd-file-input').value = '';
-  document.getElementById('wd-clear-btn').style.display = 'none';
-}
-
-function wdHandleFile(file) {
-  if(!file) return;
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var wb = XLSX.read(e.target.result, {type:'array'});
-    var ws = wb.Sheets[wb.SheetNames[0]];
-    var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-
-    var startStr = document.getElementById('wd-date-start').value;
-    var endStr = document.getElementById('wd-date-end').value;
-
-    // 헤더 찾기 (근태일자 컬럼 있는 행)
-    var headerRow = -1;
-    for(var i=0; i<data.length; i++) {
-      var joined = data[i].join('');
-      if(joined.indexOf('근태일자')>=0 && joined.indexOf('사원명')>=0) {
-        headerRow = i; break;
-      }
-    }
-    if(headerRow < 0) headerRow = 1; // 기본값: 2번째 행
-
-    var headers = data[headerRow];
-    var colDate = -1, colName = -1, colAmt = -1;
-    for(var ci=0; ci<headers.length; ci++) {
-      var h = String(headers[ci]||'');
-      if(h.indexOf('근태일자')>=0) colDate = ci;
-      else if(h.indexOf('사원명')>=0) colName = ci;
-      else if(h.indexOf('근태수')>=0) colAmt = ci;
-    }
-    if(colDate<0) colDate=1; if(colName<0) colName=2; if(colAmt<0) colAmt=4;
-
-    leaveData = {};
-    for(var i=headerRow+1; i<data.length; i++) {
-      var row = data[i];
-      if(!row[colName] || String(row[colName]).trim()==='') continue;
-      var rawName = String(row[colName]).trim();
-      var name = rawName.replace(/\s*외\s*\d+건.*/,'').trim();
-      if(!name) continue;
-
-      // 날짜 파싱 (다양한 형식 처리)
-      var rawDate = row[colDate];
-      var dateStr2 = '';
-      if(rawDate instanceof Date) {
-        dateStr2 = rawDate.toISOString().slice(0,10);
-      } else if(typeof rawDate === 'number' && rawDate > 40000) {
-        // 엑셀 날짜 시리얼 넘버
-        var d = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
-        dateStr2 = d.toISOString().slice(0,10);
-      } else {
-        // 문자열: "2026/06/29 " 또는 "2026.06.29" 형식
-        var s = String(rawDate).trim();
-        // 날짜 부분만 추출 (앞 10자 또는 슬래시/점 구분)
-        var m2 = s.match(/(\d{4})[\.\/](\d{1,2})[\.\/](\d{1,2})/);
-        if(m2) {
-          dateStr2 = m2[1]+'-'+m2[2].padStart(2,'0')+'-'+m2[3].padStart(2,'0');
-        }
-      }
-      // 날짜 필터 없이 사람별 근태수 합계만 사용
-      var amt = parseFloat(row[colAmt]) || 0;
-      leaveData[name] = (leaveData[name] || 0) + amt;
-    }
-
-    document.getElementById('wd-upload-text').innerHTML = '✅ '+file.name+'<br><span style="font-size:11px;color:var(--green)">'+Object.keys(leaveData).length+'명 휴가 데이터 로드됨</span>';
-    document.getElementById('wd-upload-area').style.borderColor = 'var(--green)';
-    document.getElementById('wd-clear-btn').style.display = 'block';
-  };
-  reader.readAsArrayBuffer(file);
-}
-
-function wdHandleDrop(e) {
-  e.preventDefault();
-  document.getElementById('wd-upload-area').classList.remove('drag');
-  var file = e.dataTransfer.files[0];
-  if(file) wdHandleFile(file);
-}
-
-// ── 공휴일 ──
-function wdAddHoliday() {
-  var v = document.getElementById('wd-holiday-input').value;
-  if(!v) return;
-  if(!holidays.includes(v)) { holidays.push(v); holidays.sort(); wdRenderHolidays(); }
-  document.getElementById('wd-holiday-input').value = '';
-}
-
-function wdRemoveHoliday(d) {
-  holidays = holidays.filter(function(h){ return h !== d; });
-  wdRenderHolidays();
-}
-
-function wdRenderHolidays() {
-  var el = document.getElementById('wd-holiday-list');
-  if(!holidays.length) { el.innerHTML = '<span style="font-size:11px;color:#aaa">공휴일 없음</span>'; return; }
-  el.innerHTML = holidays.map(function(h) {
-    var d = new Date(h);
-    var label = (d.getMonth()+1)+'/'+d.getDate();
-    return '<span class="holiday-tag">'+label+'<button onclick="wdRemoveHoliday(\''+h+'\')">✕</button></span>';
-  }).join('');
-}
-
-// ── 부서/직원 ──
-function wdRenderGroupTabs() {
-  var el = document.getElementById('wd-group-tabs');
-  if(!el) return;
-  el.innerHTML = '';
-  Object.keys(DEFAULT_GROUPS).forEach(function(g) {
-    var btn = document.createElement('button');
-    btn.className = 'group-tab' + (g===currentGroup ? ' active' : '');
-    btn.textContent = g;
-    btn.onclick = function(){ wdSelectGroup(g); };
-    el.appendChild(btn);
-  });
-}
-
-function wdSelectGroup(g) {
-  groups[currentGroup] = depts; // 현재 그룹 저장
-  currentGroup = g;
-  depts = groups[g] || [];
-  currentDept = 0;
-  wdRenderGroupTabs();
-  wdRenderDeptTabs();
-  // 이미 계산된 상태면 자동 재계산
-  var startStr = document.getElementById('wd-date-start').value;
-  var endStr = document.getElementById('wd-date-end').value;
-  if(startStr && endStr) wdCalcAll();
-}
-
-function wdRenderDeptTabs() {
-  var el = document.getElementById('wd-dept-tabs');
-  var html2 = '';
-  depts.forEach(function(d,i) {
-    var cls = 'dept-tab' + (i===currentDept ? ' active' : '');
-    html2 += '<button class="'+cls+'" onclick="wdSelectDept('+i+')">'+d.name+'</button>';
-  });
-  el.innerHTML = html2;
-  wdRenderMembers();
-}
-
-function wdSelectDept(i) {
-  currentDept = i;
-  wdRenderDeptTabs();
-}
-
-function wdRenderMembers() {
-  var dept = depts[currentDept];
-  if(!dept) { document.getElementById('wd-member-area').innerHTML=''; return; }
-  var html = '<div class="member-list">';
-  dept.members.forEach(function(m,i) {
-    var noteShort = m.note.replace(/행정\s*[\d.]+\s*/g,'').trim().slice(0,30);
-    html += '<div class="member-row">'+
-      '<div><div class="member-name">'+m.name+'</div>'+
-      (noteShort ? '<div class="member-note">'+noteShort+'</div>' : '')+
-      '</div>'+
-      '<div style="display:flex;gap:3px">'+
-        '<button class="btn-edit-member" onclick="wdOpenEditMember('+currentDept+','+i+')">수정</button>'+
-        '<button class="btn-del-member" onclick="wdDelMember('+currentDept+','+i+')">삭제</button>'+
-      '</div></div>';
-  });
-  html += '</div>';
-  document.getElementById('wd-member-area').innerHTML = html;
-}
-
-function wdSelectDept(i) {
-  currentDept = i;
-  document.getElementById('wd-add-form').style.display = 'none';
-  wdRenderDeptTabs();
-}
-
-function wdToggleAddForm() {
-  var f = document.getElementById('wd-add-form');
-  f.style.display = f.style.display === 'none' ? 'block' : 'none';
-  if(f.style.display === 'block') document.getElementById('wd-new-name').focus();
-}
-
-function wdAddMember() {
-  var name = document.getElementById('wd-new-name').value.trim();
-  var note = document.getElementById('wd-new-note').value.trim();
-  if(!name) { alert('성명을 입력해주세요'); return; }
-  depts[currentDept].members.push({name:name, note:note});
-  document.getElementById('wd-new-name').value = '';
-  document.getElementById('wd-new-note').value = '';
-  document.getElementById('wd-add-form').style.display = 'none';
-  wdRenderMembers();
-}
-
-function wdDelMember(di, mi) {
-  if(!confirm(depts[di].members[mi].name+' 을 삭제할까요?')) return;
-  depts[di].members.splice(mi,1);
-  wdRenderMembers();
-}
-
-function wdOpenEditMember(di, mi) {
-  document.getElementById('wd-edit-di').value = di;
-  document.getElementById('wd-edit-mi').value = mi;
-  document.getElementById('wd-edit-name').value = depts[di].members[mi].name;
-  document.getElementById('wd-edit-note').value = depts[di].members[mi].note;
-  document.getElementById('wd-member-modal').classList.add('open');
-}
-
-function wdSaveMemberEdit() {
-  var di = parseInt(document.getElementById('wd-edit-di').value);
-  var mi = parseInt(document.getElementById('wd-edit-mi').value);
-  depts[di].members[mi].name = document.getElementById('wd-edit-name').value.trim();
-  depts[di].members[mi].note = document.getElementById('wd-edit-note').value.trim();
-  groups[currentGroup] = depts;
-  wdCloseMemberModal();
-  wdRenderMembers();
-  // 계산 결과 자동 갱신
-  var startStr = document.getElementById('wd-date-start').value;
-  var endStr = document.getElementById('wd-date-end').value;
-  if(startStr && endStr) wdCalcAll();
-}
-
-function wdCloseMemberModal() {
-  document.getElementById('wd-member-modal').classList.remove('open');
-}
-
-function wdOpenAddDept() {
-  document.getElementById('wd-new-dept-name').value = '';
-  document.getElementById('wd-dept-modal').classList.add('open');
-}
-
-function wdAddDept() {
-  var name = document.getElementById('wd-new-dept-name').value.trim();
-  if(!name) { alert('부서명을 입력해주세요'); return; }
-  depts.push({name:name, members:[]});
-  groups[currentGroup] = depts;
-  currentDept = depts.length - 1;
-  document.getElementById('wd-dept-modal').classList.remove('open');
-  wdRenderDeptTabs();
-}
-
-function wdSaveSettings() {
-  groups[currentGroup] = depts;
-  localStorage.setItem('wd_groups', JSON.stringify(groups));
-  localStorage.setItem('wd_cur_group', currentGroup);
-  localStorage.setItem('wd_holidays', JSON.stringify(holidays));
-  alert('설정이 저장됐어요!');
-}
 
 
 
