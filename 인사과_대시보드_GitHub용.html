@@ -4478,7 +4478,10 @@ function computeMemberWorkdays(staff, periodStart, periodEnd, holidaySet){
   var typesUsed={};
   leaves.forEach(function(lv){
     if(lv.start<=twDateStr(effEnd)&&lv.end>=twDateStr(effStart)){
-      typesUsed[lv.type + (isShortHourType(lv.type)?'(주'+lv.hours+'h)':'')]=true;
+      var clipStart=lv.start>twDateStr(effStart)?lv.start:twDateStr(effStart);
+      var clipEnd=lv.end<twDateStr(effEnd)?lv.end:twDateStr(effEnd);
+      var label=lv.type+' '+clipStart+'~'+clipEnd+(isShortHourType(lv.type)?'(주'+lv.hours+'h)':'');
+      typesUsed[label]=true;
     }
   });
   if(staff.joinDate && twParseDate(staff.joinDate)>=periodStart && twParseDate(staff.joinDate)<=periodEnd) typesUsed['입사('+staff.joinDate+')']=true;
