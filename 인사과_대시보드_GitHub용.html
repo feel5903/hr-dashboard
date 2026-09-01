@@ -4322,6 +4322,9 @@ var TREATMENT_GROUPS={
   '치료1과':['성인치료과','신경계물리치료팀','성인작업치료팀','성인언어치료팀','성인재활심리팀','근골격계물리치료팀'],
   '치료2과':['소아청소년치료과','소아청소년언어치료팀','소아청소년재활심리팀','소아물리치료팀','소아작업치료팀','청소년물리치료팀','청소년작업치료팀']
 };
+// 부서(dept)가 과 단위로 등록된 과장님을 특정 팀 소속으로 포함시키는 예외 매핑
+var WD_TEAM_OVERRIDE={'추도연':'신경계물리치료팀','박상덕':'청소년물리치료팀'};
+function wdEffectiveTeam(staff){ return WD_TEAM_OVERRIDE[staff.name]||staff.dept; }
 var wdInited=false;
 
 function wdInit(){
@@ -4604,7 +4607,7 @@ function calcWorkdays(){
     var groupHtml='';
     teams.forEach(function(teamName){
       var members=(data.staff||[]).filter(function(s){
-        return s.dept===teamName && (!s.resignDate || s.resignDate>=startStr);
+        return wdEffectiveTeam(s)===teamName && (!s.resignDate || s.resignDate>=startStr);
       });
       if(!members.length) return;
       var teamTotal=0;
