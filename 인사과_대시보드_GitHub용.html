@@ -708,8 +708,7 @@ tbody tr:hover{background:#FAFBFC}
         </div>
 
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:1rem">
-          <div class="field" style="margin:0"><label>시작일</label><input type="date" id="wd-start"></div>
-          <div class="field" style="margin:0"><label>종료일</label><input type="date" id="wd-end"></div>
+          <div class="field" style="margin:0"><label>월 선택</label><input type="month" id="wd-month"></div>
           <div class="field" style="margin:0"><label>추가 공휴일 (쉼표로 구분, YYYY-MM-DD)</label><input type="text" id="wd-extra-holidays" placeholder="예: 2026-08-17" style="width:220px"></div>
           <button class="btn lime" onclick="calcWorkdays()">📊 계산하기</button>
           <button class="btn" onclick="wdExportExcel()">⬇ 엑셀 다운로드</button>
@@ -4310,10 +4309,7 @@ function wdInit(){
   if(wdInited) return;
   wdInited=true;
   var d=new Date();
-  var y=d.getFullYear(),m=d.getMonth();
-  var start=new Date(y,m,1), end=new Date(y,m+1,0);
-  document.getElementById('wd-start').value=twDateStr(start);
-  document.getElementById('wd-end').value=twDateStr(end);
+  document.getElementById('wd-month').value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
 }
 
 function twDateStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -4491,11 +4487,12 @@ function computeMemberWorkdays(staff, periodStart, periodEnd, holidaySet){
 }
 
 function calcWorkdays(){
-  var startStr=document.getElementById('wd-start').value;
-  var endStr=document.getElementById('wd-end').value;
-  if(!startStr||!endStr){ alert('시작일과 종료일을 입력해주세요'); return; }
-  var periodStart=new Date(startStr), periodEnd=new Date(endStr);
-  if(periodStart>periodEnd){ alert('종료일이 시작일보다 빠를 수 없어요'); return; }
+  var monthVal=document.getElementById('wd-month').value;
+  if(!monthVal){ alert('월을 선택해주세요'); return; }
+  var mParts=monthVal.split('-');
+  var my=parseInt(mParts[0]), mm=parseInt(mParts[1]);
+  var periodStart=new Date(my,mm-1,1), periodEnd=new Date(my,mm,0);
+  var startStr=twDateStr(periodStart), endStr=twDateStr(periodEnd);
   var holidaySet=twGetWeekdaySet(document.getElementById('wd-extra-holidays').value);
   var baseWeekdays=0;
   var dd=new Date(periodStart);
