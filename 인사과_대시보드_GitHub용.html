@@ -697,11 +697,21 @@ tbody tr:hover{background:#FAFBFC}
           ✅ 직원현황·휴가관리(출산휴가·육아휴직·안식휴가·병가·육아기/임신기 근로단축) 데이터를 그대로 가져와서 계산해요. 입사일·퇴사일도 자동 반영돼요 (퇴사일이 그 달 말일이면 그 달엔 포함돼요).
         </div>
 
+        <div style="margin-bottom:1rem">
+          <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:.4rem">📂 휴가내역 파일 업로드 (연차·반차·시간차 등, EPD021M 엑셀)</div>
+          <div id="wd-upload-area" style="border:2px dashed var(--gray-border);border-radius:8px;padding:.8rem 1rem;cursor:pointer;text-align:center" onclick="document.getElementById('wd-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--lime-dark)'" ondrop="event.preventDefault();wdHandleFile(event.dataTransfer.files[0]);">
+            <input type="file" id="wd-file-input" accept=".xlsx,.xls" style="display:none" onchange="wdHandleFile(this.files[0])">
+            <div id="wd-upload-text" style="font-size:12px;color:var(--text-muted)">📂 클릭하거나 파일을 여기에 드래그<br><span style="font-size:11px;color:#9CA3AF">EPD021M 휴가내역 엑셀 파일 (연차·반차·시간차 등)</span></div>
+          </div>
+          <button class="btn" id="wd-clear-upload-btn" onclick="wdClearUpload()" style="display:none;margin-top:.4rem;font-size:11px;color:#DC2626">✕ 업로드 데이터 초기화</button>
+        </div>
+
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:1rem">
           <div class="field" style="margin:0"><label>시작일</label><input type="date" id="wd-start"></div>
           <div class="field" style="margin:0"><label>종료일</label><input type="date" id="wd-end"></div>
           <div class="field" style="margin:0"><label>추가 공휴일 (쉼표로 구분, YYYY-MM-DD)</label><input type="text" id="wd-extra-holidays" placeholder="예: 2026-08-17" style="width:220px"></div>
           <button class="btn lime" onclick="calcWorkdays()">📊 계산하기</button>
+          <button class="btn" onclick="wdExportExcel()">⬇ 엑셀 다운로드</button>
         </div>
 
         <div id="workdays-result">
