@@ -715,7 +715,8 @@ tbody tr:hover{background:#FAFBFC}
           </div>
           <button class="btn" id="wd-clear-upload-btn" onclick="wdClearUpload()" style="display:none;margin-top:.4rem;font-size:11px;color:#DC2626">✕ 업로드 데이터 초기화</button>
           <div id="wd-dup-review" style="display:none;margin-top:.6rem;border:1px solid #FDE68A;background:#FFFBEB;border-radius:8px;padding:.6rem .8rem">
-            <div style="font-size:11.5px;font-weight:700;color:#92400E;margin-bottom:.4rem">⚠ 완전히 똑같은 값이 같은 사람·같은 날짜에 2건 이상 있어요. 대부분 "실수로 중복 업로드"라 기본은 <b>하나로 합쳐짐</b>이에요. 진짜 서로 다른 별개 건이면 체크해서 "둘 다 반영"으로 바꿔주세요.</div>
+            <div style="font-size:11.5px;font-weight:700;color:#92400E;margin-bottom:.4rem">⚠ 완전히 똑같은 값이 같은 사람·같은 날짜에 2건 이상 있어요. 기본은 <b>[중복(1건만)]</b> — 1건만 계산해요. 진짜 서로 다른 별개 건이면 <b>[별개(전부)]</b>를 눌러서 다 계산되게 해주세요.</div>
+            <div style="font-size:11px;color:#92400E;margin-bottom:.5rem">👉 지금 진하게 표시된 버튼이 현재 적용 중인 계산 방식이에요.</div>
             <div id="wd-dup-review-list" style="display:flex;flex-direction:column;gap:4px"></div>
           </div>
         </div>
@@ -4496,19 +4497,24 @@ function wdRenderDupReview(groups){
   box.style.display='';
   list.innerHTML=dupKeys.map(function(key){
     var g=groups[key];
-    var checked=wdDupResolutions[key]?'checked':'';
-    var statusLabel=wdDupResolutions[key]?'둘 다 반영 중':'하나로 합쳐짐';
+    var keepAll=!!wdDupResolutions[key];
     var typesLabel=g.types.length?(g.types.length>1?"종류 섞임:"+g.types.join('/')+" · ":g.types[0]+" · "):"";
-    var hint=g.types.length>1?" — 종류가 서로 다르면 '정정' 가능성 높음":"";
-    return "<label style='display:flex;align-items:center;gap:6px;font-size:12px;color:#92400E;cursor:pointer'>"+
-      "<input type='checkbox' "+checked+" onchange=\"wdToggleDupGroup(this.dataset.key)\" data-key=\""+key.replace(/"/g,'&quot;')+"\">"+
-      g.name+" · "+typesLabel+g.date+" · "+g.amt+" ("+g.count+"건 발견, "+statusLabel+hint+")"+
-    "</label>";
+    var hint=g.types.length>1?" (종류가 서로 다름 — '정정'일 수 있어요)":"";
+    var safeKey=key.replace(/"/g,'&quot;').replace(/'/g,"\\'");
+    var offStyle=!keepAll?"border:1px solid #92400E;background:#92400E;color:#fff":"border:1px solid #D1D5DB;background:#fff;color:#6B7280";
+    var onStyle=keepAll?"border:1px solid #92400E;background:#92400E;color:#fff":"border:1px solid #D1D5DB;background:#fff;color:#6B7280";
+    return "<div style='display:flex;align-items:center;justify-content:space-between;gap:8px;padding:.35rem 0;border-bottom:1px dashed #FDE68A'>"+
+      "<span style='font-size:12px;color:#78350F'>"+g.name+" · "+typesLabel+g.date+" · "+g.amt+" ("+g.count+"건 발견)"+hint+"</span>"+
+      "<span style='display:flex;gap:4px;flex-shrink:0'>"+
+        "<button onclick=\"wdSetDupGroup('"+safeKey+"',false)\" style='font-size:11px;padding:3px 8px;border-radius:6px;cursor:pointer;font-family:inherit;"+offStyle+"'>중복(1건만)</button>"+
+        "<button onclick=\"wdSetDupGroup('"+safeKey+"',true)\" style='font-size:11px;padding:3px 8px;border-radius:6px;cursor:pointer;font-family:inherit;"+onStyle+"'>별개(전부)</button>"+
+      "</span>"+
+    "</div>";
   }).join('');
 }
 
-function wdToggleDupGroup(key){
-  wdDupResolutions[key]=!wdDupResolutions[key];
+function wdSetDupGroup(key, keepAll){
+  wdDupResolutions[key]=keepAll;
   wdRecalcLeaveData();
 }
 
