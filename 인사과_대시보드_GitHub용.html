@@ -714,6 +714,10 @@ tbody tr:hover{background:#FAFBFC}
             <div id="wd-upload-text" style="font-size:12px;color:var(--text-muted)">📂 클릭하거나 파일을 여기에 드래그<br><span style="font-size:11px;color:#9CA3AF">EPD021M 휴가내역 엑셀 파일 (연차·반차·시간차 등)</span></div>
           </div>
           <button class="btn" id="wd-clear-upload-btn" onclick="wdClearUpload()" style="display:none;margin-top:.4rem;font-size:11px;color:#DC2626">✕ 업로드 데이터 초기화</button>
+          <div id="wd-dup-review" style="display:none;margin-top:.6rem;border:1px solid #FDE68A;background:#FFFBEB;border-radius:8px;padding:.6rem .8rem">
+            <div style="font-size:11.5px;font-weight:700;color:#92400E;margin-bottom:.4rem">⚠ 완전히 똑같은 값이 같은 사람·같은 날짜에 2건 이상 있어요. 대부분 "실수로 중복 업로드"라 기본은 <b>하나로 합쳐짐</b>이에요. 진짜 서로 다른 별개 건이면 체크해서 "둘 다 반영"으로 바꿔주세요.</div>
+            <div id="wd-dup-review-list" style="display:flex;flex-direction:column;gap:4px"></div>
+          </div>
         </div>
 
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:1rem">
@@ -4396,6 +4400,9 @@ function twParseExtraNoteDates(note, start, end, holidaySet){
 var wdLeaveData={}; // {성명: 업로드 엑셀 기준 휴가일수 합계} - 연차/반차/시간차 등
 var wdLastResults=null; // 엑셀 다운로드용 마지막 계산 결과 캐시
 
+var wdRawEntries=[]; // 업로드에서 뽑아낸 원본 항목들 {name, date, amt}
+var wdDupResolutions={}; // key -> true면 "둘 다 반영"(합치지 않음), 기본은 합침
+
 function wdHandleFile(file){
   if(!file) return;
   if(typeof XLSX==='undefined'){ alert('엑셀 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침 후 다시 시도해주세요.'); return; }
@@ -4414,12 +4421,13 @@ function wdHandleFile(file){
       if(headerRow<0) headerRow=1;
 
       var headers=rows[headerRow];
-      var colDate=-1, colName=-1, colAmt=-1;
+      var colDate=-1, colName=-1, colAmt=-1, colType=-1;
       for(var ci=0;ci<headers.length;ci++){
         var h=String(headers[ci]||'');
         if(h.indexOf('근태일자')>=0) colDate=ci;
         else if(h.indexOf('사원명')>=0) colName=ci;
         else if(h.indexOf('근태수')>=0) colAmt=ci;
+        else if(h.indexOf('종류')>=0||h.indexOf('구분')>=0) colType=ci;
       }
       if(colDate<0) colDate=1; if(colName<0) colName=2; if(colAmt<0) colAmt=4;
 
@@ -4435,10 +4443,7 @@ function wdHandleFile(file){
         return s;
       }
 
-      wdLeaveData={};
-      var seenKeys={};
-      var dupCount=0;
-      var dupExamples=[];
+      wdRawEntries=[];
       for(var i=headerRow+1;i<rows.length;i++){
         var row=rows[i];
         if(!row[colName]||String(row[colName]).trim()==='') continue;
@@ -4447,21 +4452,15 @@ function wdHandleFile(file){
         if(!name) continue;
         var dateStr2=parseExcelDate(row[colDate]);
         var amt=parseFloat(row[colAmt])||0;
-        var key=name+'|'+dateStr2+'|'+amt; // 이름+날짜+근태수(부호 포함)가 전부 같아야 진짜 중복으로 판단 (취소 마이너스 건은 다른 값이라 중복 아님)
-        if(seenKeys[key]){
-          dupCount++;
-          if(dupExamples.length<5) dupExamples.push(name+' ('+dateStr2+')');
-          continue; // 중복행은 반영하지 않음
-        }
-        seenKeys[key]=true;
-        wdLeaveData[name]=(wdLeaveData[name]||0)+amt;
+        var leaveType=colType>=0?String(row[colType]||'').trim():'';
+        wdRawEntries.push({name:name, date:dateStr2, amt:amt, type:leaveType});
       }
+      wdDupResolutions={};
+      wdRecalcLeaveData();
 
-      var dupMsg=dupCount>0?('<br><span style="font-size:11px;color:#DC2626">⚠ 중복 '+dupCount+'건 발견 — 자동으로 한 번만 반영했어요 ('+dupExamples.join(', ')+(dupCount>dupExamples.length?' 외':'')+')</span>'):'';
-      document.getElementById('wd-upload-text').innerHTML='✅ '+file.name+'<br><span style="font-size:11px;color:var(--lime-dark)">'+Object.keys(wdLeaveData).length+'명 휴가 데이터 로드됨</span>'+dupMsg;
+      document.getElementById('wd-upload-text').innerHTML='✅ '+file.name+'<br><span style="font-size:11px;color:var(--lime-dark)" id="wd-upload-count">'+Object.keys(wdLeaveData).length+'명 휴가 데이터 로드됨</span>';
       document.getElementById('wd-upload-area').style.borderColor='var(--lime-dark)';
       document.getElementById('wd-clear-upload-btn').style.display='';
-      if(dupCount>0) alert('⚠ 업로드한 파일에서 중복된 항목 '+dupCount+'건을 발견해서 자동으로 한 번만 반영했어요.\n(같은 사람, 같은 근태일자가 두 번 이상 기록된 경우예요)');
     }catch(err){
       alert('엑셀 파일을 읽는 중 오류가 발생했어요: '+err.message);
     }
@@ -4469,11 +4468,58 @@ function wdHandleFile(file){
   reader.readAsArrayBuffer(file);
 }
 
+// 완전히 같은(이름+날짜+근태수) 항목이 여러 번 있으면 기본은 1건만 반영, 체크된 건은 전부 반영
+function wdRecalcLeaveData(){
+  var groups={};
+  wdRawEntries.forEach(function(e){
+    var key=e.name+'|'+e.date+'|'+e.amt;
+    if(!groups[key]) groups[key]={name:e.name,date:e.date,amt:e.amt,types:[],count:0};
+    if(e.type && groups[key].types.indexOf(e.type)<0) groups[key].types.push(e.type);
+    groups[key].count++;
+  });
+  wdLeaveData={};
+  Object.keys(groups).forEach(function(key){
+    var g=groups[key];
+    var useCount=(g.count>1 && !wdDupResolutions[key])?1:g.count;
+    wdLeaveData[g.name]=(wdLeaveData[g.name]||0)+g.amt*useCount;
+  });
+  wdRenderDupReview(groups);
+  var cntEl=document.getElementById('wd-upload-count');
+  if(cntEl) cntEl.textContent=Object.keys(wdLeaveData).length+'명 휴가 데이터 로드됨';
+}
+
+function wdRenderDupReview(groups){
+  var dupKeys=Object.keys(groups).filter(function(k){ return groups[k].count>1; });
+  var box=document.getElementById('wd-dup-review');
+  var list=document.getElementById('wd-dup-review-list');
+  if(!dupKeys.length){ box.style.display='none'; return; }
+  box.style.display='';
+  list.innerHTML=dupKeys.map(function(key){
+    var g=groups[key];
+    var checked=wdDupResolutions[key]?'checked':'';
+    var statusLabel=wdDupResolutions[key]?'둘 다 반영 중':'하나로 합쳐짐';
+    var typesLabel=g.types.length?(g.types.length>1?"종류 섞임:"+g.types.join('/')+" · ":g.types[0]+" · "):"";
+    var hint=g.types.length>1?" — 종류가 서로 다르면 '정정' 가능성 높음":"";
+    return "<label style='display:flex;align-items:center;gap:6px;font-size:12px;color:#92400E;cursor:pointer'>"+
+      "<input type='checkbox' "+checked+" onchange=\"wdToggleDupGroup(this.dataset.key)\" data-key=\""+key.replace(/"/g,'&quot;')+"\">"+
+      g.name+" · "+typesLabel+g.date+" · "+g.amt+" ("+g.count+"건 발견, "+statusLabel+hint+")"+
+    "</label>";
+  }).join('');
+}
+
+function wdToggleDupGroup(key){
+  wdDupResolutions[key]=!wdDupResolutions[key];
+  wdRecalcLeaveData();
+}
+
 function wdClearUpload(){
   wdLeaveData={};
+  wdRawEntries=[];
+  wdDupResolutions={};
   document.getElementById('wd-file-input').value='';
   document.getElementById('wd-upload-text').innerHTML='📂 클릭하거나 파일을 여기에 드래그<br><span style="font-size:11px;color:#9CA3AF">EPD021M 휴가내역 엑셀 파일 (연차·반차·시간차 등)</span>';
   document.getElementById('wd-upload-area').style.borderColor='var(--gray-border)';
+  document.getElementById('wd-dup-review').style.display='none';
   document.getElementById('wd-clear-upload-btn').style.display='none';
 }
 
