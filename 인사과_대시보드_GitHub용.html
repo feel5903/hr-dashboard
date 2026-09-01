@@ -1127,6 +1127,7 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
     if(fmh.length||!data.monthlyHeadcountManual.length) data.monthlyHeadcountManual=fmh;
     var fws=filterRows(ws2,"workdays_saved").map(function(r){return normalizeRow(r,"workdays_saved");});
     if(fws.length||!data.workdaysSaved.length) data.workdaysSaved=fws;
+    data.workdaysSaved.forEach(function(r){ if(r.month) r.month=normalizeMonthKey(r.month); });
     seedOncallDataIfEmpty();
     saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();showMissingIdWarning();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
 
@@ -4706,10 +4707,16 @@ async function wdDownloadSavedMonth(monthVal){
     }catch(e){}
   });
 
-  var mn=monthVal.split('-')[1]+'월';
-  var wb=await wdBuildExcelWorkbook(mn, resultsByTeam);
-  await wdDownloadWorkbook(wb, monthVal+'_치료과_근무일수_통계(저장본).xlsx');
-  document.getElementById('wd-saved-list-overlay').classList.remove('open');
+  if(!Object.keys(resultsByTeam).length){ alert('⚠ 저장된 데이터를 읽지 못했어요 (형식 오류). 다시 저장해주세요.'); return; }
+
+  try{
+    var mn=monthVal.split('-')[1]+'월';
+    var wb=await wdBuildExcelWorkbook(mn, resultsByTeam);
+    await wdDownloadWorkbook(wb, monthVal+'_치료과_근무일수_통계(저장본).xlsx');
+    document.getElementById('wd-saved-list-overlay').classList.remove('open');
+  }catch(err){
+    alert('⚠ 엑셀 생성 중 오류가 발생했어요: '+err.message);
+  }
 }
 
 function addLinkInput(){
