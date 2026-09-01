@@ -8,6 +8,7 @@
 <meta http-equiv="Expires" content="0">
 <title>인사과 업무 통합 대시보드</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
@@ -4436,14 +4437,14 @@ function wdHandleFile(file){
         var name=rawName.replace(/\s*외\s*\d+건.*/,'').trim();
         if(!name) continue;
         var dateStr2=parseExcelDate(row[colDate]);
-        var key=name+'|'+dateStr2;
+        var amt=parseFloat(row[colAmt])||0;
+        var key=name+'|'+dateStr2+'|'+amt; // 이름+날짜+근태수(부호 포함)가 전부 같아야 진짜 중복으로 판단 (취소 마이너스 건은 다른 값이라 중복 아님)
         if(seenKeys[key]){
           dupCount++;
           if(dupExamples.length<5) dupExamples.push(name+' ('+dateStr2+')');
           continue; // 중복행은 반영하지 않음
         }
         seenKeys[key]=true;
-        var amt=parseFloat(row[colAmt])||0;
         wdLeaveData[name]=(wdLeaveData[name]||0)+amt;
       }
 
@@ -4570,134 +4571,120 @@ function calcWorkdays(){
   wdLastResults={startStr:startStr, endStr:endStr, resultsByTeam:resultsByTeam};
 }
 
-function wdExportExcel(){
-  if(!wdLastResults){ alert('먼저 계산하기를 눌러주세요'); return; }
-  if(typeof XLSX==='undefined'){ alert('엑셀 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침 후 다시 시도해주세요.'); return; }
-  var start=new Date(wdLastResults.startStr);
-  var mn=(start.getMonth()+1)+'월';
-  var wb=XLSX.utils.book_new();
-  var thinBorder={style:'thin',color:{rgb:'999999'}};
-  var allBorders={top:thinBorder,bottom:thinBorder,left:thinBorder,right:thinBorder};
+async function wdBuildExcelWorkbook(mn, resultsByTeam){
+  var wb=new ExcelJS.Workbook();
+  var headerFill={type:'pattern',pattern:'solid',fgColor:{argb:'FF44546E'}};
+  var noteFill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF3CD'}};
+  var thin={style:'thin',color:{argb:'FF999999'}};
+  var allBorders={top:thin,bottom:thin,left:thin,right:thin};
 
   Object.keys(TREATMENT_GROUPS).forEach(function(groupName){
-    var teamNames=TREATMENT_GROUPS[groupName].filter(function(t){ return wdLastResults.resultsByTeam[t]; });
+    var teamNames=TREATMENT_GROUPS[groupName].filter(function(t){ return resultsByTeam[t]; });
     if(!teamNames.length) return;
-
-    var rows=[['소속','성명',mn+' 평일근무일','휴가','근무일수','비고']];
-    var highlightRowIdx=[];
-    var merges=[];
+    var sheet=wb.addWorksheet(groupName.slice(0,28));
+    sheet.columns=[
+      {header:'소속',key:'group',width:20},
+      {header:'성명',key:'name',width:10},
+      {header:mn+' 평일근무일',key:'base',width:16},
+      {header:'휴가',key:'leave',width:9},
+      {header:'근무일수',key:'total',width:11},
+      {header:'비고',key:'note',width:40}
+    ];
     var groupTotal=0;
-
     teamNames.forEach(function(teamName){
-      var teamData=wdLastResults.resultsByTeam[teamName];
-      var blockStart=rows.length;
+      var teamData=resultsByTeam[teamName];
+      var blockStartRow=sheet.rowCount+1;
       teamData.rows.forEach(function(r){
-        rows.push([teamName, r.name, r.baseWeekdays, r.uploadLeave||'', r.total, r.note]);
-        if(r.note) highlightRowIdx.push(rows.length-1);
+        var row=sheet.addRow({group:teamName,name:r.name,base:r.baseWeekdays,leave:r.uploadLeave||'',total:r.total,note:r.note||''});
+        if(r.note){ row.eachCell(function(cell){ cell.fill=noteFill; }); }
       });
-      var blockEnd=rows.length-1;
-      if(blockEnd>blockStart) merges.push({s:{r:blockStart,c:0},e:{r:blockEnd,c:0}});
+      var blockEndRow=sheet.rowCount;
+      if(blockEndRow>blockStartRow) sheet.mergeCells(blockStartRow,1,blockEndRow,1);
       groupTotal+=teamData.total;
     });
-    rows.push(['','전체 합계','','',Math.round(groupTotal*1000)/1000,'']);
+    var totalRow=sheet.addRow({group:'',name:'전체 합계',base:'',leave:'',total:Math.round(groupTotal*1000)/1000,note:''});
+    totalRow.font={bold:true};
 
-    var ws=XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols']=[{wch:20},{wch:10},{wch:14},{wch:8},{wch:10},{wch:36}];
-    ws['!merges']=merges;
-
-    var range=XLSX.utils.decode_range(ws['!ref']);
-    for(var R=range.s.r;R<=range.e.r;R++){
-      for(var C=range.s.c;C<=range.e.c;C++){
-        var addr=XLSX.utils.encode_cell({r:R,c:C});
-        if(!ws[addr]) ws[addr]={t:'s',v:''};
-        var style={border:allBorders};
-        if(R===0) style={font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'44546E'}},alignment:{horizontal:'center'},border:allBorders};
-        else if(R===range.e.r) style={font:{bold:true},border:allBorders};
-        else if(C===0) style={alignment:{vertical:'center',horizontal:'center'},border:allBorders};
-        ws[addr].s=style;
-      }
-    }
-    // 비고 있는 행 노란 배경 시도 (라이브러리 제약상 안 보일 수도 있어요)
-    highlightRowIdx.forEach(function(r){
-      for(var C=range.s.c;C<=range.e.c;C++){
-        var addr=XLSX.utils.encode_cell({r:r,c:C});
-        ws[addr].s=Object.assign({},ws[addr].s,{fill:{fgColor:{rgb:'FFF3CD'}}});
-      }
+    sheet.getRow(1).eachCell(function(cell){
+      cell.font={bold:true,color:{argb:'FFFFFFFF'}};
+      cell.fill=headerFill;
+      cell.alignment={horizontal:'center',vertical:'middle'};
     });
-
-    var sheetName=groupName.slice(0,28);
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    sheet.eachRow({includeEmpty:true},function(row){
+      row.eachCell({includeEmpty:true},function(cell,colNumber){
+        cell.border=allBorders;
+        if(colNumber===1) cell.alignment=Object.assign({},cell.alignment,{vertical:'middle',horizontal:'center'});
+      });
+    });
   });
+  return wb;
+}
 
-  XLSX.writeFile(wb, mn+'_치료과_근무일수_통계.xlsx');
+async function wdDownloadWorkbook(wb, filename){
+  var buffer=await wb.xlsx.writeBuffer();
+  var blob=new Blob([buffer],{type:'application/octet-stream'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function wdExportExcel(){
+  if(!wdLastResults){ alert('먼저 계산하기를 눌러주세요'); return; }
+  if(typeof ExcelJS==='undefined'){ alert('엑셀 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침 후 다시 시도해주세요.'); return; }
+  var start=new Date(wdLastResults.startStr);
+  var mn=(start.getMonth()+1)+'월';
+  var wb=await wdBuildExcelWorkbook(mn, wdLastResults.resultsByTeam);
+  await wdDownloadWorkbook(wb, mn+'_치료과_근무일수_통계.xlsx');
 }
 
 async function wdSaveResults(){
   if(!wdLastResults){ alert('먼저 계산하기를 눌러주세요'); return; }
   var monthKey=wdLastResults.startStr.slice(0,7);
-  if(!confirm(monthKey+' 계산 결과를 저장할까요?\n팀원 누구나 "저장된 결과 보기"로 확인할 수 있게 돼요. (같은 달 기존 저장분은 새 결과로 덮어써져요)')) return;
+  if(!confirm(monthKey+' 계산 결과를 저장할까요?\n팀원 누구나 "저장된 결과 보기"로 엑셀을 받을 수 있게 돼요. (같은 달 기존 저장분은 새 결과로 덮어써져요)')) return;
 
   var old=(data.workdaysSaved||[]).filter(function(r){ return r.month===monthKey; });
   for(var i=0;i<old.length;i++){ await deleteRowSafe('workdays_saved', old[i].id); }
   data.workdaysSaved=(data.workdaysSaved||[]).filter(function(r){ return r.month!==monthKey; });
 
-  var newRows=[];
-  Object.keys(wdLastResults.resultsByTeam).forEach(function(teamName){
-    var teamData=wdLastResults.resultsByTeam[teamName];
-    teamData.rows.forEach(function(r,idx){
-      newRows.push({
-        id:genId('ws'), month:monthKey, groupName:teamData.group, teamName:teamName,
-        name:r.name, baseWeekdays:r.baseWeekdays, uploadLeave:r.uploadLeave||'', total:r.total, note:r.note||''
-      });
-    });
+  var groupNames=Object.keys(TREATMENT_GROUPS).filter(function(g){
+    return TREATMENT_GROUPS[g].some(function(t){ return wdLastResults.resultsByTeam[t]; });
   });
 
   var failCount=0;
-  for(var i=0;i<newRows.length;i++){
-    var nr=newRows[i];
-    var ok=await saveRowChecked('workdays_saved',[nr.id,nr.month,nr.groupName,nr.teamName,nr.name,nr.baseWeekdays,nr.uploadLeave,nr.total,nr.note],'근무일수 저장('+nr.name+')');
+  for(var gi=0;gi<groupNames.length;gi++){
+    var groupName=groupNames[gi];
+    var groupData={};
+    TREATMENT_GROUPS[groupName].forEach(function(t){
+      if(wdLastResults.resultsByTeam[t]) groupData[t]=wdLastResults.resultsByTeam[t];
+    });
+    var nr={id:genId('ws'), month:monthKey, groupName:groupName, dataJson:JSON.stringify(groupData)};
+    var ok=await saveRowChecked('workdays_saved',[nr.id,nr.month,nr.groupName,nr.dataJson],groupName+' 근무일수 저장');
     if(ok) data.workdaysSaved.push(nr); else failCount++;
   }
-  if(failCount>0){ alert('⚠ 일부 항목('+failCount+'건) 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'); }
-  else{ alert('✅ '+monthKey+' 결과가 저장됐어요. 팀원들도 "저장된 결과 보기"로 확인할 수 있어요.'); }
+  if(failCount>0){ alert('⚠ 저장에 실패했어요('+failCount+'건). 인터넷 연결을 확인하고 다시 시도해주세요.'); }
+  else{ alert('✅ '+monthKey+' 결과가 저장됐어요. 팀원들도 "저장된 결과 보기"로 엑셀을 받을 수 있어요.'); }
 }
 
-function wdLoadSaved(){
+async function wdLoadSaved(){
   var monthVal=document.getElementById('wd-month').value;
   if(!monthVal){ alert('월을 선택해주세요'); return; }
+  if(typeof ExcelJS==='undefined'){ alert('엑셀 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침 후 다시 시도해주세요.'); return; }
   var rows=(data.workdaysSaved||[]).filter(function(r){ return r.month===monthVal; });
   if(!rows.length){ alert(monthVal+'에 저장된 결과가 없어요.'); return; }
 
-  var byTeam={};
+  var resultsByTeam={};
   rows.forEach(function(r){
-    if(!byTeam[r.teamName]) byTeam[r.teamName]={group:r.groupName, rows:[], total:0};
-    byTeam[r.teamName].rows.push(r);
-    byTeam[r.teamName].total+=parseFloat(r.total)||0;
+    try{
+      var parsed=JSON.parse(r.dataJson);
+      Object.keys(parsed).forEach(function(teamName){ resultsByTeam[teamName]=parsed[teamName]; });
+    }catch(e){}
   });
 
-  var html='<div style="font-size:12.5px;color:var(--text-muted);margin-bottom:.75rem">📂 <b style="color:var(--navy)">'+monthVal+' 저장된 결과</b> (보기 전용 — 재계산하려면 위에서 "계산하기"를 눌러주세요)</div>';
-  var grandTotal=0, grandCount=0;
-
-  Object.keys(TREATMENT_GROUPS).forEach(function(groupName){
-    var teamNames=TREATMENT_GROUPS[groupName].filter(function(t){ return byTeam[t]; });
-    if(!teamNames.length) return;
-    var groupTotal=0, groupCount=0;
-    var groupHtml='';
-    teamNames.forEach(function(teamName){
-      var teamData=byTeam[teamName];
-      groupHtml+='<tr style="background:var(--gray-light)"><td style="font-weight:700">'+teamName+' ('+teamData.rows.length+'명)</td><td style="text-align:center;font-weight:700">'+(Math.round(teamData.total*1000)/1000)+'일</td><td></td></tr>';
-      teamData.rows.forEach(function(r){
-        groupHtml+='<tr><td style="padding-left:1.5rem">'+r.name+'</td><td style="text-align:center">'+r.total+'일</td><td style="font-size:11px;color:var(--text-muted)">'+(r.note||'')+'</td></tr>';
-      });
-      groupTotal+=teamData.total; groupCount+=teamData.rows.length;
-    });
-    html+='<div style="font-size:14px;font-weight:700;color:var(--navy);margin:1rem 0 .5rem">'+groupName+' — 총 '+groupCount+'명, 합계 '+(Math.round(groupTotal*1000)/1000)+'일</div>';
-    html+='<table style="table-layout:fixed"><colgroup><col style="width:45%"><col style="width:90px"><col></colgroup><thead><tr><th>팀/직원</th><th>근무일수</th><th>비고</th></tr></thead><tbody>'+groupHtml+'</tbody></table>';
-    grandTotal+=groupTotal; grandCount+=groupCount;
-  });
-
-  html+='<div style="margin-top:1rem;padding:.75rem 1rem;background:var(--lime-light);border-radius:8px;font-weight:700;color:var(--lime-dark)">전체 합계: '+grandCount+'명, '+(Math.round(grandTotal*1000)/1000)+'일</div>';
-  document.getElementById('workdays-result').innerHTML=html;
+  var mn=monthVal.split('-')[1]+'월';
+  var wb=await wdBuildExcelWorkbook(mn, resultsByTeam);
+  await wdDownloadWorkbook(wb, monthVal+'_치료과_근무일수_통계(저장본).xlsx');
 }
 
 function addLinkInput(){
