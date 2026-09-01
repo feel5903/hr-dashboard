@@ -689,6 +689,14 @@ tbody tr:hover{background:#FAFBFC}
     </div>
   </div>
 
+<div class="overlay" id="wd-saved-list-overlay">
+  <div class="modal" style="width:360px">
+    <h3>📂 저장된 결과</h3>
+    <div id="wd-saved-list-body" style="max-height:300px;overflow-y:auto;margin-bottom:14px"></div>
+    <div class="modal-actions"><button class="btn" onclick="document.getElementById('wd-saved-list-overlay').classList.remove('open')">닫기</button></div>
+  </div>
+</div>
+
   <div id="pane-workdays" class="pane">
     <div class="card">
       <div class="card-head">
@@ -713,8 +721,8 @@ tbody tr:hover{background:#FAFBFC}
           <div class="field" style="margin:0"><label>추가 공휴일 (쉼표로 구분, YYYY-MM-DD)</label><input type="text" id="wd-extra-holidays" placeholder="예: 2026-08-17" style="width:220px"></div>
           <button class="btn lime" onclick="calcWorkdays()">📊 계산하기</button>
           <button class="btn" onclick="wdExportExcel()">⬇ 엑셀 다운로드</button>
-          <button class="btn" onclick="wdSaveResults()" style="border-color:#4338CA;color:#4338CA">💾 결과 저장(팀 공유)</button>
-          <button class="btn" onclick="wdLoadSaved()">📂 저장된 결과 보기</button>
+          <button class="btn" onclick="wdSaveResults()" style="border-color:#4338CA;color:#4338CA">💾 결과 저장</button>
+          <button class="btn" onclick="wdOpenSavedList()">📂 저장된 결과 보기</button>
         </div>
 
         <div id="workdays-result">
@@ -4596,7 +4604,7 @@ async function wdBuildExcelWorkbook(mn, resultsByTeam){
       var blockStartRow=sheet.rowCount+1;
       teamData.rows.forEach(function(r){
         var row=sheet.addRow({group:teamName,name:r.name,base:r.baseWeekdays,leave:r.uploadLeave||'',total:r.total,note:r.note||''});
-        if(r.note){ row.eachCell(function(cell){ cell.fill=noteFill; }); }
+        if(r.note){ row.eachCell(function(cell,colNumber){ if(colNumber>1) cell.fill=noteFill; }); }
       });
       var blockEndRow=sheet.rowCount;
       if(blockEndRow>blockStartRow) sheet.mergeCells(blockStartRow,1,blockEndRow,1);
@@ -4667,9 +4675,25 @@ async function wdSaveResults(){
   else{ alert('✅ '+monthKey+' 결과가 저장됐어요. 팀원들도 "저장된 결과 보기"로 엑셀을 받을 수 있어요.'); }
 }
 
-async function wdLoadSaved(){
-  var monthVal=document.getElementById('wd-month').value;
-  if(!monthVal){ alert('월을 선택해주세요'); return; }
+function wdOpenSavedList(){
+  var months=Array.from(new Set((data.workdaysSaved||[]).map(function(r){ return r.month; }))).sort().reverse();
+  var body=document.getElementById('wd-saved-list-body');
+  if(!months.length){
+    body.innerHTML="<div style='color:#aaa;font-size:13px;padding:1rem 0;text-align:center'>아직 저장된 결과가 없습니다</div>";
+  } else {
+    body.innerHTML=months.map(function(m){
+      var parts=m.split('-');
+      var label=parts[0]+'년 '+parseInt(parts[1])+'월';
+      return "<div onclick=\"wdDownloadSavedMonth('"+m+"')\" style='display:flex;align-items:center;justify-content:space-between;padding:.7rem .9rem;border:1px solid var(--gray-border);border-radius:8px;margin-bottom:6px;cursor:pointer' onmouseover=\"this.style.background='var(--gray-light)'\" onmouseout=\"this.style.background=''\">"+
+        "<span style='font-size:13px;font-weight:600;color:var(--navy)'>📄 "+label+"</span>"+
+        "<span style='font-size:11px;color:var(--text-muted)'>⬇ 다운로드</span>"+
+      "</div>";
+    }).join('');
+  }
+  document.getElementById('wd-saved-list-overlay').classList.add('open');
+}
+
+async function wdDownloadSavedMonth(monthVal){
   if(typeof ExcelJS==='undefined'){ alert('엑셀 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침 후 다시 시도해주세요.'); return; }
   var rows=(data.workdaysSaved||[]).filter(function(r){ return r.month===monthVal; });
   if(!rows.length){ alert(monthVal+'에 저장된 결과가 없어요.'); return; }
@@ -4685,6 +4709,7 @@ async function wdLoadSaved(){
   var mn=monthVal.split('-')[1]+'월';
   var wb=await wdBuildExcelWorkbook(mn, resultsByTeam);
   await wdDownloadWorkbook(wb, monthVal+'_치료과_근무일수_통계(저장본).xlsx');
+  document.getElementById('wd-saved-list-overlay').classList.remove('open');
 }
 
 function addLinkInput(){
