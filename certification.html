@@ -503,7 +503,7 @@ function loadFile(file){
           dept, name:String(name).trim(),
           jumin:cJumin>=0?String(r[cJumin]||'').trim():'',
           rank, title, hire, quit:cQuit>=0?parseDate(r[cQuit]):null,
-          leave:'', trans:'',
+          leave:'', trans:'', manual:null,
           emp: rank==='계약직'?'계약직':'정규직',
           cls: classify(dept, title)
         });
@@ -548,9 +548,9 @@ function buildLeaveInputs(){
   box.appendChild(tbl);
   function render(q){
     const rows=targets.filter(s=>!q||s.name.includes(q));
-    tbl.innerHTML=`<table><thead><tr><th style="width:80px">성명</th><th style="width:110px">부서</th>
-      <th style="width:60px">고용</th><th>휴직·단축 (기간만 넣으면 자동계산)</th>
-      <th style="width:88px">정규직 전환일</th><th style="width:74px" class="num">실제근무일</th></tr></thead><tbody></tbody></table>`;
+    tbl.innerHTML=`<table><thead><tr><th style="width:74px">성명</th><th style="width:100px">부서</th>
+      <th style="width:56px">고용</th><th>휴직·단축 (기간만 넣으면 자동계산)</th>
+      <th style="width:84px">정규직 전환일</th><th style="width:80px" class="num">직접입력<br><span style="font-weight:400;font-size:10px">(당직·단축계약)</span></th><th style="width:70px" class="num">실제근무일</th></tr></thead><tbody></tbody></table>`;
     const tb=tbl.querySelector('tbody');
     rows.forEach(s=>{
       const tr=document.createElement('tr');
@@ -559,6 +559,7 @@ function buildLeaveInputs(){
         <td><span class="badge ${s.emp==='계약직'?'con':'reg'}">${s.emp}</span></td>
         <td><textarea class="leaveinput" data-i="${idx}" placeholder="예: 안식 25.11.12~25.12.11 / 육아기단축 25.02.24~25.05.23 주15시간">${s.leave}</textarea></td>
         <td><input type="date" data-t="${idx}" value="${s.trans}" style="width:84px;padding:6px"></td>
+        <td class="num"><input type="number" step="0.001" data-m="${idx}" value="${s.manual!=null&&s.manual!==''?s.manual:''}" placeholder="–" style="width:70px;padding:5px;text-align:right"></td>
         <td class="num" data-actual="${idx}" style="font-weight:700;color:var(--accent)">–</td>`;
       tb.appendChild(tr);
     });
@@ -568,6 +569,9 @@ function buildLeaveInputs(){
     });
     tb.querySelectorAll('input[type=date]').forEach(inp=>{
       inp.onchange=()=>{ STAFF[+inp.dataset.t].trans=inp.value; recalc(); flashSaved(inp); updateInlineActual(); };
+    });
+    tb.querySelectorAll('input[type=number]').forEach(inp=>{
+      inp.onchange=()=>{ const v=inp.value.trim(); STAFF[+inp.dataset.m].manual = v===''?null:parseFloat(v); recalc(); flashSaved(inp); updateInlineActual(); };
     });
     updateInlineActual();
   }
@@ -641,7 +645,15 @@ function recalc(){
       L.notes.push(`휴직 ${round3(fullSum)}일 < 16일 → 만근 처리`);
     }
     deduct=round3(deduct);
-    const actual=round3(Math.max(0, workDays-deduct));
+    let actual=round3(Math.max(0, workDays-deduct));
+
+    // 직접입력값이 있으면 우선 적용 (당직·단축계약 등 특수 케이스)
+    let manualUsed=false;
+    if(s.manual!=null && s.manual!=='' && !isNaN(s.manual)){
+      actual=round3(s.manual);
+      manualUsed=true;
+      L.notes.push(`직접입력값 적용: ${actual}일`);
+    }
 
     // 고용형태 분할 (전환일 기준)
     let regDays=0, conDays=0;
@@ -652,9 +664,13 @@ function recalc(){
       const preC=clip(s.hire, new Date(trans-86400000), ps, pe).days;
       const postC=clip(trans, endWork, ps, pe).days;
       const tw=preC+postC || 1;
-      // 휴직차감을 두 구간 재직일 비율로 배분 (걸침 케이스 근사)
-      conDays=round3(Math.max(0, preC - deduct*preC/tw));
-      regDays=round3(Math.max(0, postC - deduct*postC/tw));
+      if(manualUsed){
+        // 직접입력이면 재직일 비율로 배분
+        conDays=round3(actual*preC/tw); regDays=round3(actual*postC/tw);
+      } else {
+        conDays=round3(Math.max(0, preC - deduct*preC/tw));
+        regDays=round3(Math.max(0, postC - deduct*postC/tw));
+      }
     } else { regDays=actual; }
 
     RESULT.push({...s, ps,pe, workDays, deduct, actual, regDays, conDays,
@@ -992,7 +1008,7 @@ function snapshot(){
     staff:STAFF.map(s=>({
       dept:s.dept,name:s.name,jumin:s.jumin,rank:s.rank,title:s.title||"",
       hire:s.hire?fmtDate(s.hire):null, quit:s.quit?fmtDate(s.quit):null,
-      leave:s.leave, trans:s.trans, emp:s.emp, cls:s.cls
+      leave:s.leave, trans:s.trans, manual:s.manual, emp:s.emp, cls:s.cls
     })),
     savedAt:new Date().toISOString()
   };
@@ -1005,7 +1021,7 @@ function restore(data){
     STAFF=data.staff.map(s=>({
       dept:s.dept,name:s.name,jumin:s.jumin,rank:s.rank,title:s.title||"",
       hire:s.hire?parseDate(s.hire):null, quit:s.quit?parseDate(s.quit):null,
-      leave:s.leave||'', trans:s.trans||'', emp:s.emp||'정규직', cls:s.cls||'기타'
+      leave:s.leave||'', trans:s.trans||'', manual:(s.manual!=null?s.manual:null), emp:s.emp||'정규직', cls:s.cls||'기타'
     }));
     if(STAFF.length){
       drop.classList.add('loaded');
