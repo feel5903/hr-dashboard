@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>인증 인력자료 자동계산</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#1c2b2d; --ink2:#4a5c5e; --line:#dce4e3; --line2:#c3d0cf;
+    --bg:#f4f7f6; --panel:#ffffff; --accent:#0f6e56; --accent-soft:#e1f5ee;
+    --warn:#a35a2d; --warn-soft:#faece0; --danger:#a32d2d; --danger-soft:#fbeaea;
+    --ok:#0f6e56; --ok-soft:#e1f5ee;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Pretendard","맑은 고딕","Malgun Gothic",-apple-system,sans-serif;
+    background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px 20px 80px}
+  header.top{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:4px}
+  header.top h1{font-size:21px;font-weight:700;margin:0;letter-spacing:-.02em}
+  header.top .sub{color:var(--ink2);font-size:13px}
+  .steps{display:flex;gap:8px;margin:18px 0 22px;flex-wrap:wrap}
+  .step{font-size:12px;color:var(--ink2);background:var(--panel);border:1px solid var(--line);
+    border-radius:20px;padding:5px 13px}
+  .step b{color:var(--accent);font-weight:700;margin-right:5px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:20px 22px;margin-bottom:18px}
+  .panel h2{font-size:15px;font-weight:700;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+  .panel h2 .n{background:var(--accent);color:#fff;width:22px;height:22px;border-radius:50%;
+    display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex:none}
+  .panel .hint{color:var(--ink2);font-size:12.5px;margin:0 0 14px}
+  .row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:12px;color:var(--ink2);font-weight:600}
+  input[type=date],input[type=text],select{border:1px solid var(--line2);border-radius:9px;
+    padding:9px 11px;font-size:14px;font-family:inherit;background:#fff;color:var(--ink)}
+  input[type=date]:focus,input[type=text]:focus,textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  .btn{border:none;border-radius:10px;padding:10px 18px;font-size:13.5px;font-weight:700;
+    cursor:pointer;font-family:inherit;transition:.12s}
+  .btn.primary{background:var(--accent);color:#fff}
+  .btn.primary:hover{background:#0c5a46}
+  .btn.ghost{background:#fff;border:1px solid var(--line2);color:var(--ink)}
+  .btn.ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .drop{border:2px dashed var(--line2);border-radius:12px;padding:26px;text-align:center;
+    color:var(--ink2);cursor:pointer;transition:.12s;background:#fafcfb}
+  .drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+  .drop .big{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:4px}
+  .drop.loaded{border-style:solid;border-color:var(--accent);background:var(--accent-soft)}
+  .filemeta{font-size:12.5px;color:var(--accent);font-weight:600;margin-top:8px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:#eef4f2;font-weight:700;color:var(--ink);position:sticky;top:0;font-size:12px;white-space:nowrap}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .tablewrap{max-height:440px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+  tr.flag td{background:var(--danger-soft)}
+  tr.excluded td{color:#aab4b3;background:#fafbfb}
+  .badge{display:inline-block;font-size:11px;padding:2px 7px;border-radius:6px;font-weight:700}
+  .badge.reg{background:var(--accent-soft);color:var(--accent)}
+  .badge.con{background:#fdeede;color:var(--warn)}
+  .badge.flag{background:var(--danger-soft);color:var(--danger)}
+  .badge.note-b{background:#eef0f0;color:#5f6d6c;font-weight:600}
+  .badge.excl{background:#eef0f0;color:#8b9695}
+  .summary{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px;min-width:130px}
+  .card .k{font-size:12px;color:var(--ink2);font-weight:600}
+  .card .v{font-size:24px;font-weight:800;letter-spacing:-.02em;margin-top:2px}
+  .card.warn{border-color:#e9c9a8;background:var(--warn-soft)}
+  .card.warn .v{color:var(--warn)}
+  .leaveinput{width:100%;min-height:70px;border:1px solid var(--line2);border-radius:9px;
+    padding:8px 10px;font-size:12.5px;font-family:inherit;resize:vertical;line-height:1.5}
+  details.help{margin-top:10px;font-size:12.5px;color:var(--ink2)}
+  details.help summary{cursor:pointer;font-weight:600;color:var(--accent)}
+  details.help ul{margin:8px 0 0;padding-left:18px}
+  details.help li{margin:3px 0}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .toolbar .spacer{flex:1}
+  .pill-filter{display:flex;gap:6px}
+  .pill-filter button{border:1px solid var(--line2);background:#fff;border-radius:18px;
+    padding:5px 13px;font-size:12px;cursor:pointer;font-weight:600;color:var(--ink2)}
+  .pill-filter button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .empty{color:var(--ink2);text-align:center;padding:40px;font-size:13px}
+  .editcell input{width:70px;padding:4px 6px;font-size:12px;border:1px solid var(--line2);border-radius:6px}
+  .note{font-size:12px;color:var(--warn);background:var(--warn-soft);border-radius:8px;
+    padding:9px 12px;margin-top:10px;border:1px solid #e6d4bd}
+  .mini{font-size:11.5px;color:var(--ink2)}
+  .leavecell{max-width:280px;white-space:pre-wrap;font-size:11.5px;line-height:1.45}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>인증 인력자료 자동계산</h1>
+    <span class="sub">서울재활병원 · 조사기간 실제근무일수 · 휴직차감 · 평균인원 산출</span>
+  </header>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 4px;align-items:center">
+    <button class="btn ghost" id="saveFileBtn" style="padding:8px 14px;font-size:12.5px">💾 작업 저장(파일)</button>
+    <button class="btn ghost" id="loadFileBtn2" style="padding:8px 14px;font-size:12.5px">📂 저장파일 불러오기</button>
+    <input type="file" id="restoreInput" accept=".json" style="display:none">
+    <span class="mini" id="autoSaveStatus" style="color:var(--accent)"></span>
+  </div>
+
+  <div class="steps">
+    <span class="step"><b>1</b>조사기간 설정</span>
+    <span class="step"><b>2</b>명단 업로드</span>
+    <span class="step"><b>3</b>휴직·전환 입력</span>
+    <span class="step"><b>4</b>계산·검토</span>
+    <span class="step"><b>5</b>엑셀 출력</span>
+  </div>
+
+  <!-- STEP 1 -->
+  <section class="panel">
+    <h2><span class="n">1</span>조사기간 설정</h2>
+    <p class="hint">인증 조사기간을 지정하세요. 이 기간에 하루라도 재직한 사람만 자동으로 추립니다. (기간 전 퇴사자·기간 후 입사자는 제외)</p>
+    <div class="row">
+      <div class="field">
+        <label>조사 시작일</label>
+        <input type="date" id="periodStart" value="2025-09-01">
+      </div>
+      <div class="field">
+        <label>조사 종료일</label>
+        <input type="date" id="periodEnd" value="2026-08-31">
+      </div>
+      <div class="field">
+        <label>기준일수(자동)</label>
+        <input type="text" id="baseDays" readonly style="width:100px;background:#f0f4f3">
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="panel">
+    <h2><span class="n">2</span>명단 업로드</h2>
+    <p class="hint">ERP 인사카드 엑셀을 그대로 올리세요. 성명·주민번호·부서·직급·입사일·퇴사일 열을 자동으로 찾습니다. (예전 퇴사자까지 다 있어도 시스템이 조사기간 해당자만 걸러냅니다)</p>
+    <div class="drop" id="drop">
+      <div class="big">엑셀 파일을 여기에 놓거나 클릭해서 선택</div>
+      <div class="mini">.xlsx / .xls · ERP 원본 그대로 가능</div>
+      <div class="filemeta" id="filemeta"></div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none">
+  </section>
+
+  <!-- STEP 2.5 휴가내역 (선택) -->
+  <section class="panel">
+    <h2><span class="n">+</span>휴가내역 업로드 <span style="font-size:12px;font-weight:400;color:var(--ink2)">(선택 · 개인휴가 이어붙임 자동확인)</span></h2>
+    <p class="hint">근태조회 엑셀을 올리면, 휴직 입력한 사람 중 <b>휴직 앞뒤에 개인휴가를 연속으로 붙인 사람</b>을 자동으로 찾아 표시합니다. (종일 휴가만, 주말 끼면 끊긴 걸로)</p>
+    <div class="drop" id="dropVac" style="padding:18px">
+      <div class="big" style="font-size:14px">휴가내역(근태조회) 엑셀 놓기 / 클릭</div>
+      <div class="filemeta" id="filemetaVac"></div>
+    </div>
+    <input type="file" id="fileInputVac" accept=".xlsx,.xls" style="display:none">
+  </section>
+
+  <!-- STEP 3 -->
+  <section class="panel" id="leavePanel" style="display:none">
+    <h2><span class="n">3</span>휴직·단축·전환 입력</h2>
+    <p class="hint">휴직이 있는 사람만 입력하면 됩니다. <b>기간만 넣으면 일수는 자동계산</b>돼요. 지금 쓰시던 문장 그대로 붙여넣어도 시스템이 해석합니다.</p>
+
+    <div style="background:#eef4f2;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-weight:700;font-size:13.5px;margin-bottom:4px">휴직명단 엑셀 업로드 <span style="font-weight:400;color:var(--ink2);font-size:12px">(한 번에 일괄 입력)</span></div>
+      <p class="mini" style="margin:0 0 8px">정리한 휴직 엑셀을 올리면 성명·휴직내용을 자동으로 찾아 채웁니다. 같은 사람이 여러 줄이면 자동 합산돼요. (성명 열 + 휴직내용 열만 있으면 됩니다)</p>
+      <div class="drop" id="dropLeave" style="padding:16px">
+        <div class="big" style="font-size:13.5px">휴직명단 엑셀 놓기 / 클릭</div>
+        <div class="filemeta" id="filemetaLeave"></div>
+      </div>
+      <input type="file" id="fileInputLeave" accept=".xlsx,.xls" style="display:none">
+    </div>
+
+    <div style="background:#f0f6f4;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-weight:700;font-size:13.5px;margin-bottom:4px">정규직 전환자 일괄 입력</div>
+      <p class="mini" style="margin:0 0 8px">정직자 명단을 붙여넣으세요. <b>이름 [탭 또는 공백] 전환일</b> 형식이면 자동으로 매칭됩니다. (한 줄에 한 명)</p>
+      <textarea id="bulkTrans" class="leaveinput" style="min-height:80px"></textarea>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <button class="btn primary" id="applyBulkTrans" style="padding:8px 16px">전환일 일괄 적용</button>
+        <span class="mini" id="bulkTransResult"></span>
+      </div>
+    </div>
+    <div id="leaveList"></div>
+    <details class="help">
+      <summary>입력 방법 & 자동해석 규칙 보기</summary>
+      <ul>
+        <li><b>전일 휴직</b>(안식·출산·육아·질병·산재·가족돌봄): "안식 25.11.12~25.12.11" → 기간일수 그대로 차감</li>
+        <li><b>단축근무(주 단위)</b>: "육아기단축 25.02.24~25.05.23 주15시간" → (40−15)/40 비율로 자동차감</li>
+        <li><b>단축근무(일 단위)</b>: "25.03.01~25.06.30 일 6시간" → (8−6)/8 비율로 자동차감</li>
+        <li><b>주N일 근무</b>: "주4일" → 주32시간으로 환산 / "주3일" → 주24시간</li>
+        <li><b>기간 없이 시간만</b>: "일 6시간 근무" → 조사기간 전체 기준으로 계산</li>
+        <li><b>여러 휴직</b>: 줄을 바꿔서 여러 개 입력하면 자동 합산</li>
+        <li><b>16일 미만</b>은 자동으로 만근(0) 처리 / <b>조사기간 벗어난 부분</b>은 자동으로 잘림</li>
+        <li>앞뒤 개인휴가를 포함해야 하면 그만큼 종료일을 늘려서 입력하세요</li>
+      </ul>
+    </details>
+  </section>
+
+  <!-- STEP 4 -->
+  <section class="panel" id="resultPanel" style="display:none">
+    <h2><span class="n">4</span>계산 결과 · 검토</h2>
+    <div class="summary" id="summary"></div>
+    <div class="toolbar">
+      <div class="pill-filter" id="filter">
+        <button data-f="all" class="on">전체</button>
+        <button data-f="leave">휴직입력</button>
+        <button data-f="reg">정규직</button>
+        <button data-f="con">계약직</button>
+        <button data-f="flag">확인필요</button>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn ghost" id="recalcBtn">다시 계산</button>
+      <button class="btn primary" id="exportBtn">엑셀 다운로드</button>
+    </div>
+    <div class="tablewrap">
+      <table id="resultTable">
+        <thead>
+          <tr>
+            <th>#</th><th>부서</th><th>분류</th><th>성명</th><th>고용</th>
+            <th>입사일</th><th>퇴사일</th><th>전환일</th>
+            <th class="num">재직일수</th><th class="num">휴직차감</th><th class="num">실제근무일</th>
+            <th>휴직내역(해석)</th>
+          </tr>
+        </thead>
+        <tbody id="resultBody"></tbody>
+      </table>
+    </div>
+    <div class="note" id="flagNote" style="display:none"></div>
+  </section>
+
+  <!-- STEP 5: 평균인원 -->
+  <section class="panel" id="avgPanel" style="display:none">
+    <h2><span class="n">5</span>분류별 평균인원</h2>
+    <p class="hint">분류별 실제근무일 합계 ÷ 기준일수 = 평균인원. 정규직·계약직을 나눠서 집계합니다.</p>
+    <div class="tablewrap" style="max-height:none">
+      <table id="avgTable">
+        <thead>
+          <tr><th>분류</th>
+            <th class="num">전체 근무일합</th><th class="num">전체 평균인원</th>
+            <th class="num">정규직 근무일합</th><th class="num">정규 평균인원</th>
+            <th class="num">계약직 근무일합</th><th class="num">계약 평균인원</th>
+          </tr>
+        </thead>
+        <tbody id="avgBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- STEP 6: 인증 제출 서식 (한글 별지 제23호의6) -->
+  <section class="panel" id="formPanel" style="display:none">
+    <h2><span class="n">6</span>인증 제출용 서식 (의료기관 운영현황 제3쪽)</h2>
+    <p class="hint">한글 서식 순서·명칭 그대로입니다. 이대로 한글파일에 옮겨적으면 됩니다. (임시직·용역직·파견직 열은 제외)</p>
+    <div class="tablewrap" style="max-height:none">
+      <table id="formTable">
+        <thead>
+          <tr><th colspan="2">분류</th><th class="num">계</th><th class="num">정규직</th><th class="num">계약직</th></tr>
+        </thead>
+        <tbody id="formBody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:12px">
+      <button class="btn primary" id="exportFormBtn">인증 서식 엑셀 다운로드</button>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ================= 부서→분류 기본 매핑 ================= */
+const DEPT_MAP = {"성인간호과":"간호사","QPS실":"간호사","성인병동간호팀":"간호사","소아청소년간호과":"간호사","외래간호팀":"간호사","소아청소년병동간호팀":"간호사","수도권공공어린이재활운영단":"간호사","고객경험실":"간호사","감염관리실":"간호사","지역장애인보건의료센터":"간호사","성인언어치료팀":"기타","소아청소년재활심리팀":"기타","소아청소년언어치료팀":"기타","성인재활심리팀":"기타","가족지원센터":"기타","시설팀":"기타","약제팀":"약사","총무행정팀":"기타","신경계물리치료팀":"물리치료사","미래기획실":"물리치료사","소아청소년치료과":"물리치료사","미래재활연구팀":"물리치료사","성인치료과":"물리치료사","청소년물리치료팀":"물리치료사","근골격계물리치료팀":"물리치료사","소아물리치료팀":"물리치료사","지역사회재활지원팀":"물리치료사","진료지원팀":"방사선사","원무행정팀":"보건의료정보관리사","성인사회복지팀":"사회복지사","당직과":"일반의","성인작업치료팀":"작업치료사","소아작업치료팀":"작업치료사","청소년작업치료팀":"작업치료사","병원장":"전문의","부원장":"전문의","소아청소년진료과":"전문의","회복기병원부":"전문의","성인진료과":"전문의","기능연구센터":"전문의","공공어린이재활병원부":"전문의","재무회계팀":"행정사무직","원무과":"행정사무직","진료협력팀":"행정사무직","인사과":"행정사무직","보험심사팀":"행정사무직","행정처":"행정사무직","후원협력팀":"행정사무직","총무과":"행정사무직","디지털재활혁신팀":"행정사무직","전산팀":"행정사무직","디지털혁신팀":"행정사무직","적정의료서비스센터":"행정사무직"};
+
+/* 직책(직위) → 분류: 직종이 명확한 직책은 부서보다 우선 */
+const TITLE_MAP = {"물리치료사":"물리치료사","작업치료사":"작업치료사","간호사":"간호사","수간호사":"간호사","간호조무사":"간호조무사","간호조무장":"간호조무사","사회복지사":"사회복지사","의료사회복지사":"사회복지사","영양사":"영양사","임상병리사":"임상병리사","방사선사":"방사선사","약사":"약사","한약사":"한약사","보건의료정보관리사":"보건의료정보관리사","원무행정직":"보건의료정보관리사","당직과장":"일반의","진료과장":"전문의","병원장":"전문의","부원장":"전문의"};
+
+/* 부서+직책으로 분류 판정: 직책에 직종이 있으면 그것, 아니면 부서 */
+function classify(dept, title){
+  const t=(title||'').trim();
+  if(TITLE_MAP[t]) return TITLE_MAP[t];
+  return DEPT_MAP[dept] || '기타';
+}
+
+/* ================= 날짜 유틸 ================= */
+function parseDate(s){
+  if(s==null) return null;
+  if(s instanceof Date) return new Date(s.getFullYear(),s.getMonth(),s.getDate());
+  if(typeof s==='number'){ // 엑셀 시리얼
+    const d=XLSX.SSF.parse_date_code(s); if(!d) return null;
+    return new Date(d.y,d.m-1,d.d);
+  }
+  let t=String(s).trim().replace(/\.$/,'').replace(/[.\/\s]+/g,'-');
+  const p=t.split('-').filter(x=>x!=='');
+  if(p.length!==3) return null;
+  let[y,m,d]=p.map(Number);
+  if(y<100) y+=2000;
+  if(!y||!m||!d) return null;
+  const dt=new Date(y,m-1,d);
+  return isNaN(dt)?null:dt;
+}
+function daysIncl(a,b){ return b>=a ? Math.round((b-a)/86400000)+1 : 0; }
+function clip(s,e,ps,pe){ // 기간 교집합
+  const lo=s>ps?s:ps, hi=e<pe?e:pe;
+  return hi>=lo ? {s:lo,e:hi,days:daysIncl(lo,hi)} : {s:null,e:null,days:0};
+}
+function fmtDate(d){ if(!d) return ''; return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function round3(n){ return Math.round(n*1000)/1000; }
+
+/* ================= 휴직 문장 해석 ================= */
+function parseLeaveLine(line, ps, pe){
+  const raw=line.trim();
+  if(!raw) return null;
+  // 날짜쌍
+  // 날짜쌍: 물결(~) 또는 하이픈(-)으로 연결된 두 날짜 모두 인식
+  // 날짜는 점(.)이나 슬래시(/)로 구분된 YYYY.MM.DD 형식으로 잡고, 그 사이 연결자는 ~ 또는 -
+  let dm=raw.match(/(\d{2,4}[.\/]\s*\d{1,2}[.\/]\s*\d{1,2}\.?)\s*[~∼\-]\s*(\d{2,4}[.\/]\s*\d{1,2}[.\/]\s*\d{1,2}\.?)/);
+  if(!dm){
+    // 날짜가 하이픈 구분(2025-11-12)인 경우: 물결로 연결된 것만
+    dm=raw.match(/(\d{4}-\d{1,2}-\d{1,2})\s*[~∼]\s*(\d{4}-\d{1,2}-\d{1,2})/);
+  }
+  let start=null,end=null;
+  if(dm){ start=parseDate(dm[1]); end=parseDate(dm[2]); }
+  // 시간
+  const wh=raw.match(/주\s*(\d+)\s*시간/);
+  const wd=raw.match(/주\s*(\d+)\s*일/);
+  const dh=raw.match(/(\d+)\s*시간/);
+  const manual=raw.match(/->\s*([\d.]+)\s*$/);
+  const hasWorkdayNote=/근무일/.test(raw); // "근무일:219일" 같은 수동환산 표기
+
+  let type='full', reduceHours=null, base=null, dur=null, note='';
+  let clipped=null, ambiguous=false;
+  if(start&&end){ clipped=clip(start,end,ps,pe); dur=clipped.days; }
+
+  // 복합/모호 케이스: 주N일과 시간이 동시 or 근무일 수동표기 → 자동계산 대신 확인필요
+  if((wd&&dh) || hasWorkdayNote){ ambiguous=true; }
+
+  // 우선순위: 주N시간 > 주N일 > (일)N시간 > 전일
+  if(wh){ type='short'; reduceHours=+wh[1]; base='week'; }
+  else if(wd){ type='short'; reduceHours=(+wd[1])*8; base='week'; note='주'+wd[1]+'일→주'+((+wd[1])*8)+'시간'; }
+  else if(dh){ type='short'; reduceHours=+dh[1]; base='day'; }
+
+  let deduct=0, ok=true, desc='';
+  if(ambiguous){
+    return {raw,start,end,type:'ambiguous',reduceHours,base,dur,deduct:0,ok:false,
+            desc:'복합표현 - 직접 확인 필요',manual:manual?+manual[1]:null,note};
+  }
+  if(type==='short'){
+    if(!dur){ // 기간 없음 → 조사기간 전체
+      dur=daysIncl(ps,pe);
+      note=(note?note+' · ':'')+'기간없음→전체'+dur+'일';
+    }
+    if(base==='week'){ deduct=dur*(40-reduceHours)/40; desc=`${dur}일 주${reduceHours}시간→${round3(deduct)}`; }
+    else { deduct=dur*(8-reduceHours)/8; desc=`${dur}일 ${reduceHours}시간→${round3(deduct)}`; }
+    if(reduceHours>= (base==='week'?40:8)){ ok=false; desc='근무시간 과다'; }
+  } else { // 전일 휴직
+    if(!start||!end){ ok=false; desc='날짜 인식 실패'; }
+    else { deduct=dur; desc=`${dur}일`; }
+  }
+  return {raw,start,end,type,reduceHours,base,dur,deduct:round3(deduct),ok,desc,
+          manual: manual?+manual[1]:null, note};
+}
+
+// 사람 1명 휴직 전체 텍스트 → 결과
+function computeLeave(text, ps, pe, transDate){
+  if(!text||!text.trim()) return {total:0,lines:[],flags:[],notes:[],regDed:0,conDed:0};
+  const lines=[], flags=[], notes=[];
+  let total=0;
+  for(const ln of text.split(/\n+/)){
+    if(!ln.trim()) continue;
+    const p=parseLeaveLine(ln, ps, pe);
+    if(!p) continue;
+    lines.push(p);
+    if(!p.ok){ flags.push('해석 확인: '+p.raw); continue; }
+    total+=p.deduct;
+    // 수기값과 큰 차이나면 플래그 (오타/특수 감지)
+    if(p.manual!=null && Math.abs(p.manual-p.deduct)>0.5){
+      flags.push(`계산 ${round3(p.deduct)} ≠ 원본 ${p.manual}`);
+    }
+  }
+  return {total:round3(total),lines,flags,notes};
+}
+
+/* ================= 상태 ================= */
+let STAFF=[];       // {dept,name,jumin,rank,hire,leave(입력),trans,emp,cls, ...계산}
+let RESULT=[];
+let VAC={};         // 이름 → Set(종일 휴가 날짜 ISO)
+let curFilter='all';
+
+/* ================= 파일 로드 ================= */
+const drop=document.getElementById('drop'), fileInput=document.getElementById('fileInput');
+drop.onclick=()=>fileInput.click();
+drop.ondragover=e=>{e.preventDefault();drop.classList.add('over');};
+drop.ondragleave=()=>drop.classList.remove('over');
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0]);};
+fileInput.onchange=e=>{if(e.target.files[0])loadFile(e.target.files[0]);};
+
+/* 휴가내역 업로드 */
+const dropVac=document.getElementById('dropVac'), fileInputVac=document.getElementById('fileInputVac');
+dropVac.onclick=()=>fileInputVac.click();
+dropVac.ondragover=e=>{e.preventDefault();dropVac.classList.add('over');};
+dropVac.ondragleave=()=>dropVac.classList.remove('over');
+dropVac.ondrop=e=>{e.preventDefault();dropVac.classList.remove('over');if(e.dataTransfer.files[0])loadVacFile(e.dataTransfer.files[0]);};
+fileInputVac.onchange=e=>{if(e.target.files[0])loadVacFile(e.target.files[0]);};
+
+function loadVacFile(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'binary',cellDates:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,dateNF:'yyyy-mm-dd'});
+      // 헤더 찾기 (사원명 + 근태일자 포함)
+      let hIdx=-1;
+      for(let i=0;i<Math.min(rows.length,8);i++){
+        const j=(rows[i]||[]).map(x=>String(x||'')).join('');
+        if(j.includes('사원명')&&j.includes('근태')){hIdx=i;break;}
+      }
+      if(hIdx<0){ alert('휴가파일 헤더(사원명·근태일자)를 찾지 못했어요.'); return; }
+      const H=rows[hIdx];
+      const cName=findCol(H,['사원명','성명','이름']);
+      const cDate=findCol(H,['근태일자','근태일','일자']);
+      const cVal=findCol(H,['근태','일수']); // F열 근태값
+      // 근태값 열: '근태'라는 이름이 두 개일 수 있음(근태종류/근태) → 값 열은 숫자 들어간 열 탐색
+      let cAmt=-1;
+      for(let i=hIdx+1;i<Math.min(rows.length,hIdx+20);i++){
+        const r=rows[i]; if(!r)continue;
+        for(let c=0;c<r.length;c++){
+          const v=r[c]; if(v!=null && !isNaN(parseFloat(v)) && Math.abs(parseFloat(v))<=1.5 && String(v).indexOf('20')!==0){ if(cAmt<0)cAmt=c; }
+        }
+        if(cAmt>=0)break;
+      }
+      if(cAmt<0) cAmt=findCol(H,['근태']);
+      VAC={};
+      let cnt=0;
+      for(let i=hIdx+1;i<rows.length;i++){
+        const r=rows[i]; if(!r)continue;
+        const name=r[cName]; const d=parseDate(r[cDate]);
+        const amt=parseFloat(r[cAmt]);
+        if(!name||!d||isNaN(amt))continue;
+        if(amt>=1.0){ // 종일만
+          const nm=String(name).trim();
+          if(!VAC[nm]) VAC[nm]=new Set();
+          VAC[nm].add(fmtDate(d));
+          cnt++;
+        }
+      }
+      dropVac.classList.add('loaded');
+      document.getElementById('filemetaVac').textContent=`✓ ${file.name} — 종일 휴가 ${cnt}건 (${Object.keys(VAC).length}명)`;
+      recalc();
+    }catch(err){ alert('휴가파일 오류: '+err.message); }
+  };
+  reader.readAsBinaryString(file);
+}
+
+/* 휴직 앞뒤 연속 개인휴가 탐지 */
+function attachedLeave(name, leaveStart, leaveEnd){
+  const dates=VAC[name]; if(!dates) return {before:0,after:0};
+  let before=0, after=0;
+  // 끝난 다음날부터 정방향
+  let d=new Date(leaveEnd); d.setDate(d.getDate()+1);
+  while(dates.has(fmtDate(d))){ after++; d.setDate(d.getDate()+1); }
+  // 시작 전날부터 역방향
+  d=new Date(leaveStart); d.setDate(d.getDate()-1);
+  while(dates.has(fmtDate(d))){ before++; d.setDate(d.getDate()-1); }
+  return {before,after};
+}
+
+function findCol(headers, keys){
+  for(let i=0;i<headers.length;i++){
+    const h=String(headers[i]||'').replace(/\s/g,'');
+    for(const k of keys){ if(h.includes(k)) return i; }
+  }
+  return -1;
+}
+
+function loadFile(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.value?e.target.value:e.target.result,{type:'binary',cellDates:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,dateNF:'yyyy-mm-dd'});
+      // 헤더행 찾기 (성명/부서/입사 포함된 행)
+      let hIdx=-1;
+      for(let i=0;i<Math.min(rows.length,10);i++){
+        const joined=(rows[i]||[]).map(x=>String(x||'')).join('');
+        if(joined.includes('성명')&&(joined.includes('입사')||joined.includes('부서'))){hIdx=i;break;}
+      }
+      if(hIdx<0){ showLoadNote('헤더(성명·부서·입사일)를 찾지 못했어요. 파일 형식을 확인해주세요.',true); return; }
+      const H=rows[hIdx];
+      const cName=findCol(H,['성명','사원명','이름']);
+      const cDept=findCol(H,['부서']);
+      const cJumin=findCol(H,['주민','주민등록번호']);
+      const cRank=findCol(H,['직급']);
+      const cTitle=findCol(H,['직책','직위','직위/업무','업무']);
+      const cHire=findCol(H,['입사일','입사일자']);
+      const cQuit=findCol(H,['퇴사일','퇴사일자']);
+      if(cName<0||cHire<0){ showLoadNote('성명 또는 입사일 열을 찾지 못했어요.',true); return; }
+
+      const list=[];
+      for(let i=hIdx+1;i<rows.length;i++){
+        const r=rows[i]; if(!r) continue;
+        const name=r[cName]; if(!name||!String(name).trim()) continue;
+        const hire=parseDate(r[cHire]);
+        if(!hire) continue; // 입사일 없으면 스킵(더미행)
+        const rank=cRank>=0?String(r[cRank]||'').trim():'';
+        const dept=cDept>=0?String(r[cDept]||'').trim():'';
+        const title=cTitle>=0?String(r[cTitle]||'').trim():'';
+        list.push({
+          dept, name:String(name).trim(),
+          jumin:cJumin>=0?String(r[cJumin]||'').trim():'',
+          rank, title, hire, quit:cQuit>=0?parseDate(r[cQuit]):null,
+          leave:'', trans:'',
+          emp: rank==='계약직'?'계약직':'정규직',
+          cls: classify(dept, title)
+        });
+      }
+      STAFF=list;
+      drop.classList.add('loaded');
+      document.getElementById('filemeta').textContent=`✓ ${file.name} — 전체 ${list.length}명 로드 (조사기간 해당자만 자동 추출)`;
+      buildLeaveInputs();
+      recalc();
+    }catch(err){ showLoadNote('파일을 읽는 중 오류: '+err.message,true); }
+  };
+  reader.readAsBinaryString(file);
+}
+function showLoadNote(msg,isErr){
+  if(isErr){ alert(msg); }
+}
+
+/* ================= 조사기간 해당자만 추출 ================= */
+function inPeriod(s, ps, pe){
+  // 입사일 <= 종료일 AND (퇴사일 없음 OR 퇴사일 >= 시작일)
+  if(s.hire>pe) return false;
+  if(s.quit && s.quit<ps) return false;
+  return true;
+}
+
+/* ================= 휴직 입력 UI ================= */
+function buildLeaveInputs(){
+  const ps=parseDate(document.getElementById('periodStart').value);
+  const pe=parseDate(document.getElementById('periodEnd').value);
+  const panel=document.getElementById('leavePanel');
+  const box=document.getElementById('leaveList');
+  const targets=STAFF.filter(s=>inPeriod(s,ps,pe));
+  panel.style.display='block';
+  box.innerHTML=`<p class="mini" style="margin:0 0 10px">조사기간 해당 <b>${targets.length}명</b> · 휴직 있는 사람만 입력하세요. 나머지는 비워두면 만근 처리됩니다.</p>`;
+  // 검색 + 목록
+  const search=document.createElement('input');
+  search.type='text'; search.placeholder='이름으로 찾기…';
+  search.style.cssText='margin-bottom:12px;width:220px';
+  box.appendChild(search);
+  const tbl=document.createElement('div');
+  tbl.className='tablewrap'; tbl.style.maxHeight='360px';
+  box.appendChild(tbl);
+  function render(q){
+    const rows=targets.filter(s=>!q||s.name.includes(q));
+    tbl.innerHTML=`<table><thead><tr><th style="width:80px">성명</th><th style="width:110px">부서</th>
+      <th style="width:60px">고용</th><th>휴직·단축 (기간만 넣으면 자동계산)</th>
+      <th style="width:88px">정규직 전환일</th><th style="width:74px" class="num">실제근무일</th></tr></thead><tbody></tbody></table>`;
+    const tb=tbl.querySelector('tbody');
+    rows.forEach(s=>{
+      const tr=document.createElement('tr');
+      const idx=STAFF.indexOf(s);
+      tr.innerHTML=`<td><b>${s.name}</b></td><td class="mini">${s.dept}</td>
+        <td><span class="badge ${s.emp==='계약직'?'con':'reg'}">${s.emp}</span></td>
+        <td><textarea class="leaveinput" data-i="${idx}" placeholder="예: 안식 25.11.12~25.12.11 / 육아기단축 25.02.24~25.05.23 주15시간">${s.leave}</textarea></td>
+        <td><input type="date" data-t="${idx}" value="${s.trans}" style="width:84px;padding:6px"></td>
+        <td class="num" data-actual="${idx}" style="font-weight:700;color:var(--accent)">–</td>`;
+      tb.appendChild(tr);
+    });
+    tb.querySelectorAll('textarea').forEach(t=>{
+      t.oninput=()=>{ STAFF[+t.dataset.i].leave=t.value; };
+      t.onblur=()=>{ recalc(); flashSaved(t); updateInlineActual(); };
+    });
+    tb.querySelectorAll('input[type=date]').forEach(inp=>{
+      inp.onchange=()=>{ STAFF[+inp.dataset.t].trans=inp.value; recalc(); flashSaved(inp); updateInlineActual(); };
+    });
+    updateInlineActual();
+  }
+  search.oninput=()=>render(search.value.trim());
+  render('');
+}
+
+/* 입력 후 초록 반짝 (저장됨 신호) */
+function flashSaved(el){
+  el.style.transition='background .15s';
+  el.style.background='#d7f2e8';
+  setTimeout(()=>{ el.style.background='#fff'; },500);
+}
+/* 3번 표에 실제근무일 실시간 표시 */
+function updateInlineActual(){
+  document.querySelectorAll('[data-actual]').forEach(td=>{
+    const idx=+td.dataset.actual;
+    const s=STAFF[idx];
+    const r=RESULT.find(x=>x.name===s.name && x.jumin===s.jumin);
+    if(r){
+      td.textContent=r.actual;
+      td.style.color = r.flags.length ? 'var(--danger)' : (r.deduct>0?'var(--accent)':'#8b9695');
+      td.title = [...(r.notes||[]),...(r.flags||[])].join(' / ');
+    } else { td.textContent='–'; td.style.color='#8b9695'; td.title=''; }
+  });
+}
+
+/* ================= 계산 ================= */
+function recalc(){
+  const ps=parseDate(document.getElementById('periodStart').value);
+  const pe=parseDate(document.getElementById('periodEnd').value);
+  const base=daysIncl(ps,pe);
+  document.getElementById('baseDays').value=base+'일';
+  if(!STAFF.length) return;
+
+  RESULT=[];
+  STAFF.forEach(s=>{
+    if(!inPeriod(s,ps,pe)){ return; }
+    // 재직일수 (조사기간 ∩ [입사, 퇴사or종료])
+    const endWork=s.quit||pe;
+    const c=clip(s.hire, endWork, ps, pe);
+    const workDays=c.days;
+    // 휴직차감
+    const trans=s.trans?parseDate(s.trans):null;
+    const L=computeLeave(s.leave, ps, pe, trans);
+    let deduct=L.total;
+
+    // 개인휴가 이어붙임 탐지 (휴가파일 있을 때, 전일휴직 라인 대상)
+    let attachedDays=0; const attachNotes=[];
+    if(Object.keys(VAC).length && L.lines.length){
+      L.lines.forEach(ln=>{
+        if(ln.type==='full' && ln.ok && ln.start && ln.end){
+          const at=attachedLeave(s.name, ln.start, ln.end);
+          if(at.before+at.after>0){
+            attachedDays+=at.before+at.after;
+            attachNotes.push(`${at.before?'앞'+at.before+'일 ':''}${at.after?'뒤'+at.after+'일':''}`.trim());
+          }
+        }
+      });
+    }
+    // 개인휴가는 조사기간 내로만 (근사: 그대로 더함), 차감에 합산
+    if(attachedDays>0){
+      deduct+=attachedDays;
+      L.notes.push(`개인휴가 이어붙임 +${attachedDays}일 (${attachNotes.join(', ')})`);
+    }
+
+    // 16일 미만 만근 규칙: 전일휴직 + 붙은 개인휴가 합이 16 미만이면 제외
+    const fullSum=L.lines.filter(x=>x.type==='full'&&x.ok).reduce((a,b)=>a+b.deduct,0)+attachedDays;
+    if(fullSum>0 && fullSum<16){
+      deduct-=fullSum; // 만근 처리
+      L.notes.push(`휴직 ${round3(fullSum)}일 < 16일 → 만근 처리`);
+    }
+    deduct=round3(deduct);
+    const actual=round3(Math.max(0, workDays-deduct));
+
+    // 고용형태 분할 (전환일 기준)
+    let regDays=0, conDays=0;
+    if(s.emp==='계약직' && !trans){ conDays=actual; }
+    else if(s.emp==='정규직' && !trans){ regDays=actual; }
+    else if(trans){
+      // 전환 전=계약, 전환 후=정규 (재직일 기준 비례배분; 휴직은 단순비례)
+      const preC=clip(s.hire, new Date(trans-86400000), ps, pe).days;
+      const postC=clip(trans, endWork, ps, pe).days;
+      const tw=preC+postC || 1;
+      // 휴직차감을 두 구간 재직일 비율로 배분 (걸침 케이스 근사)
+      conDays=round3(Math.max(0, preC - deduct*preC/tw));
+      regDays=round3(Math.max(0, postC - deduct*postC/tw));
+    } else { regDays=actual; }
+
+    RESULT.push({...s, ps,pe, workDays, deduct, actual, regDays, conDays,
+      flags:L.flags, notes:L.notes||[], lines:L.lines,
+      hasLeave: !!(s.leave&&s.leave.trim()),
+      leaveDesc:L.lines.map(x=>x.desc).join(' · ')});
+  });
+  renderResult();
+  renderAvg();
+  if(typeof updateInlineActual==='function') updateInlineActual();
+  if(typeof autoSave==='function') autoSave();
+}
+
+/* ================= 결과 렌더 ================= */
+function renderResult(){
+  document.getElementById('resultPanel').style.display='block';
+  document.getElementById('avgPanel').style.display='block';
+  const body=document.getElementById('resultBody');
+  const rows=RESULT.filter(r=>{
+    if(curFilter==='all')return true;
+    if(curFilter==='leave')return r.hasLeave || (r.notes&&r.notes.length);
+    if(curFilter==='reg')return r.emp==='정규직';
+    if(curFilter==='con')return r.emp==='계약직';
+    if(curFilter==='flag')return r.flags.length>0;
+  });
+  body.innerHTML='';
+  rows.forEach((r,i)=>{
+    const tr=document.createElement('tr');
+    if(r.flags.length) tr.className='flag';
+    const noteBadges=(r.notes&&r.notes.length)?'<br><span class="badge note-b">'+r.notes.join('</span> <span class="badge note-b">')+'</span>':'';
+    const flagBadges=r.flags.length?'<br><span class="badge flag">'+r.flags.join('</span> <span class="badge flag">')+'</span>':'';
+    tr.innerHTML=`<td>${i+1}</td><td>${r.dept}</td><td>${r.cls}</td><td><b>${r.name}</b></td>
+      <td><span class="badge ${r.emp==='계약직'?'con':'reg'}">${r.emp}</span></td>
+      <td class="mini">${fmtDate(r.hire)}</td><td class="mini">${fmtDate(r.quit)}</td>
+      <td class="mini">${r.trans||''}</td>
+      <td class="num">${r.workDays}</td>
+      <td class="num">${r.deduct||''}</td>
+      <td class="num"><b>${r.actual}</b></td>
+      <td class="leavecell">${r.leaveDesc||''}${noteBadges}${flagBadges}</td>`;
+    body.appendChild(tr);
+  });
+  // 요약
+  const total=RESULT.length;
+  const reg=RESULT.filter(r=>r.emp==='정규직').length;
+  const con=RESULT.filter(r=>r.emp==='계약직').length;
+  const flagged=RESULT.filter(r=>r.flags.length).length;
+  const sumActual=round3(RESULT.reduce((a,b)=>a+b.actual,0));
+  document.getElementById('summary').innerHTML=`
+    <div class="card"><div class="k">조사기간 대상</div><div class="v">${total}<span style="font-size:14px">명</span></div></div>
+    <div class="card"><div class="k">정규직</div><div class="v">${reg}<span style="font-size:14px">명</span></div></div>
+    <div class="card"><div class="k">계약직</div><div class="v">${con}<span style="font-size:14px">명</span></div></div>
+    <div class="card ${flagged?'warn':''}"><div class="k">확인필요</div><div class="v">${flagged}<span style="font-size:14px">명</span></div></div>`;
+  const fn=document.getElementById('flagNote');
+  if(flagged){ fn.style.display='block';
+    fn.textContent=`확인필요 ${flagged}명 — 계산값이 원본과 다르거나 해석이 애매한 경우예요. 빨간 줄만 확인하시면 됩니다. (만근 처리된 사람은 확인 불필요)`; }
+  else fn.style.display='none';
+}
+
+function renderAvg(){
+  const ps=parseDate(document.getElementById('periodStart').value);
+  const pe=parseDate(document.getElementById('periodEnd').value);
+  const base=daysIncl(ps,pe);
+  const agg={};
+  RESULT.forEach(r=>{
+    if(!agg[r.cls]) agg[r.cls]={all:0,reg:0,con:0};
+    agg[r.cls].all+=r.actual;
+    agg[r.cls].reg+=r.regDays;
+    agg[r.cls].con+=r.conDays;
+  });
+  const body=document.getElementById('avgBody');
+  body.innerHTML='';
+  const order=Object.keys(agg).sort();
+  let tAll=0,tReg=0,tCon=0;
+  order.forEach(cls=>{
+    const a=agg[cls]; tAll+=a.all;tReg+=a.reg;tCon+=a.con;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><b>${cls}</b></td>
+      <td class="num">${round3(a.all)}</td><td class="num"><b>${(a.all/base).toFixed(2)}</b></td>
+      <td class="num">${round3(a.reg)}</td><td class="num">${(a.reg/base).toFixed(2)}</td>
+      <td class="num">${round3(a.con)}</td><td class="num">${(a.con/base).toFixed(2)}</td>`;
+    body.appendChild(tr);
+  });
+  const tr=document.createElement('tr');
+  tr.style.background='#eef4f2'; tr.style.fontWeight='800';
+  tr.innerHTML=`<td>합계</td>
+    <td class="num">${round3(tAll)}</td><td class="num">${(tAll/base).toFixed(2)}</td>
+    <td class="num">${round3(tReg)}</td><td class="num">${(tReg/base).toFixed(2)}</td>
+    <td class="num">${round3(tCon)}</td><td class="num">${(tCon/base).toFixed(2)}</td>`;
+  body.appendChild(tr);
+  renderForm(agg, base);
+}
+
+/* 한글 서식(제3쪽) 배열 — 시스템 분류 → 서식 행 매핑 */
+const FORM_LAYOUT=[
+  {label:'전 문 의', cls:'전문의'},
+  {label:'레지던트', cls:null},
+  {label:'인    턴', cls:null},
+  {label:'일 반 의', cls:'일반의'},
+  {group:'일반', label:'조 산 사', cls:null},
+  {group:'일반', label:'간 호 사', cls:'간호사'},
+  {group:'일반', label:'간호조무사', cls:'간호조무사'},
+  {group:'일반', label:'기    타', cls:null},
+  {group:'중환자실', label:'간 호 사', cls:null},
+  {group:'중환자실', label:'간호조무사', cls:null},
+  {group:'중환자실', label:'기    타', cls:null},
+  {group:'신생아중환자실', label:'간호사', cls:null},
+  {group:'신생아중환자실', label:'간호조무사', cls:null},
+  {group:'신생아중환자실', label:'기타', cls:null},
+  {group:'응급실', label:'간호사', cls:null},
+  {group:'응급실', label:'간호조무사', cls:null},
+  {group:'응급실', label:'기타', cls:null},
+  {label:'약    사', cls:'약사'},
+  {label:'한 약 사', cls:null},
+  {label:'임상병리사', cls:'임상병리사'},
+  {label:'방사선사', cls:'방사선사'},
+  {label:'물리치료사', cls:'물리치료사'},
+  {label:'작업치료사', cls:'작업치료사'},
+  {label:'치과기공사', cls:null},
+  {label:'치과위생사', cls:null},
+  {label:'보건의료정보관리사', cls:'보건의료정보관리사'},
+  {label:'영  양  사', cls:'영양사'},
+  {label:'사 회 복 지 사', cls:'사회복지사'},
+  {label:'행 정 ㆍ 사 무 직', cls:'행정사무직'},
+  {label:'기능 고용 및 기타', cls:'기타'},
+];
+
+function formValues(agg, base){
+  // 각 서식행의 계/정규/계약 평균인원
+  const rows=FORM_LAYOUT.map(item=>{
+    let all=0,reg=0,con=0;
+    if(item.cls && agg[item.cls]){
+      all=agg[item.cls].all/base; reg=agg[item.cls].reg/base; con=agg[item.cls].con/base;
+    }
+    return {...item, all, reg, con};
+  });
+  return rows;
+}
+
+function renderForm(agg, base){
+  document.getElementById('formPanel').style.display='block';
+  const rows=formValues(agg, base);
+  const tb=document.getElementById('formBody');
+  tb.innerHTML='';
+  let prevGroup=null, tAll=0,tReg=0,tCon=0;
+  // 그룹별 rowspan 계산
+  const groupCount={};
+  rows.forEach(r=>{ if(r.group) groupCount[r.group]=(groupCount[r.group]||0)+1; });
+  const groupDone={};
+  rows.forEach(r=>{
+    tAll+=r.all; tReg+=r.reg; tCon+=r.con;
+    const tr=document.createElement('tr');
+    let cells='';
+    if(r.group){
+      if(!groupDone[r.group]){
+        cells+=`<td rowspan="${groupCount[r.group]}" style="vertical-align:middle;font-weight:700;background:#f4f7f6">${r.group}</td>`;
+        groupDone[r.group]=true;
+      }
+      cells+=`<td>${r.label}</td>`;
+    } else {
+      cells+=`<td colspan="2"><b>${r.label}</b></td>`;
+    }
+    const fmt=v=>v>0?v.toFixed(2):(v<0?v.toFixed(2):'0');
+    cells+=`<td class="num"><b>${fmt(r.all)}</b></td><td class="num">${fmt(r.reg)}</td><td class="num">${fmt(r.con)}</td>`;
+    tr.innerHTML=cells;
+    if(r.all>0) tr.style.background='#f0f6f4';
+    tb.appendChild(tr);
+  });
+  const tr=document.createElement('tr');
+  tr.style.background='#eef4f2'; tr.style.fontWeight='800';
+  tr.innerHTML=`<td colspan="2">총          계</td>
+    <td class="num">${tAll.toFixed(2)}</td><td class="num">${tReg.toFixed(2)}</td><td class="num">${tCon.toFixed(2)}</td>`;
+  tb.appendChild(tr);
+}
+document.getElementById('filter').onclick=e=>{
+  if(e.target.tagName!=='BUTTON')return;
+  document.querySelectorAll('#filter button').forEach(b=>b.classList.remove('on'));
+  e.target.classList.add('on'); curFilter=e.target.dataset.f; renderResult();
+};
+document.getElementById('recalcBtn').onclick=()=>{buildLeaveInputs();recalc();};
+
+/* 인증 제출 서식 엑셀 다운로드 */
+document.getElementById('exportFormBtn').onclick=()=>{
+  if(!RESULT.length) return;
+  const ps=parseDate(document.getElementById('periodStart').value);
+  const pe=parseDate(document.getElementById('periodEnd').value);
+  const base=daysIncl(ps,pe);
+  const agg={};
+  RESULT.forEach(r=>{ if(!agg[r.cls])agg[r.cls]={all:0,reg:0,con:0};
+    agg[r.cls].all+=r.actual;agg[r.cls].reg+=r.regDays;agg[r.cls].con+=r.conDays; });
+  const rows=formValues(agg, base);
+  const aoa=[['분류(구분)','분류','계','정규직','계약직','임시직','용역직','파견직']];
+  let tAll=0,tReg=0,tCon=0;
+  rows.forEach(r=>{
+    tAll+=r.all;tReg+=r.reg;tCon+=r.con;
+    aoa.push([r.group||'', r.label,
+      +r.all.toFixed(2), +r.reg.toFixed(2), +r.con.toFixed(2), 0,0,0]);
+  });
+  aoa.push(['','총계', +tAll.toFixed(2), +tReg.toFixed(2), +tCon.toFixed(2),0,0,0]);
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  const wb=XLSX.utils.book_new();
+  const psv=document.getElementById('periodStart').value, pev=document.getElementById('periodEnd').value;
+  const info=XLSX.utils.aoa_to_sheet([['의료기관 운영현황 제3쪽 - 인력현황'],['조사기간',psv+' ~ '+pev],['기준일수',base],['단위','전일근무자 수 환산(FTE) = 근무일수합 ÷ '+base]]);
+  XLSX.utils.book_append_sheet(wb,info,'안내');
+  XLSX.utils.book_append_sheet(wb,ws,'인력현황(제3쪽)');
+  XLSX.writeFile(wb,`인증제출서식_인력현황_${psv}_${pev}.xlsx`);
+};
+
+/* 휴직명단 엑셀 업로드 */
+const dropLeave=document.getElementById('dropLeave'), fileInputLeave=document.getElementById('fileInputLeave');
+dropLeave.onclick=()=>fileInputLeave.click();
+dropLeave.ondragover=e=>{e.preventDefault();dropLeave.classList.add('over');};
+dropLeave.ondragleave=()=>dropLeave.classList.remove('over');
+dropLeave.ondrop=e=>{e.preventDefault();dropLeave.classList.remove('over');if(e.dataTransfer.files[0])loadLeaveFile(e.dataTransfer.files[0]);};
+fileInputLeave.onchange=e=>{if(e.target.files[0])loadLeaveFile(e.target.files[0]);};
+
+function loadLeaveFile(file){
+  if(!STAFF.length){ alert('먼저 명단(ERP)을 업로드해주세요.'); return; }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'binary',cellDates:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,dateNF:'yyyy-mm-dd'});
+      let hIdx=-1, cName=-1, cContent=-1;
+      for(let i=0;i<Math.min(rows.length,8);i++){
+        const row=(rows[i]||[]).map(x=>String(x||'').replace(/\s/g,''));
+        const ni=row.findIndex(h=>/성명|이름|사원명/.test(h));
+        const ci=row.findIndex(h=>/휴직내용|내용|기간|비고|휴직/.test(h));
+        if(ni>=0 && ci>=0){ hIdx=i; cName=ni; cContent=ci; break; }
+      }
+      if(hIdx<0){ cName=4; cContent=7; }
+      const leaveByName={};
+      const startR = hIdx<0 ? 0 : hIdx+1;
+      for(let i=startR;i<rows.length;i++){
+        const r=rows[i]; if(!r) continue;
+        const name=String(r[cName]||'').trim();
+        const content=String(r[cContent]||'').trim();
+        if(!name||!content) continue;
+        if(!leaveByName[name]) leaveByName[name]=[];
+        leaveByName[name].push(content);
+      }
+      let applied=0, notfound=[];
+      Object.keys(leaveByName).forEach(name=>{
+        const matches=STAFF.filter(s=>s.name===name);
+        if(matches.length===0){ notfound.push(name); return; }
+        const text=leaveByName[name].join('\n');
+        matches.forEach(s=>{ s.leave = text; });
+        applied++;
+      });
+      dropLeave.classList.add('loaded');
+      let msg=`✓ ${file.name} — ${applied}명 휴직 자동입력`;
+      if(notfound.length) msg+=` · 명단에 없음: ${notfound.slice(0,8).join(', ')}${notfound.length>8?' 외 '+(notfound.length-8)+'명':''}`;
+      document.getElementById('filemetaLeave').textContent=msg;
+      buildLeaveInputs();
+      recalc();
+    }catch(err){ alert('휴직파일 오류: '+err.message); }
+  };
+  reader.readAsBinaryString(file);
+}
+
+/* 정규직 전환자 일괄 적용 */
+document.getElementById('applyBulkTrans').onclick=()=>{
+  const raw=document.getElementById('bulkTrans').value.trim();
+  const resEl=document.getElementById('bulkTransResult');
+  if(!raw){ resEl.textContent='붙여넣은 내용이 없어요.'; resEl.style.color='var(--warn)'; return; }
+  let applied=0, notfound=[];
+  raw.split(/\n+/).forEach(line=>{
+    const parts=line.trim().split(/[\t]+|\s{2,}|\s+/).filter(x=>x);
+    if(parts.length<2) return;
+    // 마지막 토큰이 날짜, 앞쪽이 이름
+    const dateTok=parts[parts.length-1];
+    const name=parts.slice(0,parts.length-1).join('');
+    const d=parseDate(dateTok);
+    if(!d){ return; }
+    const iso=fmtDate(d);
+    // 이름 매칭 (조사기간 대상자 우선)
+    const matches=STAFF.filter(s=>s.name===name);
+    if(matches.length===0){ notfound.push(name); return; }
+    matches.forEach(s=>{ s.trans=iso; });
+    applied++;
+  });
+  buildLeaveInputs(); recalc();
+  let msg=`✓ ${applied}명 적용 완료`;
+  if(notfound.length) msg+=` · 명단에 없는 이름: ${notfound.join(', ')}`;
+  resEl.textContent=msg;
+  resEl.style.color=notfound.length?'var(--warn)':'var(--accent)';
+};
+document.getElementById('periodStart').onchange=()=>{buildLeaveInputs();recalc();};
+document.getElementById('periodEnd').onchange=()=>{buildLeaveInputs();recalc();};
+
+/* ================= 엑셀 출력 ================= */
+document.getElementById('exportBtn').onclick=()=>{
+  if(!RESULT.length) return;
+  const ps=document.getElementById('periodStart').value;
+  const pe=document.getElementById('periodEnd').value;
+  const base=daysIncl(parseDate(ps),parseDate(pe));
+  // 명단 시트
+  const rows=RESULT.map((r,i)=>({
+    '순번':i+1,'부서':r.dept,'분류':r.cls,'성명':r.name,'주민등록번호':r.jumin,
+    '고용형태':r.emp,'입사일':fmtDate(r.hire),'퇴사일':fmtDate(r.quit),'전환일':r.trans||'',
+    '재직일수':r.workDays,'휴직차감(A)':r.deduct,'실제근무일수':r.actual,
+    '정규직근무일':r.regDays,'계약직근무일':r.conDays,
+    '휴직해석':r.leaveDesc,'확인필요':r.flags.join(' / ')
+  }));
+  const ws1=XLSX.utils.json_to_sheet(rows);
+  // 평균 시트
+  const agg={};
+  RESULT.forEach(r=>{ if(!agg[r.cls])agg[r.cls]={all:0,reg:0,con:0};
+    agg[r.cls].all+=r.actual;agg[r.cls].reg+=r.regDays;agg[r.cls].con+=r.conDays; });
+  const avgRows=Object.keys(agg).sort().map(cls=>({
+    '분류':cls,'전체근무일합':round3(agg[cls].all),'전체평균인원':+(agg[cls].all/base).toFixed(2),
+    '정규직근무일합':round3(agg[cls].reg),'정규평균인원':+(agg[cls].reg/base).toFixed(2),
+    '계약직근무일합':round3(agg[cls].con),'계약평균인원':+(agg[cls].con/base).toFixed(2)
+  }));
+  const ws2=XLSX.utils.json_to_sheet(avgRows);
+  const info=XLSX.utils.aoa_to_sheet([['조사기간',ps+' ~ '+pe],['기준일수',base],['대상인원',RESULT.length],['생성일시',new Date().toLocaleString('ko-KR')]]);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,info,'기준정보');
+  XLSX.utils.book_append_sheet(wb,ws1,'인력명단');
+  XLSX.utils.book_append_sheet(wb,ws2,'분류별평균인원');
+  XLSX.writeFile(wb,`인증인력자료_${ps}_${pe}.xlsx`);
+};
+
+/* 초기 기준일수 */
+document.getElementById('baseDays').value=daysIncl(parseDate('2025-09-01'),parseDate('2026-08-31'))+'일';
+
+/* ================= 저장 / 불러오기 ================= */
+const SAVE_KEY='cert_hr_tool_save_v1';
+let autoSaveOK=true;
+
+function snapshot(){
+  return {
+    periodStart:document.getElementById('periodStart').value,
+    periodEnd:document.getElementById('periodEnd').value,
+    staff:STAFF.map(s=>({
+      dept:s.dept,name:s.name,jumin:s.jumin,rank:s.rank,title:s.title||"",
+      hire:s.hire?fmtDate(s.hire):null, quit:s.quit?fmtDate(s.quit):null,
+      leave:s.leave, trans:s.trans, emp:s.emp, cls:s.cls
+    })),
+    savedAt:new Date().toISOString()
+  };
+}
+function restore(data){
+  if(!data) return;
+  if(data.periodStart) document.getElementById('periodStart').value=data.periodStart;
+  if(data.periodEnd) document.getElementById('periodEnd').value=data.periodEnd;
+  if(Array.isArray(data.staff)){
+    STAFF=data.staff.map(s=>({
+      dept:s.dept,name:s.name,jumin:s.jumin,rank:s.rank,title:s.title||"",
+      hire:s.hire?parseDate(s.hire):null, quit:s.quit?parseDate(s.quit):null,
+      leave:s.leave||'', trans:s.trans||'', emp:s.emp||'정규직', cls:s.cls||'기타'
+    }));
+    if(STAFF.length){
+      drop.classList.add('loaded');
+      document.getElementById('filemeta').textContent=`✓ 저장된 명단 ${STAFF.length}명 복원됨`;
+      buildLeaveInputs(); recalc();
+    }
+  }
+}
+
+// 자동저장 (localStorage, 실패해도 조용히)
+function autoSave(){
+  if(!autoSaveOK) return;
+  try{
+    localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot()));
+    const el=document.getElementById('autoSaveStatus');
+    el.textContent='자동 저장됨 · '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){ autoSaveOK=false;
+    document.getElementById('autoSaveStatus').textContent='(자동저장 불가 - 파일 저장을 이용하세요)';
+    document.getElementById('autoSaveStatus').style.color='var(--warn)';
+  }
+}
+// 자동복원
+(function tryAutoRestore(){
+  try{
+    const raw=localStorage.getItem(SAVE_KEY);
+    if(raw){ restore(JSON.parse(raw)); }
+  }catch(e){}
+})();
+
+// 파일 저장
+document.getElementById('saveFileBtn').onclick=()=>{
+  const blob=new Blob([JSON.stringify(snapshot(),null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const ds=document.getElementById('periodStart').value, de=document.getElementById('periodEnd').value;
+  a.href=url; a.download=`인증작업저장_${ds}_${de}.json`; a.click();
+  URL.revokeObjectURL(url);
+};
+// 파일 불러오기
+document.getElementById('loadFileBtn2').onclick=()=>document.getElementById('restoreInput').click();
+document.getElementById('restoreInput').onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{ try{ restore(JSON.parse(ev.target.result)); autoSave(); }
+    catch(err){ alert('저장파일을 읽을 수 없어요: '+err.message); } };
+  r.readAsText(f);
+};
+</script>
+</body>
+</html>
