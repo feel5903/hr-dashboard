@@ -298,6 +298,7 @@ function clip(s,e,ps,pe){ // 기간 교집합
 }
 function fmtDate(d){ if(!d) return ''; return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function round3(n){ return Math.round(n*1000)/1000; }
+function r1(n){ return Math.round(n*10)/10; }  // 표시용 첫째자리 반올림
 
 /* ================= 휴직 문장 해석 ================= */
 function parseLeaveLine(line, ps, pe){
@@ -592,7 +593,7 @@ function updateInlineActual(){
     const s=STAFF[idx];
     const r=RESULT.find(x=>x.name===s.name && x.jumin===s.jumin);
     if(r){
-      td.textContent=r.actual;
+      td.textContent=r1(r.actual);
       td.style.color = r.flags.length ? 'var(--danger)' : (r.deduct>0?'var(--accent)':'#8b9695');
       td.title = [...(r.notes||[]),...(r.flags||[])].join(' / ');
     } else { td.textContent='–'; td.style.color='#8b9695'; td.title=''; }
@@ -707,8 +708,8 @@ function renderResult(){
       <td class="mini">${fmtDate(r.hire)}</td><td class="mini">${fmtDate(r.quit)}</td>
       <td class="mini">${r.trans||''}</td>
       <td class="num">${r.workDays}</td>
-      <td class="num">${r.deduct||''}</td>
-      <td class="num"><b>${r.actual}</b></td>
+      <td class="num">${r.deduct?r1(r.deduct):''}</td>
+      <td class="num"><b>${r1(r.actual)}</b></td>
       <td class="leavecell">${r.leaveDesc||''}${noteBadges}${flagBadges}</td>`;
     body.appendChild(tr);
   });
@@ -717,7 +718,7 @@ function renderResult(){
   const reg=RESULT.filter(r=>r.emp==='정규직').length;
   const con=RESULT.filter(r=>r.emp==='계약직').length;
   const flagged=RESULT.filter(r=>r.flags.length).length;
-  const sumActual=round3(RESULT.reduce((a,b)=>a+b.actual,0));
+  const sumActual=r1(RESULT.reduce((a,b)=>a+b.actual,0));
   document.getElementById('summary').innerHTML=`
     <div class="card"><div class="k">조사기간 대상</div><div class="v">${total}<span style="font-size:14px">명</span></div></div>
     <div class="card"><div class="k">정규직</div><div class="v">${reg}<span style="font-size:14px">명</span></div></div>
@@ -748,17 +749,17 @@ function renderAvg(){
     const a=agg[cls]; tAll+=a.all;tReg+=a.reg;tCon+=a.con;
     const tr=document.createElement('tr');
     tr.innerHTML=`<td><b>${cls}</b></td>
-      <td class="num">${round3(a.all)}</td><td class="num"><b>${(a.all/base).toFixed(2)}</b></td>
-      <td class="num">${round3(a.reg)}</td><td class="num">${(a.reg/base).toFixed(2)}</td>
-      <td class="num">${round3(a.con)}</td><td class="num">${(a.con/base).toFixed(2)}</td>`;
+      <td class="num">${r1(a.all)}</td><td class="num"><b>${(a.all/base).toFixed(2)}</b></td>
+      <td class="num">${r1(a.reg)}</td><td class="num">${(a.reg/base).toFixed(2)}</td>
+      <td class="num">${r1(a.con)}</td><td class="num">${(a.con/base).toFixed(2)}</td>`;
     body.appendChild(tr);
   });
   const tr=document.createElement('tr');
   tr.style.background='#eef4f2'; tr.style.fontWeight='800';
   tr.innerHTML=`<td>합계</td>
-    <td class="num">${round3(tAll)}</td><td class="num">${(tAll/base).toFixed(2)}</td>
-    <td class="num">${round3(tReg)}</td><td class="num">${(tReg/base).toFixed(2)}</td>
-    <td class="num">${round3(tCon)}</td><td class="num">${(tCon/base).toFixed(2)}</td>`;
+    <td class="num">${r1(tAll)}</td><td class="num">${(tAll/base).toFixed(2)}</td>
+    <td class="num">${r1(tReg)}</td><td class="num">${(tReg/base).toFixed(2)}</td>
+    <td class="num">${r1(tCon)}</td><td class="num">${(tCon/base).toFixed(2)}</td>`;
   body.appendChild(tr);
   renderForm(agg, base);
 }
@@ -971,8 +972,8 @@ document.getElementById('exportBtn').onclick=()=>{
   const rows=RESULT.map((r,i)=>({
     '순번':i+1,'부서':r.dept,'분류':r.cls,'성명':r.name,'주민등록번호':r.jumin,
     '고용형태':r.emp,'입사일':fmtDate(r.hire),'퇴사일':fmtDate(r.quit),'전환일':r.trans||'',
-    '재직일수':r.workDays,'휴직차감(A)':r.deduct,'실제근무일수':r.actual,
-    '정규직근무일':r.regDays,'계약직근무일':r.conDays,
+    '재직일수':r.workDays,'휴직차감(A)':r1(r.deduct),'실제근무일수':r1(r.actual),
+    '정규직근무일':r1(r.regDays),'계약직근무일':r1(r.conDays),
     '휴직해석':r.leaveDesc,'확인필요':r.flags.join(' / ')
   }));
   const ws1=XLSX.utils.json_to_sheet(rows);
@@ -981,9 +982,9 @@ document.getElementById('exportBtn').onclick=()=>{
   RESULT.forEach(r=>{ if(!agg[r.cls])agg[r.cls]={all:0,reg:0,con:0};
     agg[r.cls].all+=r.actual;agg[r.cls].reg+=r.regDays;agg[r.cls].con+=r.conDays; });
   const avgRows=Object.keys(agg).sort().map(cls=>({
-    '분류':cls,'전체근무일합':round3(agg[cls].all),'전체평균인원':+(agg[cls].all/base).toFixed(2),
-    '정규직근무일합':round3(agg[cls].reg),'정규평균인원':+(agg[cls].reg/base).toFixed(2),
-    '계약직근무일합':round3(agg[cls].con),'계약평균인원':+(agg[cls].con/base).toFixed(2)
+    '분류':cls,'전체근무일합':r1(agg[cls].all),'전체평균인원':+(agg[cls].all/base).toFixed(2),
+    '정규직근무일합':r1(agg[cls].reg),'정규평균인원':+(agg[cls].reg/base).toFixed(2),
+    '계약직근무일합':r1(agg[cls].con),'계약평균인원':+(agg[cls].con/base).toFixed(2)
   }));
   const ws2=XLSX.utils.json_to_sheet(avgRows);
   const info=XLSX.utils.aoa_to_sheet([['조사기간',ps+' ~ '+pe],['기준일수',base],['대상인원',RESULT.length],['생성일시',new Date().toLocaleString('ko-KR')]]);
