@@ -255,6 +255,7 @@
       <p>서울재활병원 인사과 &middot; 지원서류(경력증명서) 기준 근무기간 → 인정경력 자동 환산</p>
     </div>
     <div class="top-actions">
+      <button class="btn btn-ghost" onclick="clearForm()">🗑 초기화 (새 사람 시작)</button>
       <button class="btn btn-ghost" onclick="window.print()">🖨 인쇄</button>
       <a class="btn" href="https://www.hira.or.kr/ra/hosp/getHealthMap.do?pgmid=HIRAA030002010000" target="_blank" rel="noopener">🔍 병원종별 확인 (심평원)</a>
     </div>
@@ -840,11 +841,28 @@ function onCategoryChange(){
 }
 
 function clearForm(){
-  if(!confirm('현재 입력 내용을 모두 지우고 새로 작성하시겠습니까?')) return;
+  if(!confirm('현재 입력 내용을 모두 지우고 새로 작성하시겠습니까? (근무경력 + 연봉표 입력값 전부 초기화됩니다)')) return;
   document.getElementById('candidateName').value = '';
+  document.getElementById('jobCategory').selectedIndex = 0;
+  document.getElementById('degreeType').value = '0';
   document.getElementById('tbody').innerHTML = '';
   addRow();
   addRow();
+  onCategoryChange();
+
+  document.getElementById('salaryName').value = '';
+  document.getElementById('salaryGrade').selectedIndex = 3; // '4급'
+  document.getElementById('salaryPosition').selectedIndex = 0;
+  document.getElementById('salaryHireDate').value = '';
+  document.getElementById('salaryShift3').checked = false;
+  document.getElementById('salaryLicenseOther').checked = false;
+  document.getElementById('salarySpecialDuty').value = 'none';
+  document.getElementById('salaryNursingIntegrated').checked = false;
+  document.getElementById('salaryNextYear').checked = false;
+  document.getElementById('salaryYear').value = new Date().getFullYear();
+  document.getElementById('salaryLunarNY').value = 2;
+  document.getElementById('salaryChuseok').value = 9;
+  document.getElementById('salaryStatus').style.display = 'none';
 }
 
 // ---- 저장/불러오기 (localStorage) ----
@@ -1533,13 +1551,13 @@ function generateSalarySheet(){
     setF('N'+row, `SUM(B${row}:M${row})`, rowTotal);
   });
 
-  // 월별 총계(30행) - 그 달의 모든 항목(9~28행) 합계를 캐시로 저장
+  // 월별 총계(30행) - 그 달의 모든 항목(9~29행) 합계를 캐시로 저장
   for(let m=1;m<=12;m++){
     const col = monthCol(m);
     const monthTotal = [];
-    for(let r=9;r<=28;r++){ monthTotal.push(cellNum(col+r)); }
+    for(let r=9;r<=29;r++){ monthTotal.push(cellNum(col+r)); }
     const sum = monthTotal.reduce((s,v)=>s+v, 0);
-    setF(col+'30', `SUM(${col}9:${col}28)`, sum);
+    setF(col+'30', `SUM(${col}9:${col}29)`, sum);
   }
   const n30 = ['B','C','D','E','F','G','H','I','J','K','L','M'].reduce((s,c)=> s + cellNum(c+'30'), 0);
   setF('N30','SUM(B30:M30)', n30);
