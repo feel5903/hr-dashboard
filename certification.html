@@ -97,16 +97,9 @@
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 4px;align-items:center">
     <button class="btn ghost" id="saveFileBtn" style="padding:8px 14px;font-size:12.5px">💾 작업 저장(파일)</button>
     <button class="btn ghost" id="loadFileBtn2" style="padding:8px 14px;font-size:12.5px">📂 저장파일 불러오기</button>
+    <button class="btn ghost" id="resetBtn" style="padding:8px 14px;font-size:12.5px;color:var(--danger);border-color:#e5b8b8">🗑 초기화 (처음부터)</button>
     <input type="file" id="restoreInput" accept=".json" style="display:none">
     <span class="mini" id="autoSaveStatus" style="color:var(--accent)"></span>
-  </div>
-
-  <div class="steps">
-    <span class="step"><b>1</b>조사기간 설정</span>
-    <span class="step"><b>2</b>명단 업로드</span>
-    <span class="step"><b>3</b>휴직·전환 입력</span>
-    <span class="step"><b>4</b>계산·검토</span>
-    <span class="step"><b>5</b>엑셀 출력</span>
   </div>
 
   <!-- STEP 1 -->
@@ -558,7 +551,7 @@ function buildLeaveInputs(){
       const idx=STAFF.indexOf(s);
       tr.innerHTML=`<td><b>${s.name}</b></td><td class="mini">${s.dept}</td>
         <td><span class="badge ${s.emp==='계약직'?'con':'reg'}">${s.emp}</span></td>
-        <td><textarea class="leaveinput" data-i="${idx}" placeholder="예: 안식 25.11.12~25.12.11 / 육아기단축 25.02.24~25.05.23 주15시간">${s.leave}</textarea></td>
+        <td><textarea class="leaveinput" data-i="${idx}">${s.leave}</textarea></td>
         <td><input type="date" data-t="${idx}" value="${s.trans}" style="width:84px;padding:6px"></td>
         <td class="num"><input type="number" step="0.001" data-m="${idx}" value="${s.manual!=null&&s.manual!==''?s.manual:''}" placeholder="–" style="width:70px;padding:5px;text-align:right"></td>
         <td class="num" data-actual="${idx}" style="font-weight:700;color:var(--accent)">–</td>`;
@@ -1063,6 +1056,27 @@ document.getElementById('saveFileBtn').onclick=()=>{
 };
 // 파일 불러오기
 document.getElementById('loadFileBtn2').onclick=()=>document.getElementById('restoreInput').click();
+
+/* 초기화 - 처음부터 다시 */
+document.getElementById('resetBtn').onclick=()=>{
+  if(!confirm('입력한 모든 내용을 지우고 처음부터 시작할까요?\n(자동저장된 내용도 삭제됩니다. 필요하면 먼저 "작업 저장"으로 백업하세요.)')) return;
+  try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
+  STAFF=[]; RESULT=[]; VAC={};
+  document.getElementById('filemeta').textContent='';
+  document.getElementById('filemetaVac').textContent='';
+  document.getElementById('filemetaLeave').textContent='';
+  document.getElementById('bulkTrans').value='';
+  document.getElementById('bulkTransResult').textContent='';
+  drop.classList.remove('loaded');
+  dropVac.classList.remove('loaded');
+  dropLeave.classList.remove('loaded');
+  document.getElementById('leavePanel').style.display='none';
+  document.getElementById('resultPanel').style.display='none';
+  document.getElementById('avgPanel').style.display='none';
+  document.getElementById('formPanel').style.display='none';
+  document.getElementById('autoSaveStatus').textContent='초기화됨';
+  window.scrollTo(0,0);
+};
 document.getElementById('restoreInput').onchange=e=>{
   const f=e.target.files[0]; if(!f)return;
   const r=new FileReader();
