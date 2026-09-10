@@ -368,6 +368,9 @@
         </select>
       </label>
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);">
+        <input type="checkbox" id="salaryNursingIntegrated" style="width:16px;height:16px;"> 간호간병통합수당 (300,000원 적용)
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);">
         <input type="checkbox" id="salaryNextYear" style="width:16px;height:16px;"> 다음해 1월1일자 연봉표도 함께 생성 (정근수당 포함, 경력 이어서 계산)
       </label>
     </div>
@@ -384,7 +387,7 @@
     </div>
     <div id="salaryStatus" class="hint" style="display:none;margin-top:10px;"></div>
     <div class="hint" style="margin-top:10px;">
-      직종 선택·경력 입력을 먼저 완료해주세요. 자동 계산: 기본급(호봉표+승급시점)·기말수당·정근수당·직무수당·가계보조수당·교통비·정액급식비·종사자복지수당·장기근속수당(이 병원 근속연수 기준)·가계안정지원비(4·10월)·효도휴가비(설·추석월)·특수업무수당·직급보조수당·균형수당·근골격계질환예방수당·(간호사 3교대 시)교대수당·(간호사·치료사)면허수당. <b>가족수당·직책수당·조정수당·간호간병통합수당·(3교대 아닌 경우)교대수당·(간호사·치료사 외)면허수당은 빈칸으로 두니 직접 확인 후 입력해주세요.</b> 생성된 파일은 일반 엑셀처럼 자유롭게 수정 가능합니다.
+      직종 선택·경력 입력을 먼저 완료해주세요. 자동 계산: 기본급(호봉표+승급시점)·기말수당·정근수당·직무수당·가계보조수당·교통비·정액급식비·종사자복지수당·장기근속수당(총 인정경력 기준)·가계안정지원비(4·10월)·효도휴가비(설·추석월)·특수업무수당·직급보조수당·균형수당·근골격계질환예방수당·(간호사 3교대 시)교대수당·(간호사·치료사)면허수당·(체크 시)간호간병통합수당. <b>가족수당·직책수당·조정수당·(3교대 아닌 경우)교대수당·(간호사·치료사 외)면허수당은 빈칸으로 두니 직접 확인 후 입력해주세요.</b> 생성된 파일은 일반 엑셀처럼 자유롭게 수정 가능합니다.
     </div>
   </div>
 
@@ -549,6 +552,7 @@ function buildComparisonData(){
         lunarNYMonth: Number(s.lunarNY || 2),
         chuseokMonth: Number(s.chuseok || 9),
         specialDutyTrack: s.specialDutyTrack || 'none',
+        nursingIntegrated: !!s.nursingIntegrated,
       };
       const year1 = Number(s.year);
       const sum1 = computeAnnualSummary(params, year1, false);
@@ -897,6 +901,7 @@ function gatherCurrentState(){
     shift3: document.getElementById('salaryShift3').checked,
     licenseOther: document.getElementById('salaryLicenseOther').checked,
     specialDutyTrack: document.getElementById('salarySpecialDuty').value,
+    nursingIntegrated: document.getElementById('salaryNursingIntegrated').checked,
     nextYear: document.getElementById('salaryNextYear').checked,
     year: document.getElementById('salaryYear').value,
     lunarNY: document.getElementById('salaryLunarNY').value,
@@ -998,6 +1003,7 @@ function loadRecord(id){
     if(s.shift3 !== undefined) document.getElementById('salaryShift3').checked = s.shift3;
     if(s.licenseOther !== undefined) document.getElementById('salaryLicenseOther').checked = s.licenseOther;
     if(s.specialDutyTrack !== undefined) document.getElementById('salarySpecialDuty').value = s.specialDutyTrack;
+    if(s.nursingIntegrated !== undefined) document.getElementById('salaryNursingIntegrated').checked = s.nursingIntegrated;
     if(s.nextYear !== undefined) document.getElementById('salaryNextYear').checked = s.nextYear;
     if(s.year !== undefined) document.getElementById('salaryYear').value = s.year;
     if(s.lunarNY !== undefined) document.getElementById('salaryLunarNY').value = s.lunarNY;
@@ -1092,7 +1098,7 @@ function computeRecognizedMonthsFromRows(rows){
 
 // 연봉표 생성과 동일한 계산식으로, 시트를 만들지 않고 연간 총계·연봉추정치만 계산 (비교표용)
 function computeAnnualSummary(params, year, isContinuation){
-  const { M0, degree, gradeKey, hireDateStr, jobCategory, shift3, licenseOther, lunarNYMonth, chuseokMonth, specialDutyTrack } = params;
+  const { M0, degree, gradeKey, hireDateStr, jobCategory, shift3, licenseOther, lunarNYMonth, chuseokMonth, specialDutyTrack, nursingIntegrated } = params;
   const hireDate = parseLocalDate(hireDateStr);
   const hireYear = hireDate.getFullYear(), hireMonth = hireDate.getMonth()+1, hireDay = hireDate.getDate();
 
@@ -1218,6 +1224,7 @@ function computeAnnualSummary(params, year, isContinuation){
     if(active) total += 100000;
     if(active) total += 50000;
     if(active) total += 50000;
+    if(active && nursingIntegrated) total += 300000;
   }
   // 기말수당 (분기 3개월 기본급 평균 합)
   [[1,2,3],[4,5,6],[7,8,9],[10,11,12]].forEach(q=>{
@@ -1502,6 +1509,7 @@ function generateSalarySheet(){
     if(active) setN(col+'26', 100000);
     if(active) setN(col+'27', 50000);
     if(active) setN(col+'28', 50000);
+    if(active && document.getElementById('salaryNursingIntegrated').checked) setN(col+'29', 300000);
   }
   const j1 = jeongeun(1); if(j1!==null) setN('B11', j1); // 1월 = B열
   const j7 = jeongeun(7); if(j7!==null) setN('H11', j7); // 7월 = H열
