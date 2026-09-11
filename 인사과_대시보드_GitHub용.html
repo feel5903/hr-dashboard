@@ -182,7 +182,7 @@ tbody tr:hover{background:#FAFBFC}
   <div class="nav-divider"></div>
   <div class="nav-section">개인</div>
   <div class="nav-item" onclick="switchNav('checklist',this)"><span class="nav-icon">📝</span>체크리스트</div>
-  <div class="nav-item" onclick="switchNav('hrinfo',this)"><span class="nav-icon">🪪</span>인사정보(테스트중)</div>
+  <div class="nav-item" onclick="switchNav('hrinfo',this)"><span class="nav-icon">📇</span>인사정보(테스트중)</div>
 
 </nav>
 <main class="main">
@@ -762,7 +762,7 @@ tbody tr:hover{background:#FAFBFC}
   <div id="pane-hrinfo" class="pane">
     <div class="card">
       <div class="card-head">
-        <span class="card-title">🪪 인사정보 (테스트중)</span>
+        <span class="card-title">📇 인사정보 (테스트중)</span>
         <div class="card-actions">
           <button class="btn" id="hr-import-btn" onclick="hrImportLegacyData()" style="display:none;border-color:#4338CA;color:#4338CA">🔄 기존자료 554건 가져오기</button>
           <button class="btn lime" onclick="hrOpenForm()">+ 이벤트 추가</button>
@@ -4467,7 +4467,7 @@ function hrRenderNav(){
   if(!el) return;
   var monthActive = hrCurMenu==='__month__';
   el.innerHTML =
-    "<div onclick=\"hrSelectMenu('__month__')\" style='padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;"+(monthActive?'background:var(--navy-light);color:var(--navy)':'color:var(--text-muted)')+"'>📅 월별 전체보기</div>"+
+    "<div onclick=\"hrSelectMenu('__month__')\" style='padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;"+(monthActive?'background:var(--navy-light);color:var(--navy)':'color:var(--text-muted)')+"'>📅 월별현황</div>"+
     "<div style='height:1px;background:var(--gray-border);margin:6px 0'></div>"+
     HR_MENU_GROUPS.map(function(g){
       var active = hrCurMenu===g.id;
@@ -4540,7 +4540,7 @@ function hrRenderPage(){
     var monthOptions=months.map(function(m){ return "<option value='"+m+"'"+(m===hrCurMonthView?' selected':'')+">"+m+"</option>"; }).join('');
     var rows=all.filter(function(e){ return hrEventFilterMonth(e)===hrCurMonthView; });
     rows=rows.slice().sort(function(a,b){ return hrTypeOrderKey(a.type)-hrTypeOrderKey(b.type); });
-    page.innerHTML = "<div style='font-size:16px;font-weight:700;margin-bottom:10px'>📅 월별 전체보기</div>"+
+    page.innerHTML = "<div style='font-size:16px;font-weight:700;margin-bottom:10px'>📅 월별현황</div>"+
       "<div style='display:flex;gap:10px;align-items:center;margin-bottom:10px'><select onchange='hrCurMonthView=this.value;hrRenderPage();' style='padding:.4rem .6rem;border:1px solid var(--gray-border);border-radius:6px;font-family:inherit'>"+monthOptions+"</select>"+
       "<span style='font-size:12.5px;color:var(--text-muted)'>그 달 전체 <b style='color:var(--navy)'>"+rows.length+"</b>건</span></div>"+
       hrBuildTable(rows);
