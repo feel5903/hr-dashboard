@@ -765,6 +765,7 @@ tbody tr:hover{background:#FAFBFC}
         <span class="card-title">📇 인사정보 (테스트중)</span>
         <div class="card-actions">
           <button class="btn" id="hr-import-btn" onclick="hrImportLegacyData()" style="display:none;border-color:#4338CA;color:#4338CA">🔄 기존자료 554건 가져오기</button>
+          <button class="btn" onclick="hrCleanupLegacyNotes()" style="border-color:#B45309;color:#B45309">🧹 중복 문구 정리</button>
           <button class="btn lime" onclick="hrOpenForm()">+ 이벤트 추가</button>
         </div>
       </div>
@@ -4451,7 +4452,7 @@ async function hrImportLegacyData(){
   for(var i=0;i<HR_LEGACY_DATA.length;i++){
     var e=HR_LEGACY_DATA[i];
     btn.textContent='⏳ 가져오는 중... ('+(i+1)+'/'+HR_LEGACY_DATA.length+')';
-    var row=[e.id,e.type,e.dept||'',e.role||'',e.name,e.startDate||'',e.endDate||'',e.note||''];
+    var row=[e.id,e.type,e.dept||'',e.role||'',e.name,e.startDate||'',e.endDate||'',e.note||'',''];
     var res=await saveRow('hr_events',row);
     if(res.ok){ ok++; data.hrEvents.push(e); } else fail++;
   }
@@ -4460,6 +4461,33 @@ async function hrImportLegacyData(){
   hrRenderPage();
   if(fail===0){ setTimeout(function(){ btn.style.display='none'; },1500); }
   else { btn.disabled=false; }
+}
+
+function hrEscapeRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+
+async function hrCleanupLegacyNotes(){
+  var candidates=(data.hrEvents||[]).filter(function(e){
+    if(!e.note||!e.type) return false;
+    var re=new RegExp('^'+hrEscapeRegex(e.type)+'\\(');
+    return re.test(e.note);
+  });
+  if(!candidates.length){ alert('정리할 중복 문구가 없어요. (구분명이 비고 맨 앞에 그대로 반복된 항목이 없어요)'); return; }
+  if(!confirm('비고 맨 앞에 구분명+날짜가 중복으로 들어간 '+candidates.length+'건을 찾았어요.\n날짜 정보는 이미 따로 저장되어 있어서, 비고에서 중복된 부분만 지우고 나머지는 그대로 둬요.\n정리해서 저장할까요?')) return;
+
+  var ok=0, fail=0;
+  for(var i=0;i<candidates.length;i++){
+    var e=candidates[i];
+    var re=new RegExp('^'+hrEscapeRegex(e.type)+'\\([^)]*\\)\\s*[-·]?\\s*');
+    var newNote=e.note.replace(re,'').trim();
+    var idx=(data.hrEvents||[]).findIndex(function(x){ return x.id===e.id; });
+    var prevNote=e.note;
+    if(idx>=0) data.hrEvents[idx].note=newNote;
+    var res=await updateRowSafe('hr_events', e.id, [e.id,e.type,e.dept||'',e.role||'',e.name,e.startDate||'',e.endDate||'',newNote,e.retroMonth||'']);
+    if(res){ ok++; } else { fail++; if(idx>=0) data.hrEvents[idx].note=prevNote; }
+  }
+  hrRenderNav();
+  hrRenderPage();
+  alert('정리 완료: '+ok+'건 성공'+(fail?', '+fail+'건 실패':''));
 }
 
 function hrCountFor(types){ return (data.hrEvents||[]).filter(function(e){ return types.indexOf(e.type)>=0; }).length; }
