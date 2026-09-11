@@ -808,6 +808,7 @@ tbody tr:hover{background:#FAFBFC}
         <div class="field" style="margin:0"><label id="hr-f-endLabel">종료일(입사면 계약만료)</label><input type="date" id="hr-f-end"></div>
       </div>
       <div class="field"><label id="hr-f-noteLabel">비고(입사면 사유)</label><textarea id="hr-f-note" style="height:60px;resize:vertical"></textarea></div>
+      <div class="field"><label>소급 반영월 <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(예: 7월말에 썼는데 8월 급여에 반영됐으면 "2026-08"로 넣어주세요. 안 넣으면 실제 날짜 기준으로 자동 계산돼요)</span></label><input type="month" id="hr-f-retro"></div>
       <div class="modal-actions">
         <button class="btn" onclick="document.getElementById('hr-form-overlay').classList.remove('open')">취소</button>
         <button class="btn primary" onclick="hrSaveEvent()">저장</button>
@@ -4436,6 +4437,7 @@ function hrInit(){
 }
 
 function hrEventFilterMonth(e){
+  if(e.retroMonth) return e.retroMonth;
   var d=e.startDate||e.endDate||'';
   var m=String(d).match(/^(\d{4})[.\-](\d{1,2})/);
   return m ? (m[1]+'.'+m[2].padStart(2,'0')) : '(날짜없음)';
@@ -4486,6 +4488,12 @@ function hrSelectMenu(id){
 
 function hrSetSubtype(t){ hrCurSubtype=t; hrRenderPage(); }
 
+function hrDaysBetween(start, end){
+  var s=new Date(start), e=new Date(end);
+  if(isNaN(s.getTime())||isNaN(e.getTime())) return null;
+  return Math.round((e-s)/86400000)+1;
+}
+
 function hrRowHtml(e){
   var contentHtml, rowClass='';
   if(e.type==='입사'){
@@ -4497,7 +4505,14 @@ function hrRowHtml(e){
     "</div>";
   } else {
     var note=e.note||'';
-    contentHtml = "<span style='font-size:12.5px;color:var(--text-muted)'>"+note+"</span>";
+    var periodHtml='';
+    if(e.startDate&&e.endDate){
+      var days=hrDaysBetween(e.startDate,e.endDate);
+      periodHtml="<b>"+e.startDate+"~"+e.endDate+"</b>"+(days!==null?" <span style='color:#9aa8a7'>("+days+"일간)</span>":"")+(note?" · ":"");
+    } else if(e.startDate){
+      periodHtml="<b>"+e.startDate+"</b>"+(note?" · ":"");
+    }
+    contentHtml = "<span style='font-size:12.5px;color:var(--text-muted)'>"+periodHtml+note+"</span>";
   }
   return "<tr style='"+rowClass+"'>"+
     "<td style='font-size:12px;color:var(--text-muted);white-space:nowrap'>"+hrEventFilterMonth(e)+"</td>"+
@@ -4580,6 +4595,7 @@ function hrOpenForm(){
   document.getElementById('hr-f-start').value='';
   document.getElementById('hr-f-end').value='';
   document.getElementById('hr-f-note').value='';
+  document.getElementById('hr-f-retro').value='';
   hrUpdateFormLabels();
   document.getElementById('hr-form-overlay').classList.add('open');
 }
@@ -4596,15 +4612,26 @@ function hrEditEvent(id){
   document.getElementById('hr-f-start').value=e.startDate||'';
   document.getElementById('hr-f-end').value=e.endDate||'';
   document.getElementById('hr-f-note').value=e.note||'';
+  document.getElementById('hr-f-retro').value=e.retroMonth||'';
   hrUpdateFormLabels();
   document.getElementById('hr-form-overlay').classList.add('open');
 }
 
 function hrUpdateFormLabels(){
-  var isHire = document.getElementById('hr-f-type').value==='입사';
+  var type = document.getElementById('hr-f-type').value;
+  var isHire = type==='입사';
+  var isShortHour = ['육아기단축근무','가족돌봄휴직(단축근무)','산전근로단축(무급)','임신기근로단축'].indexOf(type)>=0;
   document.getElementById('hr-f-startLabel').textContent = isHire ? '입사일' : '시작일';
   document.getElementById('hr-f-endLabel').textContent = isHire ? '계약만료' : '종료일(선택)';
-  document.getElementById('hr-f-noteLabel').textContent = isHire ? '사유' : '비고';
+  var noteLabel = document.getElementById('hr-f-noteLabel');
+  var noteEl = document.getElementById('hr-f-note');
+  if(isHire){
+    noteLabel.textContent = '사유';
+    noteEl.placeholder = '';
+  } else {
+    noteLabel.textContent = '비고 (기간·일수는 자동 계산되니 사유만 적으시면 돼요)';
+    noteEl.placeholder = isShortHour ? '예: 08:30~13:00, 4시간근무 (단축근무 시간대를 적어주세요)' : '예: 개인사유, 재계약 등';
+  }
 }
 
 async function hrSaveEvent(){
@@ -4616,23 +4643,24 @@ async function hrSaveEvent(){
   var startDate=document.getElementById('hr-f-start').value;
   var endDate=document.getElementById('hr-f-end').value;
   var note=document.getElementById('hr-f-note').value.trim();
+  var retroMonth=document.getElementById('hr-f-retro').value;
   if(!name){ alert('이름을 입력해주세요'); return; }
 
   if(id){
     var idx=(data.hrEvents||[]).findIndex(function(x){ return x.id===id; });
     var prev = idx>=0 ? Object.assign({},data.hrEvents[idx]) : null;
-    var nr={id:id, type:type, dept:dept, role:role, name:name, startDate:startDate, endDate:endDate, note:note};
+    var nr={id:id, type:type, dept:dept, role:role, name:name, startDate:startDate, endDate:endDate, note:note, retroMonth:retroMonth};
     if(idx>=0) data.hrEvents[idx]=nr;
-    var ok=await updateRowSafe('hr_events', id, [id,type,dept,role,name,startDate,endDate,note]);
-    if(!ok) ok=await updateRowSafe('hr_events', id, [id,type,dept,role,name,startDate,endDate,note]);
+    var ok=await updateRowSafe('hr_events', id, [id,type,dept,role,name,startDate,endDate,note,retroMonth]);
+    if(!ok) ok=await updateRowSafe('hr_events', id, [id,type,dept,role,name,startDate,endDate,note,retroMonth]);
     if(!ok){
       if(idx>=0&&prev) data.hrEvents[idx]=prev;
       alert('⚠ 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.');
       return;
     }
   } else {
-    var nr={id:genId('hre'), type:type, dept:dept, role:role, name:name, startDate:startDate, endDate:endDate, note:note};
-    var ok2=await saveRowChecked('hr_events', [nr.id,type,dept,role,name,startDate,endDate,note], '인사정보 이벤트');
+    var nr={id:genId('hre'), type:type, dept:dept, role:role, name:name, startDate:startDate, endDate:endDate, note:note, retroMonth:retroMonth};
+    var ok2=await saveRowChecked('hr_events', [nr.id,type,dept,role,name,startDate,endDate,note,retroMonth], '인사정보 이벤트');
     if(!ok2) return;
     data.hrEvents.push(nr);
   }
