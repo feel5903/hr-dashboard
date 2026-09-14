@@ -150,6 +150,15 @@
     <h2><span class="n">3</span>휴직·단축·전환 입력</h2>
     <p class="hint">휴직이 있는 사람만 입력하면 됩니다. <b>기간만 넣으면 일수는 자동계산</b>돼요. 지금 쓰시던 문장 그대로 붙여넣어도 시스템이 해석합니다.</p>
 
+    <div style="background:#fff8ec;border:1px solid #EFB63E;border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-weight:700;font-size:13.5px;margin-bottom:4px;color:#854F0B">🔄 인사정보에서 자동 불러오기 <span style="font-weight:400;color:var(--ink2);font-size:12px">(추천 · 엑셀·전환일 따로 안 넣어도 돼요)</span></div>
+      <p class="mini" style="margin:0 0 8px">대시보드 "인사정보"에 등록된 휴직·단축근무·정직(전환) 내용을 자동으로 가져와서 채웁니다. 조사기간과 겹치는 부분만 반영돼요. 불러온 뒤에도 손으로 고칠 수 있어요.</p>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn primary" id="loadFromHrInfoBtn" style="padding:8px 16px">🔄 인사정보 불러오기</button>
+        <span class="mini" id="hrInfoLoadResult"></span>
+      </div>
+    </div>
+
     <div style="background:#eef4f2;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px">
       <div style="font-weight:700;font-size:13.5px;margin-bottom:4px">휴직명단 엑셀 업로드 <span style="font-weight:400;color:var(--ink2);font-size:12px">(한 번에 일괄 입력)</span></div>
       <p class="mini" style="margin:0 0 8px">정리한 휴직 엑셀을 올리면 성명·휴직내용을 자동으로 찾아 채웁니다. 같은 사람이 여러 줄이면 자동 합산돼요. (성명 열 + 휴직내용 열만 있으면 됩니다)</p>
@@ -254,7 +263,106 @@
 </div>
 
 <script>
-/* ================= 부서→분류 기본 매핑 ================= */
+/* ================= 대시보드 구글시트 연결 (인사정보 불러오기용) ================= */
+const SHEET_URL="https://script.google.com/macros/s/AKfycbyVVsu9GpiBGMdjb5uU1NYNg0kMjNrDZ7yuyPSrFI2LOOZ0iC8La-71i8U8MjVykMo6/exec";
+
+async function ctFetchTab(tab){
+  try{
+    const url=SHEET_URL+"?tab="+encodeURIComponent(tab)+"&t="+Date.now();
+    const r=await fetch(url,{redirect:"follow",mode:"cors"});
+    if(!r.ok) return [];
+    const txt=await r.text();
+    try{ const j=JSON.parse(txt); return Array.isArray(j)?j:[]; }catch(e){ return []; }
+  }catch(e){ return []; }
+}
+
+// 인사정보 구분별 성격 분류 (근무일수 차감 대상만)
+const HR_FULLDAY_TYPES=['휴직(안식)','병가','병가(휴직)','출산휴가','배우자출산휴가','육아휴직','유사산휴가','난임휴가','무급','휴업'];
+const HR_SHORTHOUR_TYPES=['육아기단축근무','가족돌봄휴직(단축근무)','산전근로단축(무급)','임신기근로단축'];
+const HR_TRANSITION_TYPE='정직';
+
+// 단축근무 비고에서 시간을 뽑아 기존 파서가 알아듣는 문구로 변환
+function hrExtractHourPhrase(note){
+  if(!note) return '';
+  let m=note.match(/주\s*(\d+(?:\.\d+)?)\s*시간/);
+  if(m) return '주'+m[1]+'시간';
+  m=note.match(/(\d+(?:\.\d+)?)\s*시간/);
+  if(m) return '일 '+m[1]+'시간';
+  return '';
+}
+
+function hrDateToDot(iso){
+  // YYYY-MM-DD → YYYY.MM.DD (기존 파서 표준 포맷)
+  if(!iso) return '';
+  return String(iso).replace(/-/g,'.');
+}
+
+document.getElementById('loadFromHrInfoBtn').onclick=async ()=>{
+  if(!STAFF.length){ alert('먼저 명단(ERP)을 업로드해주세요.'); return; }
+  const btn=document.getElementById('loadFromHrInfoBtn');
+  const resEl=document.getElementById('hrInfoLoadResult');
+  btn.disabled=true; btn.textContent='⏳ 불러오는 중...';
+  try{
+    const events=await ctFetchTab('hr_events');
+    if(!events.length){ resEl.textContent='인사정보에 데이터가 없어요.'; resEl.style.color='var(--warn)'; btn.disabled=false; btn.textContent='🔄 인사정보 불러오기'; return; }
+
+    const leaveByName={};
+    const transByName={}; // 이름 → 최신(마지막) 전환일
+
+    events.forEach(ev=>{
+      const name=(ev.name||'').trim();
+      if(!name) return;
+      if(ev.type===HR_TRANSITION_TYPE){
+        if(ev.startDate) transByName[name]=ev.startDate; // 여러 건이면 마지막 것으로 덮어씀
+        return;
+      }
+      if(HR_FULLDAY_TYPES.indexOf(ev.type)>=0){
+        if(!ev.startDate||!ev.endDate) return;
+        const sentence=`${ev.type} ${hrDateToDot(ev.startDate)}~${hrDateToDot(ev.endDate)}`;
+        if(!leaveByName[name]) leaveByName[name]=[];
+        leaveByName[name].push(sentence);
+      } else if(HR_SHORTHOUR_TYPES.indexOf(ev.type)>=0){
+        if(!ev.startDate||!ev.endDate) return;
+        const hourPhrase=hrExtractHourPhrase(ev.note);
+        const sentence=`${ev.type} ${hrDateToDot(ev.startDate)}~${hrDateToDot(ev.endDate)}${hourPhrase?' '+hourPhrase:''}`;
+        if(!leaveByName[name]) leaveByName[name]=[];
+        leaveByName[name].push(sentence);
+      }
+    });
+
+    let leaveApplied=0, leaveNotfound=[];
+    Object.keys(leaveByName).forEach(name=>{
+      const matches=STAFF.filter(s=>s.name===name);
+      if(matches.length===0){ leaveNotfound.push(name); return; }
+      const text=leaveByName[name].join('\n');
+      matches.forEach(s=>{ s.leave=text; });
+      leaveApplied++;
+    });
+
+    let transApplied=0, transNotfound=[];
+    Object.keys(transByName).forEach(name=>{
+      const matches=STAFF.filter(s=>s.name===name);
+      if(matches.length===0){ transNotfound.push(name); return; }
+      matches.forEach(s=>{ s.trans=transByName[name]; });
+      transApplied++;
+    });
+
+    buildLeaveInputs();
+    recalc();
+
+    let msg=`✓ 휴직 ${leaveApplied}명 · 전환 ${transApplied}명 자동입력`;
+    const notfoundAll=[...new Set([...leaveNotfound,...transNotfound])];
+    if(notfoundAll.length) msg+=` · 명단에 없음: ${notfoundAll.slice(0,8).join(', ')}${notfoundAll.length>8?' 외 '+(notfoundAll.length-8)+'명':''}`;
+    resEl.textContent=msg;
+    resEl.style.color=notfoundAll.length?'var(--warn)':'var(--accent)';
+  }catch(err){
+    resEl.textContent='불러오기 실패: '+err.message;
+    resEl.style.color='var(--danger)';
+  }
+  btn.disabled=false; btn.textContent='🔄 인사정보 불러오기';
+};
+
+
 const DEPT_MAP = {"성인간호과":"간호사","QPS실":"간호사","성인병동간호팀":"간호사","소아청소년간호과":"간호사","외래간호팀":"간호사","소아청소년병동간호팀":"간호사","수도권공공어린이재활운영단":"간호사","고객경험실":"간호사","감염관리실":"간호사","지역장애인보건의료센터":"간호사","성인언어치료팀":"기타","소아청소년재활심리팀":"기타","소아청소년언어치료팀":"기타","성인재활심리팀":"기타","가족지원센터":"기타","시설팀":"기타","약제팀":"약사","총무행정팀":"기타","신경계물리치료팀":"물리치료사","미래기획실":"물리치료사","소아청소년치료과":"물리치료사","미래재활연구팀":"물리치료사","성인치료과":"물리치료사","청소년물리치료팀":"물리치료사","근골격계물리치료팀":"물리치료사","소아물리치료팀":"물리치료사","지역사회재활지원팀":"물리치료사","진료지원팀":"방사선사","원무행정팀":"보건의료정보관리사","성인사회복지팀":"사회복지사","당직과":"일반의","성인작업치료팀":"작업치료사","소아작업치료팀":"작업치료사","청소년작업치료팀":"작업치료사","병원장":"전문의","부원장":"전문의","소아청소년진료과":"전문의","회복기병원부":"전문의","성인진료과":"전문의","기능연구센터":"전문의","공공어린이재활병원부":"전문의","재무회계팀":"행정사무직","원무과":"행정사무직","진료협력팀":"행정사무직","인사과":"행정사무직","보험심사팀":"행정사무직","행정처":"행정사무직","후원협력팀":"행정사무직","총무과":"행정사무직","디지털재활혁신팀":"행정사무직","전산팀":"행정사무직","디지털혁신팀":"행정사무직","적정의료서비스센터":"행정사무직"};
 
 /* 직책(직위) → 분류: 직종이 명확한 직책은 부서보다 우선 */
@@ -1037,9 +1145,11 @@ function autoSave(){
     document.getElementById('autoSaveStatus').style.color='var(--warn)';
   }
 }
-// 자동복원
+// 자동복원 (대시보드에서 "?fresh=1"로 들어오면 예전 작업을 안 불러오고 깨끗하게 시작)
 (function tryAutoRestore(){
   try{
+    const params=new URLSearchParams(window.location.search);
+    if(params.get('fresh')==='1') return;
     const raw=localStorage.getItem(SAVE_KEY);
     if(raw){ restore(JSON.parse(raw)); }
   }catch(e){}
