@@ -1186,11 +1186,12 @@ function computeAnnualSummary(params, year, isContinuation){
     return Math.floor(months/12);
   }
 
+  function monthCountsForAccrual(y,m){ return (y > effHireYear) || (y === effHireYear && m >= effHireMonth); }
   function jeongeun(paymentMonth){
     if(!isActive(paymentMonth) || basePay[paymentMonth]===null) return null;
     let worked = 0;
-    if(paymentMonth===1){ for(let m=7;m<=12;m++){ if(monthActiveAt(year-1,m)) worked++; } }
-    else { for(let m=1;m<=6;m++){ if(monthActiveAt(year,m)) worked++; } }
+    if(paymentMonth===1){ for(let m=7;m<=12;m++){ if(monthCountsForAccrual(year-1,m)) worked++; } }
+    else { for(let m=1;m<=6;m++){ if(monthCountsForAccrual(year,m)) worked++; } }
     if(worked<=0) return null;
     const pct = pctForHobong(hobongForMonth(year,paymentMonth));
     return Math.round(basePay[paymentMonth]*pct/100/6*worked);
@@ -1377,13 +1378,14 @@ function generateSalarySheet(){
   const shiftAmt = (jobCategory === '간호사' && shift3) ? 150000 : 0;
 
   // 정근수당: 1월 지급 = 직전해 7~12월 근무개월수, 7월 지급 = 당해 1~6월 근무개월수 (연차 무관 공통 적용)
+  function monthCountsForAccrual(y,m){ return (y > effHireYear) || (y === effHireYear && m >= effHireMonth); }
   function jeongeun(paymentMonth){
     if(!isActive(paymentMonth) || basePay[paymentMonth] === null) return null;
     let worked = 0;
     if(paymentMonth === 1){
-      for(let m=7;m<=12;m++){ if(monthActiveAt(year-1, m)) worked++; }
+      for(let m=7;m<=12;m++){ if(monthCountsForAccrual(year-1, m)) worked++; }
     } else {
-      for(let m=1;m<=6;m++){ if(monthActiveAt(year, m)) worked++; }
+      for(let m=1;m<=6;m++){ if(monthCountsForAccrual(year, m)) worked++; }
     }
     if(worked <= 0) return null;
     const pct = pctForHobong(hobongForMonth(year, paymentMonth));
