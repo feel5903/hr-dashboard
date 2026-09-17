@@ -766,7 +766,7 @@ tbody tr:hover{background:#FAFBFC}
         <span class="card-title">📇 인사정보 (테스트중)</span>
         <div class="card-actions">
           <button class="btn" id="hr-import-btn" onclick="hrImportLegacyData()" style="display:none;border-color:#4338CA;color:#4338CA">🔄 기존자료 554건 가져오기</button>
-          <button class="btn" onclick="hrCleanupLegacyNotes()" style="border-color:#B45309;color:#B45309">🧹 중복 문구 정리</button>
+          <button class="btn" id="hr-cleanup-btn" onclick="hrCleanupLegacyNotes()" style="border-color:#B45309;color:#B45309">🧹 중복 문구 정리</button>
           <button class="btn lime" onclick="hrOpenForm()">+ 이벤트 추가</button>
         </div>
       </div>
@@ -4508,11 +4508,11 @@ async function hrCleanupLegacyNotes(){
   if(!candidates.length){ alert('정리할 중복 문구가 없어요.'); return; }
   if(!confirm('비고에 구분명·날짜가 중복으로 들어간 '+candidates.length+'건을 찾았어요.\n(맨 앞 "구분명(날짜)" 형태, 맨 뒤 "(날짜)"가 시작일과 똑같은 경우)\n날짜 정보는 이미 따로 저장되어 있어서, 비고에서 중복된 부분만 지우고 나머지는 그대로 둬요.\n정리해서 저장할까요?')) return;
 
-  btn.disabled=true;
-  var origText=btn.textContent;
+  if(btn){ btn.disabled=true; }
+  var origText=btn?btn.textContent:'';
   var ok=0, fail=0;
   for(var i=0;i<candidates.length;i++){
-    btn.textContent='⏳ 정리 중... ('+(i+1)+'/'+candidates.length+')';
+    if(btn) btn.textContent='⏳ 정리 중... ('+(i+1)+'/'+candidates.length+')';
     var e=candidates[i];
     var newNote=e.note;
     var prefixRe=new RegExp('^'+hrEscapeRegex(e.type)+'\\([^)]*\\)\\s*[-·]?\\s*');
@@ -4531,9 +4531,11 @@ async function hrCleanupLegacyNotes(){
   }
   hrRenderNav();
   hrRenderPage();
-  btn.textContent='✅ 완료 ('+ok+'건 성공'+(fail?', '+fail+'건 실패':'')+')';
-  btn.disabled=false;
-  setTimeout(function(){ btn.textContent=origText; },3000);
+  if(btn){
+    btn.textContent='✅ 완료 ('+ok+'건 성공'+(fail?', '+fail+'건 실패':'')+')';
+    btn.disabled=false;
+    setTimeout(function(){ btn.textContent=origText; },3000);
+  }
   alert('정리 완료: '+ok+'건 성공'+(fail?', '+fail+'건 실패':''));
 }
 
