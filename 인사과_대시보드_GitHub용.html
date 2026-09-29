@@ -1012,7 +1012,24 @@ function getWeekKey(d){if(!d)return"";var dt=new Date(d);if(isNaN(dt.getTime()))
 function getWeekLabel(d){if(!d)return"";var dt=new Date(d);if(isNaN(dt.getTime()))return"";// 해당 주 목요일 기준으로 월 결정 (ISO 8601)
 var day=dt.getDay()||7;var thu=new Date(dt);thu.setDate(dt.getDate()-(day-4));var mon=new Date(dt);mon.setDate(dt.getDate()-(day-1));var month=thu.getMonth()+1;var firstDay=new Date(thu.getFullYear(),thu.getMonth(),1);var wom=Math.ceil((mon.getDate()+((firstDay.getDay()||7)-1))/7);if(mon.getMonth()!==thu.getMonth())wom=1;return thu.getFullYear()+"년 "+month+"월 "+wom+"주차";}
 function formatDateVal(val){if(!val)return"";if(val instanceof Date){if(isNaN(val.getTime()))return"";return val.getFullYear()+"-"+String(val.getMonth()+1).padStart(2,"0")+"-"+String(val.getDate()).padStart(2,"0");}if(typeof val!=="string")return String(val);if(val.indexOf("GMT")>=0||val.indexOf("표준시")>=0){var d=new Date(val);if(!isNaN(d.getTime()))return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}if(val.match(/^\d{4}-\d{2}-\d{2}T/))return val.slice(0,10);var mv=val.match(/^(\d{4})\.(\d{1,2})\.(\d{1,2})$/);if(mv)return mv[1]+"-"+mv[2].padStart(2,"0")+"-"+mv[3].padStart(2,"0");return val;}
-function normalizeRow(row,tab){var df=["end","start","created","date","joinDate","contractEnd"];var out={};Object.keys(row).forEach(function(k){if(!k||k==="")return;var tk=k.trim();if(!tk)return;out[tk]=df.indexOf(tk)>=0?formatDateVal(row[k]):row[k];});if(tab==="daily"){if(!out.feedback)out.feedback="";if(!out.start&&out.created)out.start=out.created;if(!out.created&&out.start)out.created=out.start;}if(tab==="staff"){if(out.joinDate)out.joinDate=formatDateVal(out.joinDate);if(out.contractEnd)out.contractEnd=formatDateVal(out.contractEnd);}return out;}
+// 비고(note) 등 자유 텍스트 항목이 구글시트에서 날짜/시간으로 잘못 자동변환된 경우, 사용자가 입력했던 시간/날짜 값만 복구
+function cleanCorruptedNote(v){
+  if(!v) return v;
+  var isDateObj=(v instanceof Date);
+  var s=isDateObj?(isNaN(v.getTime())?"":v.toString()):String(v);
+  if(!isDateObj && (typeof v!=="string" || (s.indexOf("GMT")<0 && s.indexOf("표준시")<0))) return v;
+  if(isDateObj && !s) return "";
+  var m=s.match(/^\w{3}\s+(\w{3})\s+(\d{1,2})\s+(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
+  if(!m) return v;
+  var mon=m[1],day=m[2],year=m[3],hh=m[4],mm=m[5];
+  if(year==="1899") return hh+":"+mm; // 순수 시간 값("13:00" 등)만 입력했던 경우
+  var mo=MONTH_ABBR_MAP[mon];
+  if(!mo) return v;
+  var dateStr=year+"-"+String(mo).padStart(2,"0")+"-"+day.padStart(2,"0");
+  if(hh==="00"&&mm==="00") return dateStr;
+  return dateStr+" "+hh+":"+mm;
+}
+function normalizeRow(row,tab){var df=["end","start","created","date","joinDate","contractEnd"];var out={};Object.keys(row).forEach(function(k){if(!k||k==="")return;var tk=k.trim();if(!tk)return;out[tk]=df.indexOf(tk)>=0?formatDateVal(row[k]):(tk==="note"?cleanCorruptedNote(row[k]):row[k]);});if(tab==="daily"){if(!out.feedback)out.feedback="";if(!out.start&&out.created)out.start=out.created;if(!out.created&&out.start)out.created=out.start;}if(tab==="staff"){if(out.joinDate)out.joinDate=formatDateVal(out.joinDate);if(out.contractEnd)out.contractEnd=formatDateVal(out.contractEnd);}return out;}
 var missingIdWarnings=[];
 function filterRows(rows,tabName){
   var seen={};
