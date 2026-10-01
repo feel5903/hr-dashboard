@@ -699,6 +699,23 @@ tbody tr:hover{background:#FAFBFC}
   </div>
 </div>
 
+<div class="overlay" id="wd-admin-overlay">
+  <div class="modal" style="width:520px">
+    <h3>🏷️ 확인표기 일괄입력</h3>
+    <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:8px;line-height:1.5">
+      한 줄에 한 명씩 <b>이름 + 공백 + 표기</b> 형식으로 붙여넣으세요. 계산엔 반영되지 않고, 근무일수 결과의 비고 칸 위에 파란 글씨로만 표시돼요.<br>
+      예: <code>정영환 행정 0.5</code> / <code>이성철 행정 2 + 기능 1.5</code><br>
+      직원현황 전체에서 이름으로 찾아 적용해요. 표기를 비워서 입력하면 해당 직원의 기존 표기가 지워져요. 기존 표기는 덮어씁니다.
+    </div>
+    <textarea id="wd-admin-bulk" style="width:100%;min-height:220px;font-family:inherit;font-size:13px;box-sizing:border-box;padding:.6rem;border:1px solid var(--gray-border);border-radius:8px" placeholder="정영환 행정 0.5&#10;이성철 행정 2 + 기능 1.5&#10;권순인 행정 1.5"></textarea>
+    <div id="wd-admin-result" style="font-size:12px;margin-top:8px"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('wd-admin-overlay').classList.remove('open')">닫기</button>
+      <button class="btn lime" onclick="applyWdAdminBulk()">적용</button>
+    </div>
+  </div>
+</div>
+
   <div id="pane-workdays" class="pane">
     <div class="card">
       <div class="card-head">
@@ -727,6 +744,7 @@ tbody tr:hover{background:#FAFBFC}
           <div class="field" style="margin:0"><label>월 선택</label><input type="month" id="wd-month"></div>
           <div class="field" style="margin:0"><label>추가 공휴일 (쉼표로 구분, YYYY-MM-DD)</label><input type="text" id="wd-extra-holidays" placeholder="예: 2026-08-17" style="width:220px"></div>
           <button class="btn lime" onclick="calcWorkdays()">📊 계산하기</button>
+          <button class="btn" onclick="openWdAdminImport()">🏷️ 확인표기 일괄입력</button>
           <button class="btn" onclick="wdExportExcel()">⬇ 엑셀 다운로드</button>
           <button class="btn" onclick="wdSaveResults()" style="border-color:#4338CA;color:#4338CA">💾 결과 저장</button>
           <button class="btn" onclick="wdOpenSavedList()">📂 저장된 결과 보기</button>
@@ -959,7 +977,7 @@ var PALETTE=["#44546E","#2563EB","#5C8A1E","#7C3AED","#D97706","#DC2626","#0891B
 var members=JSON.parse(localStorage.getItem("hr_members")||"null")||[{name:"김재용",role:"인사과장",color:"#44546E"},{name:"배지은",role:"주임",color:"#2563EB"},{name:"공지현",role:"주임",color:"#5C8A1E"},{name:"최필상",role:"사원",color:"#7C3AED"}];
 var curMonth={y:TODAY.getFullYear(),m:TODAY.getMonth()};
 var curForm="daily",editMemberIdx=null,editIdx=null;
-var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[],duties:[],staff:[],annual:[],staffLeaves:[],others:[],rotationAnnex:[],oncallDoctors:[],oncallSchedule:[],monthlyHeadcountManual:[],workdaysSaved:[],hrEvents:[]};
+var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[],duties:[],staff:[],annual:[],staffLeaves:[],others:[],rotationAnnex:[],oncallDoctors:[],oncallSchedule:[],monthlyHeadcountManual:[],workdaysSaved:[],hrEvents:[],wdAdminTags:[]};
 var dismissedAlerts=[];
 var isEditing=false; // 입력 중 동기화 방지 플래그
 (function(){try{var b=localStorage.getItem("hr_data_backup");if(b){var p=JSON.parse(b);if(p.daily)data.daily=p.daily;if(p.project)data.project=p.project;if(p.task)data.task=p.task;if(p.leave)data.leave=p.leave;if(p.recruit)data.recruit=p.recruit;if(p.dormitory)data.dormitory=p.dormitory;}}catch(e){}})();
@@ -1178,9 +1196,9 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
       callScript({tab:"daily"}),callScript({tab:"project"}),callScript({tab:"leave"}),callScript({tab:"task"}),
       callScript({tab:"recruit"}),callScript({tab:"dormitory"}),callScript({tab:"duties"}),callScript({tab:"staff"}),
       callScript({tab:"alerts_dismissed"}),callScript({tab:"annual"}),callScript({tab:"staff_leaves"}),callScript({tab:"others"}),
-      callScript({tab:"rotation_annex"}),callScript({tab:"oncall_doctors"}),callScript({tab:"oncall_schedule"}),callScript({tab:"monthly_headcount_manual"}),callScript({tab:"workdays_saved"}),callScript({tab:"hr_events"})
+      callScript({tab:"rotation_annex"}),callScript({tab:"oncall_doctors"}),callScript({tab:"oncall_schedule"}),callScript({tab:"monthly_headcount_manual"}),callScript({tab:"workdays_saved"}),callScript({tab:"hr_events"}),callScript({tab:"wd_admin_tags"})
     ]);
-    var d=results[0],p=results[1],lv=results[2],tk=results[3],rc=results[4],dm=results[5],dt=results[6],st=results[7],ad=results[8],an=results[9],sl=results[10],ot=results[11],ra=results[12],dr=results[13],os=results[14],mh=results[15],ws2=results[16],he=results[17];
+    var d=results[0],p=results[1],lv=results[2],tk=results[3],rc=results[4],dm=results[5],dt=results[6],st=results[7],ad=results[8],an=results[9],sl=results[10],ot=results[11],ra=results[12],dr=results[13],os=results[14],mh=results[15],ws2=results[16],he=results[17],wat=results[18];
     var fd=filterRows(d,"daily").map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p,"project").map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv,"leave").map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk,"task").map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
     var frc=filterRows(rc,"recruit").map(function(r){return normalizeRow(r,"recruit");});
     if(frc.length||!data.recruit.length) data.recruit=frc;
@@ -1210,6 +1228,8 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
     var fws=filterRows(ws2,"workdays_saved").map(function(r){return normalizeRow(r,"workdays_saved");});
     if(fws.length||!data.workdaysSaved.length) data.workdaysSaved=fws;
     data.workdaysSaved.forEach(function(r){ if(r.month) r.month=normalizeMonthKey(r.month); });
+    var fwat=filterRows(wat,"wd_admin_tags").map(function(r){return normalizeRow(r,"wd_admin_tags");});
+    if(fwat.length||!data.wdAdminTags.length) data.wdAdminTags=fwat;
     var fhe=filterRows(he,"hr_events").map(function(r){return normalizeRow(r,"hr_events");});
     if(fhe.length||!data.hrEvents.length) data.hrEvents=fhe;
     data.hrEvents.forEach(function(r){ if(r.startDate) r.startDate=normalizeDateStr(r.startDate); if(r.endDate) r.endDate=normalizeDateStr(r.endDate); });
@@ -4984,6 +5004,64 @@ function wdClearUpload(){
   document.getElementById('wd-clear-upload-btn').style.display='none';
 }
 
+// 확인표기(계산 미반영, 표시용 수기 메모) - 이름으로 조회
+function wdGetAdminTag(name){
+  var found=(data.wdAdminTags||[]).find(function(x){ return x.name===name; });
+  return found?(found.tag||''):'';
+}
+
+function openWdAdminImport(){
+  document.getElementById('wd-admin-bulk').value='';
+  document.getElementById('wd-admin-result').innerHTML='';
+  document.getElementById('wd-admin-overlay').classList.add('open');
+}
+
+async function applyWdAdminBulk(){
+  var text=document.getElementById('wd-admin-bulk').value;
+  var lines=text.split(/\n+/).map(function(l){ return l.trim(); }).filter(Boolean);
+  if(!lines.length){ document.getElementById('wd-admin-result').innerHTML='<span style="color:#B4442F">입력된 내용이 없어요.</span>'; return; }
+
+  var byName={};
+  (data.staff||[]).forEach(function(s){ byName[s.name]=s; });
+
+  if(!data.wdAdminTags) data.wdAdminTags=[];
+  var applied=[],unmatched=[],failCount=0;
+  for(var i=0;i<lines.length;i++){
+    var line=lines[i];
+    var sp=line.search(/\s/);
+    var name,tag;
+    if(sp<0){ name=line; tag=''; } else { name=line.slice(0,sp).trim(); tag=line.slice(sp+1).trim(); }
+    if(!byName[name]){ unmatched.push(name); continue; }
+    var idx=data.wdAdminTags.findIndex(function(x){ return x.name===name; });
+    if(!tag){
+      // 표기를 비워서 입력 → 기존 표기 삭제
+      if(idx>=0){
+        var ok=await deleteRowSafe('wd_admin_tags', data.wdAdminTags[idx].id);
+        if(ok){ data.wdAdminTags.splice(idx,1); applied.push(name+' (삭제)'); } else failCount++;
+      } else { applied.push(name+' (표기 없음, 변경 없음)'); }
+      continue;
+    }
+    if(idx>=0){
+      data.wdAdminTags[idx].tag=tag;
+      var ok2=await updateRowSafe('wd_admin_tags', data.wdAdminTags[idx].id, [data.wdAdminTags[idx].id, name, tag]);
+      if(!ok2) failCount++;
+    } else {
+      var nr={id:genId('wat'), name:name, tag:tag};
+      var ok3=await saveRowChecked('wd_admin_tags',[nr.id,nr.name,nr.tag],'확인표기');
+      if(ok3) data.wdAdminTags.push(nr); else failCount++;
+    }
+    applied.push(name);
+  }
+
+  var monthVal=document.getElementById('wd-month').value;
+  if(monthVal) calcWorkdays();
+
+  var msg='<div style="color:var(--green);font-weight:600">✅ '+applied.length+'명 적용 완료</div>';
+  if(unmatched.length) msg+='<div style="color:#B4442F;margin-top:6px">⚠ 직원현황에서 못 찾은 '+unmatched.length+'명 (이름 확인 필요):<br>'+escapeHtml(unmatched.join(', '))+'</div>';
+  if(failCount) msg+='<div style="color:#B4442F;margin-top:6px">⚠ 저장 실패 '+failCount+'건 (인터넷 연결 확인 후 다시 시도해주세요)</div>';
+  document.getElementById('wd-admin-result').innerHTML=msg;
+}
+
 function computeMemberWorkdays(staff, periodStart, periodEnd, holidaySet){
   var effStart=periodStart, effEnd=periodEnd;
   if(staff.joinDate){ var jd=twParseDate(staff.joinDate); if(jd&&jd>effStart) effStart=jd; }
@@ -5067,8 +5145,10 @@ function calcWorkdays(){
       members.forEach(function(s){
         var r=computeMemberWorkdays(s, periodStart, periodEnd, holidaySet);
         teamTotal+=r.total;
-        rows+='<tr><td style="padding-left:1.5rem">'+s.name+'</td><td style="text-align:center">'+r.total+'일</td><td style="font-size:11px;color:var(--text-muted)">'+(r.note||'')+'</td></tr>';
-        teamRows.push({name:s.name, baseWeekdays:r.baseWeekdays, uploadLeave:r.uploadLeave, total:r.total, note:r.note});
+        var adminTag=wdGetAdminTag(s.name);
+        var adminHtml=adminTag?('<div style="color:#2563EB;font-weight:600">'+escapeHtml(adminTag)+'</div>'):'';
+        rows+='<tr><td style="padding-left:1.5rem">'+s.name+'</td><td style="text-align:center">'+r.total+'일</td><td style="font-size:11px;color:var(--text-muted)">'+adminHtml+(r.note?'<div>'+r.note+'</div>':'')+'</td></tr>';
+        teamRows.push({name:s.name, baseWeekdays:r.baseWeekdays, uploadLeave:r.uploadLeave, total:r.total, note:r.note, adminTag:adminTag});
       });
       groupHtml+='<tr style="background:var(--gray-light)"><td style="font-weight:700">'+teamName+' ('+members.length+'명)</td><td style="text-align:center;font-weight:700">'+(Math.round(teamTotal*1000)/1000)+'일</td><td></td></tr>'+rows;
       groupTotal+=teamTotal;
@@ -5111,8 +5191,10 @@ async function wdBuildExcelWorkbook(mn, resultsByTeam){
       var teamData=resultsByTeam[teamName];
       var blockStartRow=sheet.rowCount+1;
       teamData.rows.forEach(function(r){
-        var row=sheet.addRow({group:teamName,name:r.name,base:r.baseWeekdays,leave:r.uploadLeave||'',total:r.total,note:r.note||''});
-        if(r.note){ row.eachCell(function(cell,colNumber){ if(colNumber>1) cell.fill=noteFill; }); }
+        var noteCombined=[r.adminTag,r.note].filter(Boolean).join(' / ');
+        var row=sheet.addRow({group:teamName,name:r.name,base:r.baseWeekdays,leave:r.uploadLeave||'',total:r.total,note:noteCombined});
+        if(r.adminTag){ row.getCell('note').font={color:{argb:'FF2563EB'},bold:true}; }
+        if(r.note||r.adminTag){ row.eachCell(function(cell,colNumber){ if(colNumber>1) cell.fill=noteFill; }); }
       });
       var blockEndRow=sheet.rowCount;
       if(blockEndRow>blockStartRow) sheet.mergeCells(blockStartRow,1,blockEndRow,1);
