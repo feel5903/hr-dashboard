@@ -153,6 +153,7 @@ td.note-cell { text-align: left; font-size: 11px; color: #6B7280; }
   <h1>🏥 치료과 근무일수 통계</h1>
   <button class="btn-green" onclick="calcAll(true)">📊 계산하기</button>
   <button class="btn-white" onclick="openHistory()">🕘 이력</button>
+  <button class="btn-white" onclick="openAdminImport()">🏷️ 확인표기 일괄입력</button>
   <button class="btn-white" onclick="exportExcel()">⬇ 엑셀 다운로드</button>
   <button class="btn-white" onclick="window.print()">🖨️ 인쇄</button>
   <button class="btn-gray" onclick="saveSettings()">💾 설정 저장</button>
@@ -212,6 +213,7 @@ td.note-cell { text-align: left; font-size: 11px; color: #6B7280; }
             특정요일 단축: "주32시간 단축(화,목 4시간)"
           </div>
           <textarea id="new-member-note" placeholder="비고 (선택)"></textarea>
+          <input type="text" id="new-member-admin" placeholder="확인표기 (예: 행정 0.5) - 계산 안 됨" style="margin-top:4px">
           <div style="display:flex;gap:6px">
             <button class="btn-green" onclick="addMember()" style="flex:1;padding:6px;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-family:inherit;color:#fff">추가</button>
             <button class="btn-gray" onclick="document.getElementById('add-member-form').style.display='none'" style="padding:6px 12px;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-family:inherit">취소</button>
@@ -249,7 +251,8 @@ td.note-cell { text-align: left; font-size: 11px; color: #6B7280; }
       단축+복직: "26.03.05-26.06.02 주35시간 단축 6/3복직"<br>
       특정요일 단축: "주32시간 단축(화,목 4시간)"
     </div>
-    <div class="fg"><label>비고</label><textarea id="edit-note"></textarea></div>
+    <div class="fg"><label>비고 (계산 반영)</label><textarea id="edit-note"></textarea></div>
+    <div class="fg"><label>확인표기 (치료과 확인용 · 계산 안 됨)</label><textarea id="edit-admin" placeholder="예: 행정 0.5  (휴직 있으면 비고에 따로 적으면 두 줄로 표시돼요)" style="min-height:48px"></textarea></div>
     <div class="modal-btns">
       <button onclick="closeMemberModal()" style="background:#E8ECF0">취소</button>
       <button onclick="saveMemberEdit()" style="background:var(--green);color:#fff">저장</button>
@@ -276,6 +279,24 @@ td.note-cell { text-align: left; font-size: 11px; color: #6B7280; }
     <div id="history-list" style="max-height:60vh;overflow-y:auto"></div>
     <div class="modal-btns">
       <button onclick="document.getElementById('history-modal').classList.remove('open')" style="background:#E8ECF0">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 확인표기 일괄입력 모달 -->
+<div class="modal-bg" id="admin-modal">
+  <div class="modal" style="width:520px">
+    <h3>🏷️ 확인표기 일괄입력</h3>
+    <div class="note-hint" style="margin-bottom:8px">
+      한 줄에 한 명씩 <b>이름 + 공백 + 표기</b> 형식으로 붙여넣으세요. 계산엔 반영되지 않고 비고 칸에 파란 글씨로만 표시돼요.<br>
+      예: <code>정영환 행정 0.5</code> / <code>이성철 행정 2 + 기능 1.5</code><br>
+      현재 그룹(<b id="admin-group-label"></b>)의 전 부서에서 이름으로 찾아 적용해요. 기존 표기는 덮어씁니다.
+    </div>
+    <textarea id="admin-bulk" style="width:100%;min-height:220px;font-family:inherit;font-size:13px" placeholder="정영환 행정 0.5&#10;이성철 행정 2 + 기능 1.5&#10;권순인 행정 1.5"></textarea>
+    <div id="admin-result" style="font-size:12px;margin-top:8px"></div>
+    <div class="modal-btns">
+      <button onclick="document.getElementById('admin-modal').classList.remove('open')" style="background:#E8ECF0">닫기</button>
+      <button onclick="applyAdminBulk()" style="background:var(--green);color:#fff">적용</button>
     </div>
   </div>
 </div>
@@ -753,6 +774,12 @@ function calcMember(member, startStr, endStr) {
   return { weekdays: baseWd - extraDeduction, isZero: false };
 }
 
+function escapeHtml(s) {
+  return String(s||'').replace(/[&<>"]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+  });
+}
+
 // ── 계산 ──
 function calcAll(addHistory) {
   var startStr = document.getElementById('date-start').value;
@@ -787,9 +814,17 @@ function calcAll(addHistory) {
 
       var trClass = calc.isZero ? 'zero-work' : (calc.partial ? 'partial-work' : '');
       var noteDisplay = m.note || '';
-      // 행정 부분 제거 (행정 숫자)
+      // 혹시 비고에 섞인 "행정 N" 제거 (확인표기는 별도 필드로 관리)
       noteDisplay = noteDisplay.replace(/행정\s*[\d.]+\s*/g,'').trim();
       if(calc.shortNote) noteDisplay = (calc.shortNote+(noteDisplay?' / '+noteDisplay:'')).trim();
+      // 확인표기(계산 미반영) - 파란색 윗줄, 여러 줄 지원
+      var adminHtml = '';
+      if(m.adminNote && m.adminNote.trim()) {
+        adminHtml = m.adminNote.trim().split(/\n+/).map(function(ln){
+          return '<div style="color:#2563EB;font-weight:600">'+escapeHtml(ln.trim())+'</div>';
+        }).join('');
+      }
+      var cellHtml = adminHtml + (noteDisplay ? '<div>'+noteDisplay+'</div>' : '');
 
       html += '<tr class="'+trClass+'">'+
         '<td></td>'+
@@ -797,7 +832,7 @@ function calcAll(addHistory) {
         '<td>'+(calc.isZero ? '-' : calc.weekdays)+'</td>'+
         '<td>'+(leave > 0 ? leave : '')+'</td>'+
         '<td style="font-weight:700;color:'+(workDays===0?'#9CA3AF':'var(--navy)')+'">'+workDays+'</td>'+
-        '<td class="note-cell">'+noteDisplay+'</td>'+
+        '<td class="note-cell">'+cellHtml+'</td>'+
         '</tr>';
     });
 
@@ -884,6 +919,46 @@ function restoreSnapshot(snap) {
   if(snap.start && snap.end) calcAll(false);
 }
 
+// 확인표기 일괄입력
+function openAdminImport() {
+  document.getElementById('admin-group-label').textContent = currentGroup;
+  document.getElementById('admin-bulk').value = '';
+  document.getElementById('admin-result').innerHTML = '';
+  document.getElementById('admin-modal').classList.add('open');
+}
+
+function applyAdminBulk() {
+  var text = document.getElementById('admin-bulk').value;
+  var lines = text.split(/\n+/).map(function(l){ return l.trim(); }).filter(Boolean);
+  if(!lines.length) { document.getElementById('admin-result').innerHTML = '<span style="color:#B4442F">입력된 내용이 없어요.</span>'; return; }
+
+  // 현재 그룹 전 부서의 이름 → 멤버 맵
+  var byName = {};
+  depts.forEach(function(d){ d.members.forEach(function(m){ byName[m.name] = m; }); });
+
+  var applied = [], unmatched = [];
+  lines.forEach(function(line){
+    var sp = line.search(/\s/);
+    if(sp < 0) { unmatched.push(line+' (표기 없음)'); return; }
+    var name = line.slice(0, sp).trim();
+    var tag = line.slice(sp+1).trim();
+    if(byName[name]) { byName[name].adminNote = tag; applied.push(name); }
+    else unmatched.push(name);
+  });
+
+  groups[currentGroup] = depts;
+  saveMaster();
+  renderMembers();
+  var startStr = document.getElementById('date-start').value, endStr = document.getElementById('date-end').value;
+  if(startStr && endStr) calcAll();
+
+  var msg = '<div style="color:var(--green);font-weight:600">✅ '+applied.length+'명 적용 완료</div>';
+  if(unmatched.length) {
+    msg += '<div style="color:#B4442F;margin-top:6px">⚠ 명단에서 못 찾은 '+unmatched.length+'명 (이름 확인 필요):<br>'+escapeHtml(unmatched.join(', '))+'</div>';
+  }
+  document.getElementById('admin-result').innerHTML = msg;
+}
+
 function openHistory() {
   renderHistoryList();
   document.getElementById('history-modal').classList.add('open');
@@ -961,14 +1036,16 @@ function exportExcel() {
       var workDays = calc.isZero ? 0 : Math.round((calc.weekdays - leave) * 1000) / 1000;
       if(workDays < 0) workDays = 0;
       deptTotal += workDays;
-      var noteDisplay = m.note.replace(/행정\s*[\d.]+\s*/g,'').trim();
+      var noteDisplay = (m.note||'').replace(/행정\s*[\d.]+\s*/g,'').trim();
       if(calc.shortNote) noteDisplay = (calc.shortNote+(noteDisplay?' / '+noteDisplay:'')).trim();
+      var adminLine = (m.adminNote||'').trim();
+      var noteCell = (adminLine ? adminLine + (noteDisplay ? '\n' : '') : '') + noteDisplay;
       rows.push([
         dept.name, m.name,
         calc.isZero ? 0 : calc.weekdays,
         leave || '',
         workDays,
-        noteDisplay
+        noteCell
       ]);
     });
     rows.push(['', '합 계', '', '', Math.round(deptTotal*1000)/1000, '']);
@@ -1160,9 +1237,11 @@ function renderMembers() {
   if(!dept) { document.getElementById('member-area').innerHTML=''; return; }
   var html = '<div class="member-list">';
   dept.members.forEach(function(m,i) {
-    var noteShort = m.note.replace(/행정\s*[\d.]+\s*/g,'').trim().slice(0,30);
+    var noteShort = (m.note||'').replace(/행정\s*[\d.]+\s*/g,'').trim().slice(0,30);
+    var adminShort = (m.adminNote||'').trim().replace(/\n+/g,' / ').slice(0,30);
     html += '<div class="member-row">'+
       '<div><div class="member-name">'+m.name+'</div>'+
+      (adminShort ? '<div class="member-note" style="color:#2563EB">'+escapeHtml(adminShort)+'</div>' : '')+
       (noteShort ? '<div class="member-note">'+noteShort+'</div>' : '')+
       '</div>'+
       '<div style="display:flex;gap:3px">'+
@@ -1189,10 +1268,12 @@ function toggleAddForm() {
 function addMember() {
   var name = document.getElementById('new-member-name').value.trim();
   var note = document.getElementById('new-member-note').value.trim();
+  var adminNote = document.getElementById('new-member-admin').value.trim();
   if(!name) { alert('성명을 입력해주세요'); return; }
-  depts[currentDept].members.push({name:name, note:note});
+  depts[currentDept].members.push({name:name, note:note, adminNote:adminNote});
   document.getElementById('new-member-name').value = '';
   document.getElementById('new-member-note').value = '';
+  document.getElementById('new-member-admin').value = '';
   document.getElementById('add-member-form').style.display = 'none';
   renderMembers();
   saveMaster();
@@ -1210,6 +1291,7 @@ function openEditMember(di, mi) {
   document.getElementById('edit-member-idx').value = mi;
   document.getElementById('edit-name').value = depts[di].members[mi].name;
   document.getElementById('edit-note').value = depts[di].members[mi].note;
+  document.getElementById('edit-admin').value = depts[di].members[mi].adminNote || '';
   document.getElementById('member-modal').classList.add('open');
 }
 
@@ -1218,6 +1300,7 @@ function saveMemberEdit() {
   var mi = parseInt(document.getElementById('edit-member-idx').value);
   depts[di].members[mi].name = document.getElementById('edit-name').value.trim();
   depts[di].members[mi].note = document.getElementById('edit-note').value.trim();
+  depts[di].members[mi].adminNote = document.getElementById('edit-admin').value.trim();
   groups[currentGroup] = depts;
   saveMaster();
   closeMemberModal();
