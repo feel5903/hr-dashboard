@@ -702,12 +702,8 @@ tbody tr:hover{background:#FAFBFC}
 <div class="overlay" id="wd-care-overlay">
   <div class="modal" style="width:520px">
     <h3>👪 가족돌봄휴가 일괄입력</h3>
-    <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:8px;line-height:1.5">
-      한 줄에 한 건씩 붙여넣으세요. 이름 뒤에 날짜(또는 기간)만 있으면 돼요.<br>
-      예: <code>박진영 가족돌봄휴가 (2026.09.01, 1일간)</code> / <code>강현영 2026.09.07~08</code><br>
-      <b>인사정보(가족돌봄휴가)</b>에 저장되고, 해당 월 근무일수에서 자동으로 빠지며 비고에 "가족돌봄 N일"이 표시돼요. 단축근무자는 그날의 환산값(예: 주30시간이면 하루 0.75일)만큼만 차감돼요. 같은 건을 다시 넣어도 중복 저장되지 않아요.
-    </div>
-    <textarea id="wd-care-bulk" style="width:100%;min-height:200px;font-family:inherit;font-size:13px;box-sizing:border-box;padding:.6rem;border:1px solid var(--gray-border);border-radius:8px" placeholder="박진영 가족돌봄휴가 (2026.09.01, 1일간)&#10;강현영 가족돌봄휴가 (2026.09.07~08, 2일간)"></textarea>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">예 : 박진영 가족돌봄휴가 (2026.09.01, 1일간)</div>
+    <textarea id="wd-care-bulk" style="width:100%;min-height:200px;font-family:inherit;font-size:13px;box-sizing:border-box;padding:.6rem;border:1px solid var(--gray-border);border-radius:8px"></textarea>
     <div id="wd-care-result" style="font-size:12px;margin-top:8px"></div>
     <div class="modal-actions">
       <button class="btn" onclick="document.getElementById('wd-care-overlay').classList.remove('open')">닫기</button>
@@ -719,12 +715,8 @@ tbody tr:hover{background:#FAFBFC}
 <div class="overlay" id="wd-admin-overlay">
   <div class="modal" style="width:520px">
     <h3>🏷️ 확인표기 일괄입력</h3>
-    <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:8px;line-height:1.5">
-      한 줄에 한 명씩 <b>이름 + 공백 + 표기</b> 형식으로 붙여넣으세요. 계산엔 반영되지 않고, 근무일수 결과의 비고 칸 위에 파란 글씨로만 표시돼요.<br>
-      예: <code>정영환 행정 0.5</code> / <code>이성철 행정 2 + 기능 1.5</code><br>
-      직원현황 전체에서 이름으로 찾아 적용해요. 표기를 비워서 입력하면 해당 직원의 기존 표기가 지워져요. 기존 표기는 덮어씁니다.
-    </div>
-    <textarea id="wd-admin-bulk" style="width:100%;min-height:220px;font-family:inherit;font-size:13px;box-sizing:border-box;padding:.6rem;border:1px solid var(--gray-border);border-radius:8px" placeholder="정영환 행정 0.5&#10;이성철 행정 2 + 기능 1.5&#10;권순인 행정 1.5"></textarea>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">예 : 정영환 행정 0.5</div>
+    <textarea id="wd-admin-bulk" style="width:100%;min-height:220px;font-family:inherit;font-size:13px;box-sizing:border-box;padding:.6rem;border:1px solid var(--gray-border);border-radius:8px"></textarea>
     <div id="wd-admin-result" style="font-size:12px;margin-top:8px"></div>
     <div class="modal-actions">
       <button class="btn" onclick="document.getElementById('wd-admin-overlay').classList.remove('open')">닫기</button>
