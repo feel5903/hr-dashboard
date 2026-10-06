@@ -738,6 +738,11 @@ tbody tr:hover{background:#FAFBFC}
             <div style="font-size:11px;color:#92400E;margin-bottom:.5rem">👉 지금 진하게 표시된 버튼이 현재 적용 중인 계산 방식이에요.</div>
             <div id="wd-dup-review-list" style="display:flex;flex-direction:column;gap:4px"></div>
           </div>
+          <div id="wd-special-review" style="display:none;margin-top:.6rem;border:1px solid #BFDBFE;background:#EFF6FF;border-radius:8px;padding:.6rem .8rem">
+            <div style="font-size:11.5px;font-weight:700;color:#1E40AF;margin-bottom:.4rem">🔎 공가 확인이 필요한 건이 있어요. 학술대회·교육·출장 등 <b>업무상 공가</b>로 보이는 건은 기본 <b>[차감 안 함]</b>, 임신검진 등 <b>그 외 공가</b>는 기본 <b>[휴가로 차감]</b>으로 계산돼요. 다르면 버튼을 눌러 바꿔주세요.</div>
+            <div style="font-size:11px;color:#1E40AF;margin-bottom:.5rem">👉 지금 진하게 표시된 버튼이 현재 적용 중인 계산 방식이에요.</div>
+            <div id="wd-special-review-list" style="display:flex;flex-direction:column;gap:4px"></div>
+          </div>
         </div>
 
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:1rem">
@@ -4878,6 +4883,21 @@ var wdLastResults=null; // 엑셀 다운로드용 마지막 계산 결과 캐시
 
 var wdRawEntries=[]; // 업로드에서 뽑아낸 원본 항목들 {name, date, amt}
 var wdDupResolutions={}; // key -> true면 "둘 다 반영"(합치지 않음), 기본은 합침
+var wdSpecialResolutions={}; // 확인이 필요한 건: 항목번호 -> true면 휴가로 차감, false면 차감 안 함 (없으면 기본값)
+var WD_WORK_RE=/학술|학회|대회|세미나|연수|교육|출장|파견|위원회|참석/; // 업무상 공가로 보이는 말
+var WD_HEALTH_RE=/임신|검진|산전|진료|건강|접종|병원/; // 개인 사유(차감 대상)로 보이는 말
+function wdSpecialKind(e){
+  var t=(e.type||'')+' '+(e.memo||'');
+  if(WD_WORK_RE.test(t) && !WD_HEALTH_RE.test(t)) return 'work';   // 학술대회 등 업무상 → 기본 차감 안 함
+  if(/공가/.test(t)) return 'gongga';                               // 그 외 공가(임신검진 등) → 기본 차감
+  return '';
+}
+function wdIsSpecial(e){ return !!wdSpecialKind(e); }
+function wdSpecialDeduct(e){
+  var r=wdSpecialResolutions[e._idx];
+  if(r===true||r===false) return r;
+  return wdSpecialKind(e)==='gongga';
+}
 
 function wdHandleFile(file){
   if(!file) return;
@@ -4897,13 +4917,15 @@ function wdHandleFile(file){
       if(headerRow<0) headerRow=1;
 
       var headers=rows[headerRow];
-      var colDate=-1, colName=-1, colAmt=-1, colType=-1;
+      var colDate=-1, colName=-1, colAmt=-1, colType=-1, colMemo=-1;
       for(var ci=0;ci<headers.length;ci++){
         var h=String(headers[ci]||'');
         if(h.indexOf('근태일자')>=0) colDate=ci;
         else if(h.indexOf('사원명')>=0) colName=ci;
         else if(h.indexOf('근태수')>=0) colAmt=ci;
-        else if(h.indexOf('종류')>=0||h.indexOf('구분')>=0) colType=ci;
+        else if(h.indexOf('종류')>=0||h.indexOf('구분')>=0||h.indexOf('근태명')>=0) colType=ci;
+        if(h.indexOf('적요')>=0) colMemo=ci;
+        else if(colMemo<0 && (h.indexOf('사유')>=0||h.indexOf('비고')>=0)) colMemo=ci;
       }
       if(colDate<0) colDate=1; if(colName<0) colName=2; if(colAmt<0) colAmt=4;
 
@@ -4929,9 +4951,11 @@ function wdHandleFile(file){
         var dateStr2=parseExcelDate(row[colDate]);
         var amt=parseFloat(row[colAmt])||0;
         var leaveType=colType>=0?String(row[colType]||'').trim():'';
-        wdRawEntries.push({name:name, date:dateStr2, amt:amt, type:leaveType});
+        var memo=colMemo>=0?String(row[colMemo]||'').trim():'';
+        wdRawEntries.push({name:name, date:dateStr2, amt:amt, type:leaveType, memo:memo});
       }
       wdDupResolutions={};
+      wdSpecialResolutions={};
       wdRecalcLeaveData();
 
       document.getElementById('wd-upload-text').innerHTML='✅ '+file.name+'<br><span style="font-size:11px;color:var(--lime-dark)" id="wd-upload-count">'+Object.keys(wdLeaveData).length+'명 휴가 데이터 로드됨</span>';
@@ -4947,7 +4971,9 @@ function wdHandleFile(file){
 // 완전히 같은(이름+날짜+근태수) 항목이 여러 번 있으면 기본은 1건만 반영, 체크된 건은 전부 반영
 function wdRecalcLeaveData(){
   var groups={};
-  wdRawEntries.forEach(function(e){
+  wdRawEntries.forEach(function(e,idx){
+    e._idx=idx;
+    if(wdIsSpecial(e) && !wdSpecialDeduct(e)) return; // 업무상 공가(학술대회 등)는 기본 차감 제외
     var key=e.name+'|'+e.date+'|'+e.amt;
     if(!groups[key]) groups[key]={name:e.name,date:e.date,amt:e.amt,types:[],count:0};
     if(e.type && groups[key].types.indexOf(e.type)<0) groups[key].types.push(e.type);
@@ -4960,6 +4986,7 @@ function wdRecalcLeaveData(){
     wdLeaveData[g.name]=(wdLeaveData[g.name]||0)+g.amt*useCount;
   });
   wdRenderDupReview(groups);
+  wdRenderSpecialReview();
   var cntEl=document.getElementById('wd-upload-count');
   if(cntEl) cntEl.textContent=Object.keys(wdLeaveData).length+'명 휴가 데이터 로드됨';
 }
@@ -4988,6 +5015,34 @@ function wdRenderDupReview(groups){
   }).join('');
 }
 
+function wdRenderSpecialReview(){
+  var box=document.getElementById('wd-special-review');
+  var list=document.getElementById('wd-special-review-list');
+  if(!box||!list) return;
+  var items=wdRawEntries.filter(wdIsSpecial);
+  if(!items.length){ box.style.display='none'; return; }
+  box.style.display='';
+  list.innerHTML=items.map(function(e){
+    var deduct=wdSpecialDeduct(e);
+    var offStyle=!deduct?"border:1px solid #1D4ED8;background:#1D4ED8;color:#fff":"border:1px solid #D1D5DB;background:#fff;color:#6B7280";
+    var onStyle=deduct?"border:1px solid #1D4ED8;background:#1D4ED8;color:#fff":"border:1px solid #D1D5DB;background:#fff;color:#6B7280";
+    var label=escapeHtml(e.name)+' · '+escapeHtml(e.date)+' · '+e.amt+(e.type?' · '+escapeHtml(e.type):'')+(e.memo?' · 적요: <b>'+escapeHtml(e.memo)+'</b>':'');
+    return "<div style='display:flex;align-items:center;justify-content:space-between;gap:8px;padding:.35rem 0;border-bottom:1px dashed #BFDBFE'>"+
+      "<span style='font-size:12px;color:#1E3A8A'>"+label+"</span>"+
+      "<span style='display:flex;gap:4px;flex-shrink:0'>"+
+        "<button onclick='wdSetSpecial("+e._idx+",false)' style='font-size:11px;padding:3px 8px;border-radius:6px;cursor:pointer;font-family:inherit;"+offStyle+"'>차감 안 함(공가 등)</button>"+
+        "<button onclick='wdSetSpecial("+e._idx+",true)' style='font-size:11px;padding:3px 8px;border-radius:6px;cursor:pointer;font-family:inherit;"+onStyle+"'>휴가로 차감</button>"+
+      "</span>"+
+    "</div>";
+  }).join('');
+}
+
+function wdSetSpecial(idx, deduct){
+  wdSpecialResolutions[idx]=deduct;
+  wdRecalcLeaveData();
+  if(document.getElementById('wd-month').value && wdLastResults) calcWorkdays();
+}
+
 function wdSetDupGroup(key, keepAll){
   wdDupResolutions[key]=keepAll;
   wdRecalcLeaveData();
@@ -4997,6 +5052,8 @@ function wdClearUpload(){
   wdLeaveData={};
   wdRawEntries=[];
   wdDupResolutions={};
+  wdSpecialResolutions={};
+  var spBox=document.getElementById('wd-special-review'); if(spBox) spBox.style.display='none';
   document.getElementById('wd-file-input').value='';
   document.getElementById('wd-upload-text').innerHTML='📂 클릭하거나 파일을 여기에 드래그<br><span style="font-size:11px;color:#9CA3AF">EPD021M 휴가내역 엑셀 파일 (연차·반차·시간차 등)</span>';
   document.getElementById('wd-upload-area').style.borderColor='var(--gray-border)';
