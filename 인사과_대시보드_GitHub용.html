@@ -699,6 +699,23 @@ tbody tr:hover{background:#FAFBFC}
   </div>
 </div>
 
+<div class="overlay" id="wd-care-overlay">
+  <div class="modal" style="width:520px">
+    <h3>👪 가족돌봄휴가 일괄입력</h3>
+    <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:8px;line-height:1.5">
+      한 줄에 한 건씩 붙여넣으세요. 이름 뒤에 날짜(또는 기간)만 있으면 돼요.<br>
+      예: <code>박진영 가족돌봄휴가 (2026.09.01, 1일간)</code> / <code>강현영 2026.09.07~08</code><br>
+      <b>인사정보(가족돌봄휴가)</b>에 저장되고, 해당 월 근무일수에서 자동으로 빠지며 비고에 "가족돌봄 N일"이 표시돼요. 단축근무자는 그날의 환산값(예: 주30시간이면 하루 0.75일)만큼만 차감돼요. 같은 건을 다시 넣어도 중복 저장되지 않아요.
+    </div>
+    <textarea id="wd-care-bulk" style="width:100%;min-height:200px;font-family:inherit;font-size:13px;box-sizing:border-box;padding:.6rem;border:1px solid var(--gray-border);border-radius:8px" placeholder="박진영 가족돌봄휴가 (2026.09.01, 1일간)&#10;강현영 가족돌봄휴가 (2026.09.07~08, 2일간)"></textarea>
+    <div id="wd-care-result" style="font-size:12px;margin-top:8px"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('wd-care-overlay').classList.remove('open')">닫기</button>
+      <button class="btn lime" onclick="applyWdCareBulk()">적용</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="wd-admin-overlay">
   <div class="modal" style="width:520px">
     <h3>🏷️ 확인표기 일괄입력</h3>
@@ -750,6 +767,7 @@ tbody tr:hover{background:#FAFBFC}
           <div class="field" style="margin:0"><label>추가 공휴일 (쉼표로 구분, YYYY-MM-DD)</label><input type="text" id="wd-extra-holidays" placeholder="예: 2026-08-17" style="width:220px"></div>
           <button class="btn lime" onclick="calcWorkdays()">📊 계산하기</button>
           <button class="btn" onclick="openWdAdminImport()">🏷️ 확인표기 일괄입력</button>
+          <button class="btn" onclick="openWdCareImport()">👪 가족돌봄휴가 일괄입력</button>
           <button class="btn" onclick="wdExportExcel()">⬇ 엑셀 다운로드</button>
           <button class="btn" onclick="wdSaveResults()" style="border-color:#4338CA;color:#4338CA">💾 결과 저장</button>
           <button class="btn" onclick="wdOpenSavedList()">📂 저장된 결과 보기</button>
@@ -819,7 +837,7 @@ tbody tr:hover{background:#FAFBFC}
           <option>병가</option><option>병가(휴직)</option><option>휴업</option><option>기타</option>
           <option>출산휴가</option><option>배우자출산휴가</option><option>육아휴직</option>
           <option>육아기단축근무</option><option>가족돌봄휴직(단축근무)</option><option>산전근로단축(무급)</option>
-          <option>임신기근로단축</option><option>유사산휴가</option><option>난임휴가</option>
+          <option>가족돌봄휴가</option><option>임신기근로단축</option><option>유사산휴가</option><option>난임휴가</option>
           <option>근무변경</option><option>기타사항</option><option>급식</option>
         </select>
       </div>
@@ -4438,7 +4456,7 @@ var HR_TYPE_COLORS = {
   '입사':'#0f6e56','퇴사':'#a32d2d','휴직(안식)':'#7c5cbf','복직':'#0f6e56','정직':'#a35a2d',
   '재계약':'#1d6fa5','무급':'#6b6b6b','병가':'#c2703a','병가(휴직)':'#c2703a','휴업':'#6b6b6b','기타':'#6b6b6b',
   '출산휴가':'#d1467a','배우자출산휴가':'#d1467a','유사산휴가':'#b5651d','난임휴가':'#b5651d',
-  '육아휴직':'#8b3fd1','가족돌봄휴직(단축근무)':'#3f8bd1','육아기단축근무':'#2e9e8f',
+  '육아휴직':'#8b3fd1','가족돌봄휴직(단축근무)':'#3f8bd1','가족돌봄휴가':'#3f8bd1','육아기단축근무':'#2e9e8f',
   '임신기근로단축':'#c78a1e','산전근로단축(무급)':'#c78a1e','근무변경':'#1d6fa5','승진/ 발령':'#0f6e56',
   '기타사항':'#6b6b6b','급식':'#6b6b6b'
 };
@@ -4456,6 +4474,7 @@ var HR_MENU_GROUPS = [
   {id:'maternity', label:'출산휴가', types:['출산휴가','배우자출산휴가']},
   {id:'childcare', label:'육아휴직', types:['육아휴직']},
   {id:'shorthour', label:'단축근무', types:['육아기단축근무','가족돌봄휴직(단축근무)','산전근로단축(무급)','임신기근로단축']},
+  {id:'familycare', label:'가족돌봄휴가', types:['가족돌봄휴가']},
   {id:'miscarriage', label:'유사산·난임휴가', types:['유사산휴가','난임휴가']},
   {id:'workchange', label:'근무변경', types:['근무변경']},
   {id:'etc', label:'기타', types:['기타사항']},
@@ -5119,6 +5138,59 @@ async function applyWdAdminBulk(){
   document.getElementById('wd-admin-result').innerHTML=msg;
 }
 
+// 가족돌봄휴가 일괄입력: "이름 ... 2026.09.07~08" 형식 파싱 → {name,start,end}
+function wdParseCareLine(line){
+  var sp=line.search(/\s/);
+  if(sp<0) return null;
+  var name=line.slice(0,sp).trim();
+  var m=line.match(/(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
+  if(!m) return null;
+  var y=m[1], mo=m[2], dd=m[3];
+  var start=y+'-'+mo.padStart(2,'0')+'-'+dd.padStart(2,'0'), end=start;
+  var rest=line.slice(m.index+m[0].length);
+  var r=rest.match(/^\s*[~∼–\-]\s*(?:(\d{4})[.\-\/])?(?:(\d{1,2})[.\-\/])?(\d{1,2})(?!\d)/);
+  if(r){
+    var ey=r[1]||y, em=r[2]||mo;
+    end=ey+'-'+em.padStart(2,'0')+'-'+r[3].padStart(2,'0');
+    if(end<start) end=start;
+  }
+  return {name:name,start:start,end:end};
+}
+
+function openWdCareImport(){
+  document.getElementById('wd-care-bulk').value='';
+  document.getElementById('wd-care-result').innerHTML='';
+  document.getElementById('wd-care-overlay').classList.add('open');
+}
+
+async function applyWdCareBulk(){
+  var lines=document.getElementById('wd-care-bulk').value.split(/\n+/).map(function(l){return l.trim();}).filter(Boolean);
+  if(!lines.length){ document.getElementById('wd-care-result').innerHTML='<span style="color:#B4442F">입력된 내용이 없어요.</span>'; return; }
+  var byName={}; (data.staff||[]).forEach(function(s){ byName[s.name]=s; });
+  if(!data.hrEvents) data.hrEvents=[];
+  var added=[],dup=[],unmatched=[],bad=[],fail=0;
+  for(var i=0;i<lines.length;i++){
+    var p=wdParseCareLine(lines[i]);
+    if(!p){ bad.push(lines[i]); continue; }
+    var st=byName[p.name];
+    if(!st){ unmatched.push(p.name); continue; }
+    var exists=data.hrEvents.some(function(e){ return e.type==='가족돌봄휴가'&&e.name===p.name&&e.startDate===p.start&&(e.endDate||e.startDate)===p.end; });
+    if(exists){ dup.push(p.name+' '+p.start); continue; }
+    var nr={id:genId('hre'),type:'가족돌봄휴가',dept:st.dept||'',role:st.position||st.title||'',name:p.name,startDate:p.start,endDate:p.end===p.start?'':p.end,note:'',retroMonth:''};
+    var ok=await saveRowChecked('hr_events',[nr.id,nr.type,nr.dept,nr.role,nr.name,nr.startDate,nr.endDate,nr.note,nr.retroMonth],'가족돌봄휴가');
+    if(ok){ data.hrEvents.push(nr); added.push(p.name+' '+p.start+(p.end!==p.start?'~'+p.end:'')); } else fail++;
+  }
+  if(typeof hrRenderNav==='function'){ try{ hrRenderNav(); hrRenderPage(); }catch(e){} }
+  if(document.getElementById('wd-month').value) calcWorkdays();
+  var msg='<div style="color:var(--green);font-weight:600">✅ '+added.length+'건 저장</div>';
+  if(added.length) msg+='<div style="color:var(--text-muted)">'+escapeHtml(added.join(' / '))+'</div>';
+  if(dup.length) msg+='<div style="color:#92400E;margin-top:6px">이미 저장돼 있어 건너뜀 '+dup.length+'건: '+escapeHtml(dup.join(', '))+'</div>';
+  if(unmatched.length) msg+='<div style="color:#B4442F;margin-top:6px">⚠ 직원현황에서 못 찾은 이름: '+escapeHtml(unmatched.join(', '))+'</div>';
+  if(bad.length) msg+='<div style="color:#B4442F;margin-top:6px">⚠ 날짜를 못 읽은 줄: '+escapeHtml(bad.join(' | '))+'</div>';
+  if(fail) msg+='<div style="color:#B4442F;margin-top:6px">⚠ 저장 실패 '+fail+'건</div>';
+  document.getElementById('wd-care-result').innerHTML=msg;
+}
+
 function computeMemberWorkdays(staff, periodStart, periodEnd, holidaySet){
   var effStart=periodStart, effEnd=periodEnd;
   if(staff.joinDate){ var jd=twParseDate(staff.joinDate); if(jd&&jd>effStart) effStart=jd; }
@@ -5129,6 +5201,15 @@ function computeMemberWorkdays(staff, periodStart, periodEnd, holidaySet){
   var extraDates={};
   twParseExtraNoteDates(staff.note, effStart, effEnd, holidaySet).forEach(function(ds){ extraDates[ds]=true; });
 
+  // 가족돌봄휴가(인사정보): 해당 평일은 근무일수에서 제외 (단축근무자는 그날의 환산값만큼만 빠짐)
+  var careDates={};
+  (data.hrEvents||[]).forEach(function(ev){
+    if(ev.type!=='가족돌봄휴가'||ev.name!==staff.name||!ev.startDate) return;
+    var cs=twParseDate(ev.startDate), ce=twParseDate(ev.endDate||ev.startDate);
+    if(!cs||!ce) return;
+    for(var cd=new Date(cs); cd<=ce; cd.setDate(cd.getDate()+1)) careDates[twDateStr(cd)]=true;
+  });
+  var careDays=0;
   var baseTotal=0;
   var d=new Date(effStart);
   while(d<=effEnd){
@@ -5142,6 +5223,7 @@ function computeMemberWorkdays(staff, periodStart, periodEnd, holidaySet){
           dayValue=Math.min(dayValue,cand);
         }
       }
+      if(careDates[ds] && dayValue>0){ dayValue=0; careDays++; }
       if(extraDates[ds]) dayValue=0;
       baseTotal+=dayValue;
     }
@@ -5164,6 +5246,7 @@ function computeMemberWorkdays(staff, periodStart, periodEnd, holidaySet){
   });
   if(staff.joinDate && twParseDate(staff.joinDate)>=periodStart && twParseDate(staff.joinDate)<=periodEnd) typesUsed['입사('+staff.joinDate+')']=true;
   if(staff.resignDate && twParseDate(staff.resignDate)>=periodStart && twParseDate(staff.resignDate)<=periodEnd) typesUsed['퇴사('+staff.resignDate+')']=true;
+  if(careDays>0) typesUsed['가족돌봄 '+careDays+'일']=true;
   // 업로드 휴가 일수는 별도 "휴가" 칸에 숫자로 이미 표시되므로 비고에는 안 넣음
   return {total:total, baseWeekdays:baseTotal, uploadLeave:uploadLeave, note:Object.keys(typesUsed).join(', ')};
 }
