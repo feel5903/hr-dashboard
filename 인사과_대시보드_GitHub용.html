@@ -912,7 +912,7 @@ tbody tr:hover{background:#FAFBFC}
 <div class="overlay" id="directive-overlay" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal" style="width:780px;max-width:96vw;max-height:88vh;overflow-y:auto">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-      <h3 style="margin:0">📌 지시사항</h3>
+      <h3 style="margin:0">📌 지시사항 <span id="dv-busy" style="display:none;font-size:12px;font-weight:600;color:#92400E">저장 중...</span></h3>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <button class="btn" id="dv-f-active" onclick="dvSetFilter('active')">진행중</button>
         <button class="btn" id="dv-f-done" onclick="dvSetFilter('done')">완료</button>
@@ -2983,6 +2983,12 @@ function dvOpenForm(id){
   document.getElementById('dv-f-note').value=x?(x.note||''):'';
   document.getElementById('directive-form-overlay').classList.add('open');
 }
+var dvBusy=false;
+function dvSetBusy(on){
+  dvBusy=on;
+  var b=document.getElementById('dv-busy'); if(b) b.style.display=on?'':'none';
+  var l=document.getElementById('dv-list'); if(l){ l.style.opacity=on?'.55':''; l.style.pointerEvents=on?'none':''; }
+}
 async function dvSave(){
   var title=document.getElementById('dv-f-title').value.trim();
   if(!title){ alert('내용을 입력해주세요'); return; }
@@ -2998,44 +3004,67 @@ async function dvSave(){
     status:document.getElementById('dv-f-status').value,
     vendor:document.getElementById('dv-f-vendor').value.trim(),
     note:document.getElementById('dv-f-note').value.trim()};
-  var btn=document.getElementById('dv-save-btn'); btn.disabled=true;
-  if(!data.directives) data.directives=[];
-  if(id){
-    var idx=data.directives.findIndex(function(r){ return r.id===id; });
-    var prev=idx>=0?Object.assign({},data.directives[idx]):null;
-    if(idx>=0) data.directives[idx]=nr;
-    var ok=await updateRowSafe('directives',id,dvRowOf(nr));
-    if(!ok) ok=await updateRowSafe('directives',id,dvRowOf(nr));
-    if(!ok){
-      if(idx>=0&&prev) data.directives[idx]=prev;
-      btn.disabled=false;
-      alert('⚠ 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'+(window._lastSaveErr?'\n\n[상세 원인] '+window._lastSaveErr:'')+'\n\n※ 구글시트에 \'directives\' 탭과 헤더가 정확히 있는지도 확인해주세요.');
-      return;
+  var btn=document.getElementById('dv-save-btn');
+  if(btn.disabled) return;
+  btn.disabled=true; btn.textContent='저장 중...';
+  try{
+    if(!data.directives) data.directives=[];
+    if(id){
+      var idx=data.directives.findIndex(function(r){ return r.id===id; });
+      var prev=idx>=0?Object.assign({},data.directives[idx]):null;
+      if(idx>=0) data.directives[idx]=nr;
+      var ok=await updateRowSafe('directives',id,dvRowOf(nr));
+      if(!ok) ok=await updateRowSafe('directives',id,dvRowOf(nr));
+      if(!ok){
+        if(idx>=0&&prev) data.directives[idx]=prev;
+        alert('⚠ 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'+(window._lastSaveErr?'\n\n[상세 원인] '+window._lastSaveErr:'')+'\n\n※ 구글시트에 \'directives\' 탭과 헤더가 정확히 있는지도 확인해주세요.');
+        return;
+      }
+    } else {
+      var ok2=await saveRowChecked('directives',dvRowOf(nr),'지시사항');
+      if(!ok2) return;
+      data.directives.push(nr);
     }
-  } else {
-    var ok2=await saveRowChecked('directives',dvRowOf(nr),'지시사항');
-    if(!ok2){ btn.disabled=false; return; }
-    data.directives.push(nr);
+    document.getElementById('directive-form-overlay').classList.remove('open');
+    dvRenderList(); renderDirectiveCard();
+  }catch(err){
+    alert('⚠ 저장 중 오류가 발생했어요: '+(err&&err.message?err.message:err));
+  }finally{
+    btn.disabled=false; btn.textContent='저장';
   }
-  btn.disabled=false;
-  document.getElementById('directive-form-overlay').classList.remove('open');
-  dvRenderList(); renderDirectiveCard();
 }
 async function dvSetStatus(id,st){
+  if(dvBusy) return;
   var x=(data.directives||[]).find(function(r){ return r.id===id; }); if(!x) return;
   var prev=x.status; x.status=st;
-  var ok=await updateRowSafe('directives',id,dvRowOf(x));
-  if(!ok) ok=await updateRowSafe('directives',id,dvRowOf(x));
-  if(!ok){ x.status=prev; alert('⚠ 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'+(window._lastSaveErr?'\n\n[상세 원인] '+window._lastSaveErr:'')); }
-  dvRenderList(); renderDirectiveCard();
+  dvSetBusy(true);
+  try{
+    var ok=await updateRowSafe('directives',id,dvRowOf(x));
+    if(!ok) ok=await updateRowSafe('directives',id,dvRowOf(x));
+    if(!ok){ x.status=prev; alert('⚠ 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'+(window._lastSaveErr?'\n\n[상세 원인] '+window._lastSaveErr:'')); }
+  }catch(err){
+    x.status=prev; alert('⚠ 저장 중 오류가 발생했어요: '+(err&&err.message?err.message:err));
+  }finally{
+    dvSetBusy(false);
+    dvRenderList(); renderDirectiveCard();
+  }
 }
 async function dvDelete(id){
+  if(dvBusy) return;
   if(!confirm('이 지시를 삭제할까요?')) return;
   var prevList=(data.directives||[]).slice();
   data.directives=prevList.filter(function(r){ return r.id!==id; });
   dvRenderList(); renderDirectiveCard();
-  var ok=await deleteRowSafe('directives',id);
-  if(!ok){ data.directives=prevList; dvRenderList(); renderDirectiveCard(); alert('⚠ 삭제에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'); }
+  dvSetBusy(true);
+  try{
+    var ok=await deleteRowSafe('directives',id);
+    if(!ok){ data.directives=prevList; alert('⚠ 삭제에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'); }
+  }catch(err){
+    data.directives=prevList; alert('⚠ 삭제 중 오류가 발생했어요: '+(err&&err.message?err.message:err));
+  }finally{
+    dvSetBusy(false);
+    dvRenderList(); renderDirectiveCard();
+  }
 }
 
 function renderMainAlerts(){
