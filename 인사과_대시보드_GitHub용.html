@@ -187,8 +187,8 @@ tbody tr:hover{background:#FAFBFC}
 
 </nav>
 <main class="main">
-  <div class="stats-row" style="grid-template-columns:1.5fr 1fr 1fr 1fr 1fr">
-    <div class="stat-card" id="directive-card" onclick="openDirectives()" style="cursor:pointer" title="원장님·처장님 지시사항 (클릭하면 목록 열림)"><div class="stat-icon" id="directive-icon" style="background:#FEF3C7">📌</div><div><div class="stat-label" style="font-size:13px;font-weight:700;color:#92400E">지시사항</div><div class="stat-val" id="directive-val" style="font-size:16px;color:#92400E;white-space:nowrap">0건</div></div></div>
+  <div class="stats-row" style="grid-template-columns:repeat(5,1fr)">
+    <div class="stat-card" id="directive-card" onclick="openDirectives()" style="cursor:pointer" title="원장님·처장님 지시사항 (클릭하면 목록 열림)"><div class="stat-icon" id="directive-icon" style="background:#FEF3C7">📌</div><div><div class="stat-label" style="font-size:13px;font-weight:700;color:#92400E">지시사항 <span id="directive-dday" style="font-size:11.5px"></span></div><div class="stat-val" id="directive-val" style="color:#92400E">0</div></div></div>
     <div class="stat-card" onclick="goToDueToday()" style="cursor:pointer" title="클릭하면 오늘 마감 업무 보기"><div class="stat-icon coral">🔔</div><div><div class="stat-label" style="font-size:13px;font-weight:700;color:var(--coral)">오늘 마감</div><div class="stat-val coral" id="s-due">0</div></div></div>
     <div class="stat-card" onclick="showAnnualPopup()" style="cursor:pointer" title="클릭하면 이번달 중요업무 보기"><div class="stat-icon" style="background:#E0E7FF">📅</div><div><div class="stat-label" style="font-size:13px;font-weight:700;color:#4338CA"><span id="annual-month-label"></span> 중요업무</div><div class="stat-val" style="color:#4338CA" id="cnt-annual-stat">0</div></div></div>
     <div class="stat-card" style="grid-column:span 2;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -930,18 +930,18 @@ tbody tr:hover{background:#FAFBFC}
     <h3 id="dv-form-title">지시 추가</h3>
     <input type="hidden" id="dv-f-id">
     <div class="row">
-      <div class="field"><label>지시한 분</label><input type="text" id="dv-f-requester" list="dv-requester-list" placeholder="병원장님 / 처장님"><datalist id="dv-requester-list"><option value="병원장님"><option value="처장님"></datalist></div>
+      <div class="field"><label>요청자</label><input type="text" id="dv-f-requester" list="dv-requester-list"><datalist id="dv-requester-list"><option value="병원장님"><option value="처장님"></datalist></div>
       <div class="field"><label>종류</label><select id="dv-f-kind"><option>화환</option><option>화분</option><option>기타</option></select></div>
     </div>
-    <div class="field"><label>내용 (대상·행사명)</label><input type="text" id="dv-f-title" placeholder="예: 푸르메병원 홍지연 병원장 취임식 축하화분"></div>
-    <div class="field"><label>행사 일시·장소</label><input type="text" id="dv-f-event" placeholder="예: 10/28(화) 09:30, 푸르메병원"></div>
+    <div class="field"><label>내용 (대상·행사명)</label><input type="text" id="dv-f-title"></div>
+    <div class="field"><label>행사 일시·장소</label><input type="text" id="dv-f-event"></div>
     <div class="row">
       <div class="field"><label>요청일</label><input type="date" id="dv-f-reqdate"></div>
       <div class="field"><label>처리 기한</label><input type="date" id="dv-f-deadline"></div>
     </div>
     <div class="row">
-      <div class="field"><label>보내는 이름</label><input type="text" id="dv-f-sender" placeholder="예: 병원장 이지선"></div>
-      <div class="field"><label>상태</label><select id="dv-f-status"><option>접수</option><option>진행중</option><option>완료</option></select></div>
+      <div class="field"><label>보내는 이름</label><input type="text" id="dv-f-sender"></div>
+      <div class="field"><label>상태</label><select id="dv-f-status"><option>진행중</option><option>완료</option></select></div>
     </div>
     <div class="field"><label>업체·금액 (선택)</label><input type="text" id="dv-f-vendor"></div>
     <div class="field"><label>비고</label><textarea id="dv-f-note" style="min-height:60px"></textarea></div>
@@ -2907,19 +2907,18 @@ function dvDdayLabel(n){ return n===null?'':(n===0?'D-day':(n>0?'D-'+n:'D+'+(-n)
 function renderDirectiveCard(){
   var card=document.getElementById('directive-card'); if(!card) return;
   var active=(data.directives||[]).filter(function(x){ return x.status!=='완료'; });
-  var val=document.getElementById('directive-val'), icon=document.getElementById('directive-icon');
+  var val=document.getElementById('directive-val'), icon=document.getElementById('directive-icon'), dd=document.getElementById('directive-dday');
   var minD=null;
   active.forEach(function(x){ var n=dvDday(x.deadline); if(n!==null&&(minD===null||n<minD)) minD=n; });
+  val.textContent=active.length;
+  dd.textContent=(active.length&&minD!==null)?dvDdayLabel(minD):'';
   if(!active.length){
-    val.textContent='0건'; val.style.color='#9CA3AF';
+    val.style.color='#9CA3AF'; dd.style.color='#9CA3AF';
     card.style.background=''; card.style.borderColor=''; icon.style.background='#F3F4F6';
-    return;
-  }
-  val.textContent=active.length+'건'+(minD!==null?' · '+dvDdayLabel(minD):'');
-  if(minD!==null&&minD<=3){
-    val.style.color='#B91C1C'; card.style.background='#FEF2F2'; card.style.borderColor='#EF4444'; icon.style.background='#FEE2E2';
+  } else if(minD!==null&&minD<=3){
+    val.style.color='#B91C1C'; dd.style.color='#B91C1C'; card.style.background='#FEF2F2'; card.style.borderColor='#EF4444'; icon.style.background='#FEE2E2';
   } else {
-    val.style.color='#92400E'; card.style.background='#FFFBEB'; card.style.borderColor='#F59E0B'; icon.style.background='#FEF3C7';
+    val.style.color='#92400E'; dd.style.color='#92400E'; card.style.background='#FFFBEB'; card.style.borderColor='#F59E0B'; icon.style.background='#FEF3C7';
   }
 }
 function openDirectives(){
@@ -2952,7 +2951,6 @@ function dvRenderList(){
     if(x.deadline) meta.push('기한 '+escapeHtml(x.deadline));
     if(x.sender) meta.push('보내는 이름 '+escapeHtml(x.sender));
     if(x.vendor) meta.push('업체·금액 '+escapeHtml(x.vendor));
-    var sel=['접수','진행중','완료'].map(function(st){ return "<option"+(x.status===st?' selected':'')+">"+st+"</option>"; }).join('');
     return "<div style='border:1px solid "+(urgent?'#FCA5A5':'var(--gray-border)')+";border-radius:10px;padding:.7rem .9rem;margin-bottom:8px;"+(x.status==='완료'?'opacity:.75;':'')+"'>"+
       "<div style='display:flex;align-items:center;gap:8px;flex-wrap:wrap'>"+badge+
         "<span style='font-size:11px;color:#6B7280;background:#F3F4F6;border-radius:10px;padding:1px 8px'>"+escapeHtml(x.requester||'지시')+" · "+escapeHtml(x.kind||'기타')+"</span>"+
@@ -2960,25 +2958,27 @@ function dvRenderList(){
       (meta.length?"<div style='font-size:12px;color:var(--text-muted);margin-top:5px'>"+meta.join(' · ')+"</div>":'')+
       (x.note?"<div style='font-size:12px;color:var(--text-muted);margin-top:3px;white-space:pre-wrap'>"+escapeHtml(x.note)+"</div>":'')+
       "<div style='display:flex;gap:6px;align-items:center;justify-content:flex-end;margin-top:6px'>"+
-        "<select onchange=\"dvSetStatus('"+x.id+"',this.value)\" style='font-size:12px;padding:3px 6px;border-radius:6px;border:1px solid var(--gray-border)'>"+sel+"</select>"+
+        (x.status==='완료'
+          ?"<button class='btn' style='font-size:11.5px;padding:3px 10px' onclick=\"dvSetStatus('"+x.id+"','진행중')\">↩ 진행중으로</button>"
+          :"<button class='btn lime' style='font-size:11.5px;padding:3px 12px' onclick=\"dvSetStatus('"+x.id+"','완료')\">✔ 완료</button>")+
         "<button class='btn' style='font-size:11.5px;padding:3px 10px' onclick=\"dvOpenForm('"+x.id+"')\">수정</button>"+
         "<button class='btn' style='font-size:11.5px;padding:3px 10px;color:#DC2626' onclick=\"dvDelete('"+x.id+"')\">삭제</button>"+
       "</div></div>";
   }).join('');
 }
-function dvRowOf(x){ return [x.id,x.requestDate||'',x.requester||'',x.kind||'',x.title||'',x.eventInfo||'',x.deadline||'',x.sender||'',x.status||'접수',x.vendor||'',x.note||'']; }
+function dvRowOf(x){ return [x.id,x.requestDate||'',x.requester||'',x.kind||'',x.title||'',x.eventInfo||'',x.deadline||'',x.sender||'',x.status||'진행중',x.vendor||'',x.note||'']; }
 function dvOpenForm(id){
   var x=id?(data.directives||[]).find(function(r){ return r.id===id; }):null;
   document.getElementById('dv-form-title').textContent=x?'지시 수정':'지시 추가';
   document.getElementById('dv-f-id').value=x?x.id:'';
-  document.getElementById('dv-f-requester').value=x?(x.requester||''):'병원장님';
+  document.getElementById('dv-f-requester').value=x?(x.requester||''):'';
   document.getElementById('dv-f-kind').value=x?(x.kind||'기타'):'화환';
   document.getElementById('dv-f-title').value=x?(x.title||''):'';
   document.getElementById('dv-f-event').value=x?(x.eventInfo||''):'';
   document.getElementById('dv-f-reqdate').value=x?(x.requestDate||''):todayStr;
   document.getElementById('dv-f-deadline').value=x?(x.deadline||''):'';
   document.getElementById('dv-f-sender').value=x?(x.sender||''):'';
-  document.getElementById('dv-f-status').value=x?(x.status||'접수'):'접수';
+  document.getElementById('dv-f-status').value=(x&&x.status==='완료')?'완료':'진행중';
   document.getElementById('dv-f-vendor').value=x?(x.vendor||''):'';
   document.getElementById('dv-f-note').value=x?(x.note||''):'';
   document.getElementById('directive-form-overlay').classList.add('open');
