@@ -3055,7 +3055,7 @@ function dvRenderList(){
 
 // ── 회의세팅 (directives 탭 재사용: kind='회의세팅', 열 meetingTime/place/headcount/items 추가) ──
 var MT_ITEMS=['간식','도시락','음료','기타'];
-var mtFilter='active', mtBusy=false;
+var mtFilter='active';
 function mtIs(x){ return x&&x.kind==='회의세팅'; }
 function mtNormTime(v){
   if(!v) return '';
@@ -3101,10 +3101,18 @@ function renderMeetingCard(){
 }
 function openMeetings(){ mtRenderList(); document.getElementById('meeting-overlay').classList.add('open'); }
 function mtSetFilter(f){ mtFilter=f; mtRenderList(); }
+// 저장은 화면을 막지 않고 뒤에서 순서대로 처리(느린 구글시트 응답을 기다리지 않음)
+var mtQ=Promise.resolve(), mtPendingN=0;
 function mtSetBusy(on){
-  mtBusy=on; var b=document.getElementById('mt-busy'); if(b) b.style.display=on?'':'none';
-  var l=document.getElementById('mt-list'); if(l){ l.style.opacity=on?'.55':''; l.style.pointerEvents=on?'none':''; }
+  mtPendingN=Math.max(0,mtPendingN+(on?1:-1));
+  var b=document.getElementById('mt-busy'); if(b) b.style.display=mtPendingN>0?'':'none';
 }
+function mtQueue(fn){
+  mtSetBusy(true);
+  var run=mtQ.then(fn).catch(function(e){ try{ console.error(e); }catch(_){} }).then(function(){ mtSetBusy(false); });
+  mtQ=run; return run;
+}
+function mtFail(msg){ alert('⚠ '+msg+(window._lastSaveErr?'\n\n[상세 원인] '+window._lastSaveErr:'')+'\n\n※ 구글시트 directives 탭 1행 L~O열에 meetingTime, place, headcount, items 제목이 있는지 확인해주세요.'); }
 function mtRenderList(){
   ['active','done','all'].forEach(function(f){
     var b=document.getElementById('mt-f-'+f); if(!b) return;
@@ -3157,13 +3165,13 @@ function mtOpenForm(id,copy){
   document.getElementById('mt-form-title').textContent=edit?'회의 수정':(copy?'회의 복사':'회의 추가');
   document.getElementById('mt-f-id').value=edit?x.id:'';
   document.getElementById('mt-f-title').value=x?(x.title||''):'';
-  document.getElementById('mt-f-date').value=edit?(x.deadline||''):'';
+  document.getElementById('mt-f-date').value=x?(x.deadline||''):'';
   document.getElementById('mt-f-time').value=x?(x.meetingTime||''):'';
   document.getElementById('mt-f-place').value=x?(x.place||''):'';
   document.getElementById('mt-f-head').value=x?(x.headcount||''):'';
   document.getElementById('mt-f-requester').value=x?(x.requester||''):'';
   document.getElementById('mt-f-status').value=(edit&&x.status==='완료')?'완료':'진행중';
-  document.getElementById('mt-f-note').value=edit?(x.note||''):'';
+  document.getElementById('mt-f-note').value=x?(x.note||''):'';
   var it=x?mtParseItems(x.items):mtParseItems('');
   if(copy) MT_ITEMS.forEach(function(k){ if(it[k].st==='완료') it[k].st='필요'; }); // 복사 시 주문은 다시 필요로
   mtRenderItemsForm(it);
@@ -3179,46 +3187,37 @@ function mtFormRow(id){
 }
 // 시트에는 시간을 '14시30분' 글자로 저장(시트가 시간으로 자동변환하지 않도록)
 function mtRowOf(x){ var r=dvRowOf(x); r[11]=mtTimeStore(x.meetingTime); return r; }
-async function mtSave(){
+function mtSave(){
   var id=document.getElementById('mt-f-id').value;
   var nr=mtFormRow(id);
   if(!nr.title){ alert('회의명을 입력해주세요'); return; }
-  var btn=document.getElementById('mt-save-btn'); if(btn.disabled) return;
-  btn.disabled=true; btn.textContent='저장 중...';
-  try{
-    if(!data.directives) data.directives=[];
-    if(id){
-      var idx=data.directives.findIndex(function(r){ return r.id===id; });
-      var prev=idx>=0?Object.assign({},data.directives[idx]):null;
-      if(idx>=0) data.directives[idx]=nr;
-      var ok=await updateRowSafe('directives',id,mtRowOf(nr));
-      if(!ok) ok=await updateRowSafe('directives',id,mtRowOf(nr));
-      if(!ok){
-        if(idx>=0&&prev) data.directives[idx]=prev;
-        alert('⚠ 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'+(window._lastSaveErr?'\n\n[상세 원인] '+window._lastSaveErr:'')+'\n\n※ 구글시트 directives 탭 1행 L~O열에 meetingTime, place, headcount, items 제목이 있는지 확인해주세요.');
-        return;
-      }
-    } else {
-      var ok2=await saveRowChecked('directives',mtRowOf(nr),'회의세팅');
-      if(!ok2) return;
-      data.directives.push(nr);
+  if(!data.directives) data.directives=[];
+  var idx=id?data.directives.findIndex(function(r){ return r.id===id; }):-1;
+  var prev=idx>=0?Object.assign({},data.directives[idx]):null;
+  if(idx>=0) data.directives[idx]=nr; else data.directives.push(nr);
+  document.getElementById('meeting-form-overlay').classList.remove('open');
+  mtRenderList(); renderMeetingCard(); saveLocalBackup();
+  mtQueue(async function(){
+    var ok;
+    if(prev){ ok=await updateRowSafe('directives',nr.id,mtRowOf(nr)); if(!ok) ok=await updateRowSafe('directives',nr.id,mtRowOf(nr)); }
+    else ok=await saveRowChecked('directives',mtRowOf(nr),'회의세팅');
+    if(!ok){
+      if(prev){ var i=data.directives.findIndex(function(r){ return r.id===nr.id; }); if(i>=0) data.directives[i]=prev; }
+      else data.directives=data.directives.filter(function(r){ return r.id!==nr.id; });
+      mtRenderList(); renderMeetingCard(); saveLocalBackup();
+      mtFail('회의 저장에 실패해서 되돌렸어요. 인터넷 연결을 확인하고 다시 시도해주세요.');
     }
-    document.getElementById('meeting-form-overlay').classList.remove('open');
-    mtRenderList(); renderMeetingCard(); saveLocalBackup();
-  }catch(err){ alert('⚠ 저장 중 오류가 발생했어요: '+(err&&err.message?err.message:err)); }
-  finally{ btn.disabled=false; btn.textContent='저장'; }
+  });
 }
-async function mtUpdate(x,rollback){
-  mtSetBusy(true);
-  try{
+function mtUpdate(x,rollback){
+  saveLocalBackup();
+  return mtQueue(async function(){
     var ok=await updateRowSafe('directives',x.id,mtRowOf(x));
     if(!ok) ok=await updateRowSafe('directives',x.id,mtRowOf(x));
-    if(!ok){ rollback(); alert('⚠ 변경에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'+(window._lastSaveErr?'\n\n[상세 원인] '+window._lastSaveErr:'')); }
-  }catch(err){ rollback(); alert('⚠ 오류가 발생했어요: '+(err&&err.message?err.message:err)); }
-  finally{ mtSetBusy(false); mtRenderList(); renderMeetingCard(); saveLocalBackup(); }
+    if(!ok){ rollback(); mtRenderList(); renderMeetingCard(); saveLocalBackup(); mtFail('변경에 실패해서 되돌렸어요. 인터넷 연결을 확인하고 다시 시도해주세요.'); }
+  });
 }
 function mtToggleItem(id,k){
-  if(mtBusy) return;
   var x=(data.directives||[]).find(function(r){ return r.id===id; }); if(!x) return;
   var prevItems=x.items, it=mtParseItems(x.items);
   if(it[k].st==='필요') it[k].st='완료'; else if(it[k].st==='완료') it[k].st='필요'; else return;
@@ -3226,22 +3225,19 @@ function mtToggleItem(id,k){
   mtUpdate(x,function(){ x.items=prevItems; });
 }
 function mtSetStatus(id,st){
-  if(mtBusy) return;
   var x=(data.directives||[]).find(function(r){ return r.id===id; }); if(!x) return;
   var prev=x.status; x.status=st; mtRenderList(); renderMeetingCard();
   mtUpdate(x,function(){ x.status=prev; });
 }
-async function mtDelete(id){
-  if(mtBusy) return;
+function mtDelete(id){
   if(!confirm('이 회의를 삭제할까요?')) return;
   var prevList=(data.directives||[]).slice();
   data.directives=prevList.filter(function(r){ return r.id!==id; });
-  mtRenderList(); renderMeetingCard(); mtSetBusy(true);
-  try{
+  mtRenderList(); renderMeetingCard(); saveLocalBackup();
+  mtQueue(async function(){
     var ok=await deleteRowSafe('directives',id);
-    if(!ok){ data.directives=prevList; alert('⚠ 삭제에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'); }
-  }catch(err){ data.directives=prevList; alert('⚠ 삭제 중 오류가 발생했어요: '+(err&&err.message?err.message:err)); }
-  finally{ mtSetBusy(false); mtRenderList(); renderMeetingCard(); saveLocalBackup(); }
+    if(!ok){ data.directives=prevList; mtRenderList(); renderMeetingCard(); saveLocalBackup(); alert('⚠ 삭제에 실패해서 되돌렸어요. 인터넷 연결을 확인하고 다시 시도해주세요.'); }
+  });
 }
 function dvRowOf(x){ return [x.id,x.requestDate||'',x.requester||'',x.kind||'',x.title||'',x.eventInfo||'',x.deadline||'',x.sender||'',x.status||'진행중',x.vendor||'',x.note||'',x.meetingTime||'',x.place||'',x.headcount||'',x.items||'']; }
 function dvOpenForm(id){
