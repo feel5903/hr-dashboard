@@ -1039,7 +1039,7 @@ var curForm="daily",editMemberIdx=null,editIdx=null;
 var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[],duties:[],staff:[],annual:[],staffLeaves:[],others:[],rotationAnnex:[],oncallDoctors:[],oncallSchedule:[],monthlyHeadcountManual:[],workdaysSaved:[],hrEvents:[],wdAdminTags:[],directives:[]};
 var dismissedAlerts=[];
 var isEditing=false; // 입력 중 동기화 방지 플래그
-(function(){try{var b=localStorage.getItem("hr_data_backup");if(b){var p=JSON.parse(b);if(p.daily)data.daily=p.daily;if(p.project)data.project=p.project;if(p.task)data.task=p.task;if(p.leave)data.leave=p.leave;if(p.recruit)data.recruit=p.recruit;if(p.dormitory)data.dormitory=p.dormitory;}}catch(e){}})();
+(function(){try{var b=localStorage.getItem("hr_data_backup");if(b){var p=JSON.parse(b);if(p.daily)data.daily=p.daily;if(p.project)data.project=p.project;if(p.task)data.task=p.task;if(p.leave)data.leave=p.leave;if(p.recruit)data.recruit=p.recruit;if(p.dormitory)data.dormitory=p.dormitory;if(p.staff&&p.staff.length)data.staff=p.staff;if(p.directives)data.directives=p.directives;if(p.dismissed&&p.dismissed.length)dismissedAlerts=p.dismissed;}}catch(e){}})();
 function toggleSidebar(){
   var app=document.querySelector(".app");
   app.classList.toggle("sidebar-hidden");
@@ -1049,7 +1049,7 @@ function toggleSidebar(){
     app.classList.remove("sidebar-hidden");
   }
 }
-function saveLocalBackup(){try{var backup={daily:data.daily,project:data.project,task:data.task,leave:data.leave,recruit:data.recruit,dormitory:data.dormitory};localStorage.setItem("hr_data_backup",JSON.stringify(backup));}catch(e){}}
+function saveLocalBackup(){try{var backup={daily:data.daily,project:data.project,task:data.task,leave:data.leave,recruit:data.recruit,dormitory:data.dormitory,staff:data.staff,directives:data.directives,dismissed:dismissedAlerts};localStorage.setItem("hr_data_backup",JSON.stringify(backup));}catch(e){}}
 function genId(p){return p+Date.now()+Math.random().toString(36).slice(2,7);}
 
 // 시트에서 날짜가 이상한 형식(예: Mon Aug 31 2026 00:00:00 GMT+0900...)으로 자동변환되어 와도 YYYY-MM-DD만 뽑아냄
@@ -1123,7 +1123,25 @@ function filterRows(rows,tabName){
   });
 }
 function setSyncStatus(t,txt){var b=document.getElementById("sync-btn");b.style.color=t==="ok"?"var(--lime)":t==="err"?"#FCA5A5":"var(--navy-mid)";b.textContent=txt;}
-async function callScript(params){try{var url=SHEET_URL+"?";Object.keys(params).forEach(function(k){url+=k+"="+encodeURIComponent(typeof params[k]==="object"?JSON.stringify(params[k]):params[k])+"&";});url+="t="+Date.now();var r=await fetch(url,{redirect:"follow",mode:"cors"});if(!r.ok)return null;var txt=await r.text();try{return JSON.parse(txt);}catch(e){return null;}}catch(e){return null;}}
+async function callScript(params){
+  var isRead=!params.action, tries=isRead?2:1;
+  for(var attempt=0;attempt<tries;attempt++){
+    var timer=null;
+    try{
+      var url=SHEET_URL+"?";
+      Object.keys(params).forEach(function(k){url+=k+"="+encodeURIComponent(typeof params[k]==="object"?JSON.stringify(params[k]):params[k])+"&";});
+      url+="t="+Date.now();
+      var opts={redirect:"follow",mode:"cors"};
+      if(isRead&&typeof AbortController!=="undefined"){var ctrl=new AbortController();opts.signal=ctrl.signal;timer=setTimeout(function(){ctrl.abort();},20000);}
+      var r=await fetch(url,opts);
+      if(timer)clearTimeout(timer);
+      if(!r.ok) continue;
+      var txt=await r.text();
+      try{return JSON.parse(txt);}catch(e){}
+    }catch(e){ if(timer)clearTimeout(timer); }
+  }
+  return null;
+}
 async function overwriteTab(tab){var rows=data[tab]||[];if(tab!=="duties"){var seen={};rows=rows.filter(function(r){if(!r.id||seen[r.id])return false;seen[r.id]=true;return true;});}var df=["end","start","created","date"];rows=rows.map(function(r){var out={};Object.keys(r).forEach(function(k){out[k]=df.indexOf(k)>=0?formatDateVal(r[k]):r[k];});return out;});data[tab]=rows;saveLocalBackup();
   if(rows.length){
     var headers=Object.keys(rows[0]);
@@ -1250,13 +1268,40 @@ async function deleteRowsSafe(tab,ids){
   setSyncStatus("err","⚠ 삭제 실패 (재시도 필요)");
   return false;
 }
-async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동기화 대기)");return;}setSyncStatus("loading","⟳ 동기화 중...");missingIdWarnings=[];try{
-    var results=await Promise.all([
-      callScript({tab:"daily"}),callScript({tab:"project"}),callScript({tab:"leave"}),callScript({tab:"task"}),
-      callScript({tab:"recruit"}),callScript({tab:"dormitory"}),callScript({tab:"duties"}),callScript({tab:"staff"}),
-      callScript({tab:"alerts_dismissed"}),callScript({tab:"annual"}),callScript({tab:"staff_leaves"}),callScript({tab:"others"}),
-      callScript({tab:"rotation_annex"}),callScript({tab:"oncall_doctors"}),callScript({tab:"oncall_schedule"}),callScript({tab:"monthly_headcount_manual"}),callScript({tab:"workdays_saved"}),callScript({tab:"hr_events"}),callScript({tab:"wd_admin_tags"}),callScript({tab:"directives"})
+var syncRunning=false,syncStartedAt=0;
+function dvLoadRows(dv){
+  return filterRows(dv,"directives").map(function(r){
+    r=normalizeRow(r,"directives");
+    ['requestDate','deadline'].forEach(function(k){ if(r[k]) r[k]=normalizeDateStr(r[k]); });
+    ['requester','kind','title','eventInfo','sender','vendor','note'].forEach(function(k){ if(r[k]) r[k]=cleanCorruptedNote(r[k]); });
+    return r;
+  });
+}
+// 1단계(직원·넘긴알림·지시사항)가 도착하는 즉시 상단 지시사항/포상 알림을 먼저 보여줌
+function syncEarlyApply(st,ad,dv){
+  try{
+    var fst=filterRows(st,"staff").map(function(r){return normalizeRow(r,"staff");});
+    if(fst.length){ data.staff=fst; data.staff.forEach(function(s){ if(s.resignDate) s.resignDate=normalizeDateStr(s.resignDate); if(s.joinDate) s.joinDate=normalizeDateStr(s.joinDate); }); }
+    if(ad&&ad.length) dismissedAlerts=ad;
+    if(Array.isArray(dv)) data.directives=dvLoadRows(dv);
+    renderMainAlerts(); renderDirectiveCard(); saveLocalBackup();
+  }catch(e){}
+}
+async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동기화 대기)");return;}
+  if(syncRunning&&(Date.now()-syncStartedAt)<90000) return;
+  syncRunning=true; syncStartedAt=Date.now();
+  setSyncStatus("loading","⟳ 동기화 중...");missingIdWarnings=[];try{
+    var core=await Promise.all([
+      callScript({tab:"staff"}),callScript({tab:"alerts_dismissed"}),callScript({tab:"directives"})
     ]);
+    syncEarlyApply(core[0],core[1],core[2]);
+    var rest=await Promise.all([
+      callScript({tab:"daily"}),callScript({tab:"project"}),callScript({tab:"leave"}),callScript({tab:"task"}),
+      callScript({tab:"recruit"}),callScript({tab:"dormitory"}),callScript({tab:"duties"}),callScript({tab:"annual"}),
+      callScript({tab:"staff_leaves"}),callScript({tab:"others"}),callScript({tab:"rotation_annex"}),callScript({tab:"oncall_doctors"}),
+      callScript({tab:"oncall_schedule"}),callScript({tab:"monthly_headcount_manual"}),callScript({tab:"workdays_saved"}),callScript({tab:"hr_events"}),callScript({tab:"wd_admin_tags"})
+    ]);
+    var results=[rest[0],rest[1],rest[2],rest[3],rest[4],rest[5],rest[6],core[0],core[1],rest[7],rest[8],rest[9],rest[10],rest[11],rest[12],rest[13],rest[14],rest[15],rest[16],core[2]];
     var d=results[0],p=results[1],lv=results[2],tk=results[3],rc=results[4],dm=results[5],dt=results[6],st=results[7],ad=results[8],an=results[9],sl=results[10],ot=results[11],ra=results[12],dr=results[13],os=results[14],mh=results[15],ws2=results[16],he=results[17],wat=results[18],dv=results[19];
     var fd=filterRows(d,"daily").map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p,"project").map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv,"leave").map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk,"task").map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
     var frc=filterRows(rc,"recruit").map(function(r){return normalizeRow(r,"recruit");});
@@ -1287,21 +1332,14 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
     var fws=filterRows(ws2,"workdays_saved").map(function(r){return normalizeRow(r,"workdays_saved");});
     if(fws.length||!data.workdaysSaved.length) data.workdaysSaved=fws;
     data.workdaysSaved.forEach(function(r){ if(r.month) r.month=normalizeMonthKey(r.month); });
-    if(Array.isArray(dv)){
-      data.directives=filterRows(dv,"directives").map(function(r){
-        r=normalizeRow(r,"directives");
-        ['requestDate','deadline'].forEach(function(k){ if(r[k]) r[k]=normalizeDateStr(r[k]); });
-        ['requester','kind','title','eventInfo','sender','vendor','note'].forEach(function(k){ if(r[k]) r[k]=cleanCorruptedNote(r[k]); });
-        return r;
-      });
-    }
+    if(Array.isArray(dv)) data.directives=dvLoadRows(dv);
     var fwat=filterRows(wat,"wd_admin_tags").map(function(r){return normalizeRow(r,"wd_admin_tags");});
     if(fwat.length||!data.wdAdminTags.length) data.wdAdminTags=fwat;
     var fhe=filterRows(he,"hr_events").map(function(r){return normalizeRow(r,"hr_events");});
     if(fhe.length||!data.hrEvents.length) data.hrEvents=fhe;
     data.hrEvents.forEach(function(r){ if(r.startDate) r.startDate=normalizeDateStr(r.startDate); if(r.endDate) r.endDate=normalizeDateStr(r.endDate); });
     seedOncallDataIfEmpty();
-    saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();showMissingIdWarning();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}}
+    saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();showMissingIdWarning();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}finally{syncRunning=false;}}
 
 function showMissingIdWarning(){
   var el=document.getElementById("missing-id-banner");
