@@ -187,8 +187,9 @@ tbody tr:hover{background:#FAFBFC}
 
 </nav>
 <main class="main">
-  <div class="stats-row" style="grid-template-columns:repeat(5,1fr)">
+  <div class="stats-row" style="grid-template-columns:repeat(6,1fr)">
     <div class="stat-card" id="directive-card" onclick="openDirectives()" style="cursor:pointer" title="원장님·처장님 지시사항 (클릭하면 목록 열림)"><div class="stat-icon" id="directive-icon" style="background:#FEF3C7">📌</div><div><div class="stat-label" style="font-size:13px;font-weight:700;color:#92400E">지시사항 <span id="directive-dday" style="font-size:11.5px"></span></div><div class="stat-val" id="directive-val" style="color:#92400E">0</div></div></div>
+    <div class="stat-card" id="meeting-card" onclick="openMeetings()" style="cursor:pointer" title="회의 세팅 (클릭하면 목록 열림)"><div class="stat-icon" id="meeting-icon" style="background:#CFFAFE">🗓</div><div><div class="stat-label" style="font-size:13px;font-weight:700;color:#0E7490">회의세팅 <span id="meeting-dday" style="font-size:11.5px;white-space:nowrap"></span></div><div class="stat-val" id="meeting-val" style="color:#0E7490">0</div></div></div>
     <div class="stat-card" onclick="goToDueToday()" style="cursor:pointer" title="클릭하면 오늘 마감 업무 보기"><div class="stat-icon coral">🔔</div><div><div class="stat-label" style="font-size:13px;font-weight:700;color:var(--coral)">오늘 마감</div><div class="stat-val coral" id="s-due">0</div></div></div>
     <div class="stat-card" onclick="showAnnualPopup()" style="cursor:pointer" title="클릭하면 이번달 중요업무 보기"><div class="stat-icon" style="background:#E0E7FF">📅</div><div><div class="stat-label" style="font-size:13px;font-weight:700;color:#4338CA"><span id="annual-month-label"></span> 중요업무</div><div class="stat-val" style="color:#4338CA" id="cnt-annual-stat">0</div></div></div>
     <div class="stat-card" style="grid-column:span 2;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -952,6 +953,50 @@ tbody tr:hover{background:#FAFBFC}
   </div>
 </div>
 
+<div class="overlay" id="meeting-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="width:780px;max-width:96vw;max-height:88vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <h3 style="margin:0">🗓 회의세팅 <span id="mt-busy" style="display:none;font-size:12px;font-weight:600;color:#0E7490">저장 중...</span></h3>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <button class="btn" id="mt-f-active" onclick="mtSetFilter('active')">진행중</button>
+        <button class="btn" id="mt-f-done" onclick="mtSetFilter('done')">완료</button>
+        <button class="btn" id="mt-f-all" onclick="mtSetFilter('all')">전체</button>
+        <button class="btn lime" onclick="mtOpenForm()">+ 회의 추가</button>
+      </div>
+    </div>
+    <div id="mt-list"></div>
+    <div class="modal-actions"><button class="btn" onclick="document.getElementById('meeting-overlay').classList.remove('open')">닫기</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="meeting-form-overlay">
+  <div class="modal" style="width:520px;max-width:96vw;max-height:90vh;overflow-y:auto">
+    <h3 id="mt-form-title">회의 추가</h3>
+    <input type="hidden" id="mt-f-id">
+    <div class="field"><label>회의명</label><input type="text" id="mt-f-title"></div>
+    <div class="row">
+      <div class="field"><label>날짜</label><input type="date" id="mt-f-date"></div>
+      <div class="field"><label>시간</label><input type="time" id="mt-f-time"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>장소</label><input type="text" id="mt-f-place"></div>
+      <div class="field"><label>참석 인원 (명)</label><input type="number" min="0" id="mt-f-head"></div>
+    </div>
+    <div class="field"><label>준비물 주문</label>
+      <div id="mt-f-items"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>요청·주관</label><input type="text" id="mt-f-requester" list="dv-requester-list"></div>
+      <div class="field"><label>상태</label><select id="mt-f-status"><option>진행중</option><option>완료</option></select></div>
+    </div>
+    <div class="field"><label>비고</label><textarea id="mt-f-note" style="min-height:50px"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('meeting-form-overlay').classList.remove('open')">취소</button>
+      <button class="btn lime" id="mt-save-btn" onclick="mtSave()">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="recruit-overlay">
   <div class="modal" style="width:460px">
     <h3 id="recruit-modal-title">채용 추가</h3>
@@ -1274,6 +1319,7 @@ function dvLoadRows(dv){
     r=normalizeRow(r,"directives");
     ['requestDate','deadline'].forEach(function(k){ if(r[k]) r[k]=normalizeDateStr(r[k]); });
     ['requester','kind','title','eventInfo','sender','vendor','note'].forEach(function(k){ if(r[k]) r[k]=cleanCorruptedNote(r[k]); });
+    r.meetingTime=mtNormTime(r.meetingTime); r.place=r.place?cleanCorruptedNote(String(r.place)):''; r.headcount=(r.headcount===undefined||r.headcount===null)?'':String(r.headcount); r.items=r.items?String(r.items):'';
     return r;
   });
 }
@@ -2943,8 +2989,9 @@ function dvDday(deadline){
 }
 function dvDdayLabel(n){ return n===null?'':(n===0?'D-day':(n>0?'D-'+n:'D+'+(-n)+' 지남')); }
 function renderDirectiveCard(){
+  try{ renderMeetingCard(); }catch(e){}
   var card=document.getElementById('directive-card'); if(!card) return;
-  var active=(data.directives||[]).filter(function(x){ return x.status!=='완료'; });
+  var active=(data.directives||[]).filter(function(x){ return !mtIs(x)&&x.status!=='완료'; });
   var val=document.getElementById('directive-val'), icon=document.getElementById('directive-icon'), dd=document.getElementById('directive-dday');
   var minD=null;
   active.forEach(function(x){ var n=dvDday(x.deadline); if(n!==null&&(minD===null||n<minD)) minD=n; });
@@ -2970,6 +3017,7 @@ function dvRenderList(){
     b.style.background=(f===dvFilter)?'#92400E':''; b.style.color=(f===dvFilter)?'#fff':''; b.style.borderColor=(f===dvFilter)?'#92400E':'';
   });
   var rows=(data.directives||[]).filter(function(x){
+    if(mtIs(x)) return false;
     return dvFilter==='all'?true:(dvFilter==='done'?x.status==='완료':x.status!=='완료');
   });
   rows.sort(function(a,b){
@@ -3004,7 +3052,198 @@ function dvRenderList(){
       "</div></div>";
   }).join('');
 }
-function dvRowOf(x){ return [x.id,x.requestDate||'',x.requester||'',x.kind||'',x.title||'',x.eventInfo||'',x.deadline||'',x.sender||'',x.status||'진행중',x.vendor||'',x.note||'']; }
+
+// ── 회의세팅 (directives 탭 재사용: kind='회의세팅', 열 meetingTime/place/headcount/items 추가) ──
+var MT_ITEMS=['간식','도시락','음료','기타'];
+var mtFilter='active', mtBusy=false;
+function mtIs(x){ return x&&x.kind==='회의세팅'; }
+function mtNormTime(v){
+  if(!v) return '';
+  var t=String(v), m=t.match(/^(\d{1,2})시(\d{1,2})분?$/);
+  if(m) return ('0'+m[1]).slice(-2)+':'+('0'+m[2]).slice(-2);
+  m=t.match(/^(\d{1,2}):(\d{2})/);
+  if(m&&t.indexOf('1899')<0) return ('0'+m[1]).slice(-2)+':'+m[2];
+  var d=new Date(t); // 시트가 시간을 Date로 바꿔버린 경우 (1899-12-30 기준)
+  if(!isNaN(d.getTime())&&t.indexOf('1899')>=0){ var h=d.getHours(), mi=d.getMinutes(); return ('0'+h).slice(-2)+':'+('0'+mi).slice(-2); }
+  return '';
+}
+function mtTimeStore(hhmm){ var m=(hhmm||'').match(/^(\d{1,2}):(\d{2})$/); return m?(parseInt(m[1],10)+'시'+m[2]+'분'):''; }
+function mtParseItems(str){
+  var out={}; MT_ITEMS.forEach(function(k){ out[k]={st:'없음',memo:''}; });
+  String(str||'').split(';').forEach(function(seg){
+    var a=seg.split(':'); if(a.length<2||!out[a[0]]) return;
+    out[a[0]]={st:(a[1]==='필요'||a[1]==='완료')?a[1]:'없음',memo:(a.slice(2).join(':')||'')};
+  });
+  return out;
+}
+function mtStrItems(o){ return MT_ITEMS.map(function(k){ var v=o[k]||{st:'없음',memo:''}; return k+':'+v.st+':'+String(v.memo||'').replace(/[;:|]/g,' '); }).join(';'); }
+function mtPending(x){ var o=mtParseItems(x.items); return MT_ITEMS.filter(function(k){ return o[k].st==='필요'; }); }
+function mtWhen(x){ // 정렬용
+  return (x.deadline||'9999-99-99')+' '+(x.meetingTime||'99:99');
+}
+function mtDateLabel(x){
+  if(!x.deadline) return '날짜 미정';
+  var d=new Date(x.deadline+'T00:00:00Z'), w='일월화수목금토'[d.getUTCDay()];
+  return (d.getUTCMonth()+1)+'/'+d.getUTCDate()+'('+w+')'+(x.meetingTime?' '+x.meetingTime:'');
+}
+function renderMeetingCard(){
+  var card=document.getElementById('meeting-card'); if(!card) return;
+  var active=(data.directives||[]).filter(function(x){ return mtIs(x)&&x.status!=='완료'; });
+  var val=document.getElementById('meeting-val'), icon=document.getElementById('meeting-icon'), dd=document.getElementById('meeting-dday');
+  var minD=null, pend=0;
+  active.forEach(function(x){ var n=dvDday(x.deadline); if(n!==null&&(minD===null||n<minD)) minD=n; if(mtPending(x).length) pend++; });
+  val.textContent=active.length;
+  var parts=[]; if(active.length&&minD!==null) parts.push(dvDdayLabel(minD)); if(pend) parts.push('주문'+pend);
+  dd.textContent=parts.join('·');
+  if(!active.length){ val.style.color=dd.style.color='#9CA3AF'; card.style.background=''; card.style.borderColor=''; icon.style.background='#F3F4F6'; }
+  else if(pend&&minD!==null&&minD<=3){ val.style.color=dd.style.color='#B91C1C'; card.style.background='#FEF2F2'; card.style.borderColor='#EF4444'; icon.style.background='#FEE2E2'; }
+  else { val.style.color=dd.style.color='#0E7490'; card.style.background='#ECFEFF'; card.style.borderColor='#22D3EE'; icon.style.background='#CFFAFE'; }
+}
+function openMeetings(){ mtRenderList(); document.getElementById('meeting-overlay').classList.add('open'); }
+function mtSetFilter(f){ mtFilter=f; mtRenderList(); }
+function mtSetBusy(on){
+  mtBusy=on; var b=document.getElementById('mt-busy'); if(b) b.style.display=on?'':'none';
+  var l=document.getElementById('mt-list'); if(l){ l.style.opacity=on?'.55':''; l.style.pointerEvents=on?'none':''; }
+}
+function mtRenderList(){
+  ['active','done','all'].forEach(function(f){
+    var b=document.getElementById('mt-f-'+f); if(!b) return;
+    b.style.background=(f===mtFilter)?'#0E7490':''; b.style.color=(f===mtFilter)?'#fff':''; b.style.borderColor=(f===mtFilter)?'#0E7490':'';
+  });
+  var rows=(data.directives||[]).filter(function(x){
+    if(!mtIs(x)) return false;
+    return mtFilter==='all'?true:(mtFilter==='done'?x.status==='완료':x.status!=='완료');
+  });
+  rows.sort(function(a,b){ var A=mtWhen(a),B=mtWhen(b); return mtFilter==='done'?(B<A?-1:(B>A?1:0)):(A<B?-1:(A>B?1:0)); });
+  var box=document.getElementById('mt-list');
+  if(!rows.length){ box.innerHTML="<div class='empty'>"+(mtFilter==='done'?'완료된 회의가 없어요':'진행 중인 회의가 없어요')+"</div>"; return; }
+  box.innerHTML=rows.map(function(x){
+    var done=x.status==='완료', n=done?null:dvDday(x.deadline), pend=mtPending(x), urgent=!done&&n!==null&&n<=3&&pend.length>0;
+    var badge=done?"<span style='background:#D1FAE5;color:#065F46;padding:2px 9px;border-radius:12px;font-size:11.5px;font-weight:700'>완료</span>"
+      :(n!==null?"<span style='background:"+(n<=3?'#FEE2E2':'#CFFAFE')+";color:"+(n<=3?'#B91C1C':'#0E7490')+";padding:2px 9px;border-radius:12px;font-size:11.5px;font-weight:700;white-space:nowrap'>"+dvDdayLabel(n)+"</span>":"<span style='color:#9CA3AF;font-size:11.5px'>날짜 미정</span>");
+    var meta=[mtDateLabel(x)]; if(x.place) meta.push(escapeHtml(x.place)); if(x.headcount) meta.push(escapeHtml(x.headcount)+'명');
+    var it=mtParseItems(x.items);
+    var chips=MT_ITEMS.map(function(k){
+      var v=it[k], memo=v.memo?' '+escapeHtml(v.memo):'';
+      if(v.st==='없음') return "<span style='background:#F3F4F6;color:#9CA3AF;border-radius:14px;padding:3px 10px;font-size:11.5px'>"+k+" 필요없음</span>";
+      var need=v.st==='필요';
+      return "<button "+(done?'disabled ':'')+"onclick=\"mtToggleItem('"+x.id+"','"+k+"')\" title='클릭하면 주문필요 ↔ 주문완료' style='cursor:pointer;border-radius:14px;padding:3px 10px;font-size:11.5px;font-weight:700;font-family:inherit;border:1.5px solid "+(need?'#F59E0B':'#10B981')+";background:"+(need?'#FEF3C7':'#D1FAE5')+";color:"+(need?'#92400E':'#065F46')+"'>"+(need?'⚠ ':'✔ ')+k+(need?' 주문필요':' 주문완료')+memo+"</button>";
+    }).join(' ');
+    return "<div style='border:1px solid "+(urgent?'#FCA5A5':'var(--gray-border)')+";border-radius:10px;padding:.7rem .9rem;margin-bottom:8px;"+(done?'opacity:.75;':'')+"'>"+
+      "<div style='display:flex;align-items:center;gap:8px;flex-wrap:wrap'>"+badge+"<b style='font-size:13.5px'>"+escapeHtml(x.title||'')+"</b></div>"+
+      "<div style='font-size:12px;color:var(--text-muted);margin-top:5px'>"+meta.join(' · ')+(x.requester?" · "+escapeHtml(x.requester):'')+"</div>"+
+      "<div style='display:flex;gap:6px;flex-wrap:wrap;margin-top:7px'>"+chips+"</div>"+
+      (x.note?"<div style='font-size:12px;color:var(--text-muted);margin-top:5px;white-space:pre-wrap'>"+escapeHtml(x.note)+"</div>":'')+
+      "<div style='display:flex;gap:6px;align-items:center;justify-content:flex-end;margin-top:6px'>"+
+        (done?"<button class='btn' style='font-size:11.5px;padding:3px 10px' onclick=\"mtSetStatus('"+x.id+"','진행중')\">↩ 진행중으로</button>"
+             :"<button class='btn lime' style='font-size:11.5px;padding:3px 12px' onclick=\"mtSetStatus('"+x.id+"','완료')\">✔ 완료</button>")+
+        "<button class='btn' style='font-size:11.5px;padding:3px 10px' onclick=\"mtOpenForm('"+x.id+"',true)\" title='같은 내용으로 새 회의 만들기'>복사</button>"+
+        "<button class='btn' style='font-size:11.5px;padding:3px 10px' onclick=\"mtOpenForm('"+x.id+"')\">수정</button>"+
+        "<button class='btn' style='font-size:11.5px;padding:3px 10px;color:#DC2626' onclick=\"mtDelete('"+x.id+"')\">삭제</button>"+
+      "</div></div>";
+  }).join('');
+}
+function mtRenderItemsForm(o){
+  document.getElementById('mt-f-items').innerHTML=MT_ITEMS.map(function(k,i){
+    var v=o[k]||{st:'없음',memo:''};
+    return "<div style='display:flex;gap:6px;align-items:center;margin-bottom:5px'><span style='width:52px;font-size:12.5px;font-weight:600'>"+k+"</span>"+
+      "<select id='mt-it-st-"+i+"' style='width:110px'><option value='없음'"+(v.st==='없음'?' selected':'')+">필요없음</option><option value='필요'"+(v.st==='필요'?' selected':'')+">주문필요</option><option value='완료'"+(v.st==='완료'?' selected':'')+">주문완료</option></select>"+
+      "<input type='text' id='mt-it-memo-"+i+"' value='"+escapeHtml(v.memo||'').replace(/'/g,'&#39;')+"' style='flex:1' maxlength='30'></div>";
+  }).join('');
+}
+function mtOpenForm(id,copy){
+  var x=id?(data.directives||[]).find(function(r){ return r.id===id; }):null;
+  var edit=x&&!copy;
+  document.getElementById('mt-form-title').textContent=edit?'회의 수정':(copy?'회의 복사':'회의 추가');
+  document.getElementById('mt-f-id').value=edit?x.id:'';
+  document.getElementById('mt-f-title').value=x?(x.title||''):'';
+  document.getElementById('mt-f-date').value=edit?(x.deadline||''):'';
+  document.getElementById('mt-f-time').value=x?(x.meetingTime||''):'';
+  document.getElementById('mt-f-place').value=x?(x.place||''):'';
+  document.getElementById('mt-f-head').value=x?(x.headcount||''):'';
+  document.getElementById('mt-f-requester').value=x?(x.requester||''):'';
+  document.getElementById('mt-f-status').value=(edit&&x.status==='완료')?'완료':'진행중';
+  document.getElementById('mt-f-note').value=edit?(x.note||''):'';
+  var it=x?mtParseItems(x.items):mtParseItems('');
+  if(copy) MT_ITEMS.forEach(function(k){ if(it[k].st==='완료') it[k].st='필요'; }); // 복사 시 주문은 다시 필요로
+  mtRenderItemsForm(it);
+  document.getElementById('meeting-form-overlay').classList.add('open');
+}
+function mtFormRow(id){
+  var it={}; MT_ITEMS.forEach(function(k,i){ it[k]={st:document.getElementById('mt-it-st-'+i).value,memo:document.getElementById('mt-it-memo-'+i).value.trim()}; });
+  return {id:id||genId('dv'), requestDate:todayStr, requester:document.getElementById('mt-f-requester').value.trim(), kind:'회의세팅',
+    title:document.getElementById('mt-f-title').value.trim(), eventInfo:'', deadline:document.getElementById('mt-f-date').value,
+    sender:'', status:document.getElementById('mt-f-status').value, vendor:'', note:document.getElementById('mt-f-note').value.trim(),
+    meetingTime:document.getElementById('mt-f-time').value, place:document.getElementById('mt-f-place').value.trim(),
+    headcount:String(document.getElementById('mt-f-head').value||'').trim(), items:mtStrItems(it)};
+}
+// 시트에는 시간을 '14시30분' 글자로 저장(시트가 시간으로 자동변환하지 않도록)
+function mtRowOf(x){ var r=dvRowOf(x); r[11]=mtTimeStore(x.meetingTime); return r; }
+async function mtSave(){
+  var id=document.getElementById('mt-f-id').value;
+  var nr=mtFormRow(id);
+  if(!nr.title){ alert('회의명을 입력해주세요'); return; }
+  var btn=document.getElementById('mt-save-btn'); if(btn.disabled) return;
+  btn.disabled=true; btn.textContent='저장 중...';
+  try{
+    if(!data.directives) data.directives=[];
+    if(id){
+      var idx=data.directives.findIndex(function(r){ return r.id===id; });
+      var prev=idx>=0?Object.assign({},data.directives[idx]):null;
+      if(idx>=0) data.directives[idx]=nr;
+      var ok=await updateRowSafe('directives',id,mtRowOf(nr));
+      if(!ok) ok=await updateRowSafe('directives',id,mtRowOf(nr));
+      if(!ok){
+        if(idx>=0&&prev) data.directives[idx]=prev;
+        alert('⚠ 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'+(window._lastSaveErr?'\n\n[상세 원인] '+window._lastSaveErr:'')+'\n\n※ 구글시트 directives 탭 1행 L~O열에 meetingTime, place, headcount, items 제목이 있는지 확인해주세요.');
+        return;
+      }
+    } else {
+      var ok2=await saveRowChecked('directives',mtRowOf(nr),'회의세팅');
+      if(!ok2) return;
+      data.directives.push(nr);
+    }
+    document.getElementById('meeting-form-overlay').classList.remove('open');
+    mtRenderList(); renderMeetingCard(); saveLocalBackup();
+  }catch(err){ alert('⚠ 저장 중 오류가 발생했어요: '+(err&&err.message?err.message:err)); }
+  finally{ btn.disabled=false; btn.textContent='저장'; }
+}
+async function mtUpdate(x,rollback){
+  mtSetBusy(true);
+  try{
+    var ok=await updateRowSafe('directives',x.id,mtRowOf(x));
+    if(!ok) ok=await updateRowSafe('directives',x.id,mtRowOf(x));
+    if(!ok){ rollback(); alert('⚠ 변경에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'+(window._lastSaveErr?'\n\n[상세 원인] '+window._lastSaveErr:'')); }
+  }catch(err){ rollback(); alert('⚠ 오류가 발생했어요: '+(err&&err.message?err.message:err)); }
+  finally{ mtSetBusy(false); mtRenderList(); renderMeetingCard(); saveLocalBackup(); }
+}
+function mtToggleItem(id,k){
+  if(mtBusy) return;
+  var x=(data.directives||[]).find(function(r){ return r.id===id; }); if(!x) return;
+  var prevItems=x.items, it=mtParseItems(x.items);
+  if(it[k].st==='필요') it[k].st='완료'; else if(it[k].st==='완료') it[k].st='필요'; else return;
+  x.items=mtStrItems(it); mtRenderList(); renderMeetingCard();
+  mtUpdate(x,function(){ x.items=prevItems; });
+}
+function mtSetStatus(id,st){
+  if(mtBusy) return;
+  var x=(data.directives||[]).find(function(r){ return r.id===id; }); if(!x) return;
+  var prev=x.status; x.status=st; mtRenderList(); renderMeetingCard();
+  mtUpdate(x,function(){ x.status=prev; });
+}
+async function mtDelete(id){
+  if(mtBusy) return;
+  if(!confirm('이 회의를 삭제할까요?')) return;
+  var prevList=(data.directives||[]).slice();
+  data.directives=prevList.filter(function(r){ return r.id!==id; });
+  mtRenderList(); renderMeetingCard(); mtSetBusy(true);
+  try{
+    var ok=await deleteRowSafe('directives',id);
+    if(!ok){ data.directives=prevList; alert('⚠ 삭제에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'); }
+  }catch(err){ data.directives=prevList; alert('⚠ 삭제 중 오류가 발생했어요: '+(err&&err.message?err.message:err)); }
+  finally{ mtSetBusy(false); mtRenderList(); renderMeetingCard(); saveLocalBackup(); }
+}
+function dvRowOf(x){ return [x.id,x.requestDate||'',x.requester||'',x.kind||'',x.title||'',x.eventInfo||'',x.deadline||'',x.sender||'',x.status||'진행중',x.vendor||'',x.note||'',x.meetingTime||'',x.place||'',x.headcount||'',x.items||'']; }
 function dvOpenForm(id){
   var x=id?(data.directives||[]).find(function(r){ return r.id===id; }):null;
   document.getElementById('dv-form-title').textContent=x?'지시 수정':'지시 추가';
