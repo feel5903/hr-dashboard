@@ -187,7 +187,8 @@ tbody tr:hover{background:#FAFBFC}
 
 </nav>
 <main class="main">
-  <div class="stats-row">
+  <div class="stats-row" style="grid-template-columns:1.5fr 1fr 1fr 1fr 1fr">
+    <div class="stat-card" id="directive-card" onclick="openDirectives()" style="cursor:pointer" title="원장님·처장님 지시사항 (클릭하면 목록 열림)"><div class="stat-icon" id="directive-icon" style="background:#FEF3C7">📌</div><div><div class="stat-label" style="font-size:13px;font-weight:700;color:#92400E">지시사항</div><div class="stat-val" id="directive-val" style="font-size:16px;color:#92400E;white-space:nowrap">0건</div></div></div>
     <div class="stat-card" onclick="goToDueToday()" style="cursor:pointer" title="클릭하면 오늘 마감 업무 보기"><div class="stat-icon coral">🔔</div><div><div class="stat-label" style="font-size:13px;font-weight:700;color:var(--coral)">오늘 마감</div><div class="stat-val coral" id="s-due">0</div></div></div>
     <div class="stat-card" onclick="showAnnualPopup()" style="cursor:pointer" title="클릭하면 이번달 중요업무 보기"><div class="stat-icon" style="background:#E0E7FF">📅</div><div><div class="stat-label" style="font-size:13px;font-weight:700;color:#4338CA"><span id="annual-month-label"></span> 중요업무</div><div class="stat-val" style="color:#4338CA" id="cnt-annual-stat">0</div></div></div>
     <div class="stat-card" style="grid-column:span 2;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -908,6 +909,49 @@ tbody tr:hover{background:#FAFBFC}
     <div class="modal-actions"><button class="btn" onclick="document.getElementById('leave-overlay').classList.remove('open')">취소</button><button class="btn primary" onclick="saveLeave()">저장</button></div>
   </div>
 </div>
+<div class="overlay" id="directive-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="width:780px;max-width:96vw;max-height:88vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <h3 style="margin:0">📌 지시사항</h3>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <button class="btn" id="dv-f-active" onclick="dvSetFilter('active')">진행중</button>
+        <button class="btn" id="dv-f-done" onclick="dvSetFilter('done')">완료</button>
+        <button class="btn" id="dv-f-all" onclick="dvSetFilter('all')">전체</button>
+        <button class="btn lime" onclick="dvOpenForm()">+ 지시 추가</button>
+      </div>
+    </div>
+    <div id="dv-list"></div>
+    <div class="modal-actions"><button class="btn" onclick="document.getElementById('directive-overlay').classList.remove('open')">닫기</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="directive-form-overlay">
+  <div class="modal" style="width:520px;max-width:96vw;max-height:90vh;overflow-y:auto">
+    <h3 id="dv-form-title">지시 추가</h3>
+    <input type="hidden" id="dv-f-id">
+    <div class="row">
+      <div class="field"><label>지시한 분</label><input type="text" id="dv-f-requester" list="dv-requester-list" placeholder="병원장님 / 처장님"><datalist id="dv-requester-list"><option value="병원장님"><option value="처장님"></datalist></div>
+      <div class="field"><label>종류</label><select id="dv-f-kind"><option>화환</option><option>화분</option><option>기타</option></select></div>
+    </div>
+    <div class="field"><label>내용 (대상·행사명)</label><input type="text" id="dv-f-title" placeholder="예: 푸르메병원 홍지연 병원장 취임식 축하화분"></div>
+    <div class="field"><label>행사 일시·장소</label><input type="text" id="dv-f-event" placeholder="예: 10/28(화) 09:30, 푸르메병원"></div>
+    <div class="row">
+      <div class="field"><label>요청일</label><input type="date" id="dv-f-reqdate"></div>
+      <div class="field"><label>처리 기한</label><input type="date" id="dv-f-deadline"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>보내는 이름</label><input type="text" id="dv-f-sender" placeholder="예: 병원장 이지선"></div>
+      <div class="field"><label>상태</label><select id="dv-f-status"><option>접수</option><option>진행중</option><option>완료</option></select></div>
+    </div>
+    <div class="field"><label>업체·금액 (선택)</label><input type="text" id="dv-f-vendor"></div>
+    <div class="field"><label>비고</label><textarea id="dv-f-note" style="min-height:60px"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('directive-form-overlay').classList.remove('open')">취소</button>
+      <button class="btn lime" id="dv-save-btn" onclick="dvSave()">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="recruit-overlay">
   <div class="modal" style="width:460px">
     <h3 id="recruit-modal-title">채용 추가</h3>
@@ -992,7 +1036,7 @@ var PALETTE=["#44546E","#2563EB","#5C8A1E","#7C3AED","#D97706","#DC2626","#0891B
 var members=JSON.parse(localStorage.getItem("hr_members")||"null")||[{name:"김재용",role:"인사과장",color:"#44546E"},{name:"배지은",role:"주임",color:"#2563EB"},{name:"공지현",role:"주임",color:"#5C8A1E"},{name:"최필상",role:"사원",color:"#7C3AED"}];
 var curMonth={y:TODAY.getFullYear(),m:TODAY.getMonth()};
 var curForm="daily",editMemberIdx=null,editIdx=null;
-var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[],duties:[],staff:[],annual:[],staffLeaves:[],others:[],rotationAnnex:[],oncallDoctors:[],oncallSchedule:[],monthlyHeadcountManual:[],workdaysSaved:[],hrEvents:[],wdAdminTags:[]};
+var data={daily:[],project:[],task:[],leave:[],recruit:[],dormitory:[],duties:[],staff:[],annual:[],staffLeaves:[],others:[],rotationAnnex:[],oncallDoctors:[],oncallSchedule:[],monthlyHeadcountManual:[],workdaysSaved:[],hrEvents:[],wdAdminTags:[],directives:[]};
 var dismissedAlerts=[];
 var isEditing=false; // 입력 중 동기화 방지 플래그
 (function(){try{var b=localStorage.getItem("hr_data_backup");if(b){var p=JSON.parse(b);if(p.daily)data.daily=p.daily;if(p.project)data.project=p.project;if(p.task)data.task=p.task;if(p.leave)data.leave=p.leave;if(p.recruit)data.recruit=p.recruit;if(p.dormitory)data.dormitory=p.dormitory;}}catch(e){}})();
@@ -1211,9 +1255,9 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
       callScript({tab:"daily"}),callScript({tab:"project"}),callScript({tab:"leave"}),callScript({tab:"task"}),
       callScript({tab:"recruit"}),callScript({tab:"dormitory"}),callScript({tab:"duties"}),callScript({tab:"staff"}),
       callScript({tab:"alerts_dismissed"}),callScript({tab:"annual"}),callScript({tab:"staff_leaves"}),callScript({tab:"others"}),
-      callScript({tab:"rotation_annex"}),callScript({tab:"oncall_doctors"}),callScript({tab:"oncall_schedule"}),callScript({tab:"monthly_headcount_manual"}),callScript({tab:"workdays_saved"}),callScript({tab:"hr_events"}),callScript({tab:"wd_admin_tags"})
+      callScript({tab:"rotation_annex"}),callScript({tab:"oncall_doctors"}),callScript({tab:"oncall_schedule"}),callScript({tab:"monthly_headcount_manual"}),callScript({tab:"workdays_saved"}),callScript({tab:"hr_events"}),callScript({tab:"wd_admin_tags"}),callScript({tab:"directives"})
     ]);
-    var d=results[0],p=results[1],lv=results[2],tk=results[3],rc=results[4],dm=results[5],dt=results[6],st=results[7],ad=results[8],an=results[9],sl=results[10],ot=results[11],ra=results[12],dr=results[13],os=results[14],mh=results[15],ws2=results[16],he=results[17],wat=results[18];
+    var d=results[0],p=results[1],lv=results[2],tk=results[3],rc=results[4],dm=results[5],dt=results[6],st=results[7],ad=results[8],an=results[9],sl=results[10],ot=results[11],ra=results[12],dr=results[13],os=results[14],mh=results[15],ws2=results[16],he=results[17],wat=results[18],dv=results[19];
     var fd=filterRows(d,"daily").map(function(r){return normalizeRow(r,"daily");});var fp=filterRows(p,"project").map(function(x){x=normalizeRow(x,"project");x.progress=parseInt(x.progress)||0;return x;});var flv=filterRows(lv,"leave").map(function(r){return normalizeRow(r,"leave");});var ftk=filterRows(tk,"task").map(function(r){return normalizeRow(r,"task");});if(fd.length)data.daily=fd;if(fp.length)data.project=fp;if(flv.length)data.leave=flv;if(ftk.length)data.task=ftk;
     var frc=filterRows(rc,"recruit").map(function(r){return normalizeRow(r,"recruit");});
     if(frc.length||!data.recruit.length) data.recruit=frc;
@@ -1243,6 +1287,14 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
     var fws=filterRows(ws2,"workdays_saved").map(function(r){return normalizeRow(r,"workdays_saved");});
     if(fws.length||!data.workdaysSaved.length) data.workdaysSaved=fws;
     data.workdaysSaved.forEach(function(r){ if(r.month) r.month=normalizeMonthKey(r.month); });
+    if(Array.isArray(dv)){
+      data.directives=filterRows(dv,"directives").map(function(r){
+        r=normalizeRow(r,"directives");
+        ['requestDate','deadline'].forEach(function(k){ if(r[k]) r[k]=normalizeDateStr(r[k]); });
+        ['requester','kind','title','eventInfo','sender','vendor','note'].forEach(function(k){ if(r[k]) r[k]=cleanCorruptedNote(r[k]); });
+        return r;
+      });
+    }
     var fwat=filterRows(wat,"wd_admin_tags").map(function(r){return normalizeRow(r,"wd_admin_tags");});
     if(fwat.length||!data.wdAdminTags.length) data.wdAdminTags=fwat;
     var fhe=filterRows(he,"hr_events").map(function(r){return normalizeRow(r,"hr_events");});
@@ -1275,6 +1327,7 @@ function updateStats(){
   // 재직인원 자동 (퇴사자 제외)
   if(data.staff&&data.staff.length){var hcEl=document.getElementById("headcount-display");if(hcEl)hcEl.textContent=getActiveStaffCount();}
   renderMainAlerts();
+  renderDirectiveCard();
 }
 function renderMemberUI(){document.getElementById("topbar-staff").innerHTML=members.map(function(m){return"<div class='t-avatar' style='background:"+m.color+"' title='"+m.name+"'>"+m.name[0]+"</div>";}).join("");var mo="<option value=''>전체 담당자</option>"+members.map(function(m){return"<option>"+m.name+"</option>";}).join("");["filter-member","filter-weekly-member","filter-proj-member"].forEach(function(id){var el=document.getElementById(id);if(!el)return;var cur=el.value;el.innerHTML=mo;if(cur)el.value=cur;});}
 function renderMemberGrid(){document.getElementById("member-grid").innerHTML=members.map(function(m,i){return"<div class='member-card'><div class='member-big-av' style='background:"+m.color+"'>"+m.name[0]+"</div><div style='flex:1'><div style='font-size:14px;font-weight:600'>"+m.name+"</div><div style='font-size:11px;color:var(--text-muted)'>"+(m.role||"")+"</div><div style='display:flex;gap:4px;margin-top:6px'><button class='sm-btn' onclick='openEditMember("+i+")'>✏️ 수정</button>"+(members.length>1?"<button class='sm-btn del' onclick='deleteMember("+i+")'>삭제</button>":"")+"</div></div></div>";}).join("")+"<div class='add-member-card' onclick='openAddMember()'><span style='font-size:20px'>+</span><span>팀원 추가</span></div>";}
@@ -2840,6 +2893,149 @@ function getSabbaticalGrade(s){
   var jrKeywords=['주임','수간호사'];
   if(jrKeywords.some(function(k){return txt.indexOf(k)>=0;})) return {label:'주임',duration:'유급 2주'};
   return {label:'사원',duration:'유급 1주'};
+}
+
+// ── 지시사항 (원장님·처장님 지시 챙기기) ──
+var dvFilter='active';
+function dvDday(deadline){
+  if(!deadline) return null;
+  var a=new Date(deadline+'T00:00:00Z'), b=new Date(todayStr+'T00:00:00Z');
+  if(isNaN(a.getTime())) return null;
+  return Math.round((a-b)/86400000);
+}
+function dvDdayLabel(n){ return n===null?'':(n===0?'D-day':(n>0?'D-'+n:'D+'+(-n)+' 지남')); }
+function renderDirectiveCard(){
+  var card=document.getElementById('directive-card'); if(!card) return;
+  var active=(data.directives||[]).filter(function(x){ return x.status!=='완료'; });
+  var val=document.getElementById('directive-val'), icon=document.getElementById('directive-icon');
+  var minD=null;
+  active.forEach(function(x){ var n=dvDday(x.deadline); if(n!==null&&(minD===null||n<minD)) minD=n; });
+  if(!active.length){
+    val.textContent='0건'; val.style.color='#9CA3AF';
+    card.style.background=''; card.style.borderColor=''; icon.style.background='#F3F4F6';
+    return;
+  }
+  val.textContent=active.length+'건'+(minD!==null?' · '+dvDdayLabel(minD):'');
+  if(minD!==null&&minD<=3){
+    val.style.color='#B91C1C'; card.style.background='#FEF2F2'; card.style.borderColor='#EF4444'; icon.style.background='#FEE2E2';
+  } else {
+    val.style.color='#92400E'; card.style.background='#FFFBEB'; card.style.borderColor='#F59E0B'; icon.style.background='#FEF3C7';
+  }
+}
+function openDirectives(){
+  dvRenderList();
+  document.getElementById('directive-overlay').classList.add('open');
+}
+function dvSetFilter(f){ dvFilter=f; dvRenderList(); }
+function dvRenderList(){
+  ['active','done','all'].forEach(function(f){
+    var b=document.getElementById('dv-f-'+f); if(!b) return;
+    b.style.background=(f===dvFilter)?'#92400E':''; b.style.color=(f===dvFilter)?'#fff':''; b.style.borderColor=(f===dvFilter)?'#92400E':'';
+  });
+  var rows=(data.directives||[]).filter(function(x){
+    return dvFilter==='all'?true:(dvFilter==='done'?x.status==='완료':x.status!=='완료');
+  });
+  rows.sort(function(a,b){
+    var da=a.deadline||(dvFilter==='done'?'':'9999-99-99'), db=b.deadline||(dvFilter==='done'?'':'9999-99-99');
+    return dvFilter==='done'?(db<da?-1:(db>da?1:0)):(da<db?-1:(da>db?1:0));
+  });
+  var box=document.getElementById('dv-list');
+  if(!rows.length){ box.innerHTML="<div class='empty'>"+(dvFilter==='done'?'완료된 지시가 없어요':'진행 중인 지시가 없어요')+"</div>"; return; }
+  box.innerHTML=rows.map(function(x){
+    var n=x.status==='완료'?null:dvDday(x.deadline);
+    var urgent=n!==null&&n<=3;
+    var badge=x.status==='완료'
+      ?"<span style='background:#D1FAE5;color:#065F46;padding:2px 9px;border-radius:12px;font-size:11.5px;font-weight:700'>완료</span>"
+      :(n!==null?"<span style='background:"+(urgent?'#FEE2E2':'#FEF3C7')+";color:"+(urgent?'#B91C1C':'#92400E')+";padding:2px 9px;border-radius:12px;font-size:11.5px;font-weight:700;white-space:nowrap'>"+dvDdayLabel(n)+"</span>":"<span style='color:#9CA3AF;font-size:11.5px'>기한 없음</span>");
+    var meta=[];
+    if(x.eventInfo) meta.push('행사 '+escapeHtml(x.eventInfo));
+    if(x.deadline) meta.push('기한 '+escapeHtml(x.deadline));
+    if(x.sender) meta.push('보내는 이름 '+escapeHtml(x.sender));
+    if(x.vendor) meta.push('업체·금액 '+escapeHtml(x.vendor));
+    var sel=['접수','진행중','완료'].map(function(st){ return "<option"+(x.status===st?' selected':'')+">"+st+"</option>"; }).join('');
+    return "<div style='border:1px solid "+(urgent?'#FCA5A5':'var(--gray-border)')+";border-radius:10px;padding:.7rem .9rem;margin-bottom:8px;"+(x.status==='완료'?'opacity:.75;':'')+"'>"+
+      "<div style='display:flex;align-items:center;gap:8px;flex-wrap:wrap'>"+badge+
+        "<span style='font-size:11px;color:#6B7280;background:#F3F4F6;border-radius:10px;padding:1px 8px'>"+escapeHtml(x.requester||'지시')+" · "+escapeHtml(x.kind||'기타')+"</span>"+
+        "<b style='font-size:13.5px'>"+escapeHtml(x.title||'')+"</b></div>"+
+      (meta.length?"<div style='font-size:12px;color:var(--text-muted);margin-top:5px'>"+meta.join(' · ')+"</div>":'')+
+      (x.note?"<div style='font-size:12px;color:var(--text-muted);margin-top:3px;white-space:pre-wrap'>"+escapeHtml(x.note)+"</div>":'')+
+      "<div style='display:flex;gap:6px;align-items:center;justify-content:flex-end;margin-top:6px'>"+
+        "<select onchange=\"dvSetStatus('"+x.id+"',this.value)\" style='font-size:12px;padding:3px 6px;border-radius:6px;border:1px solid var(--gray-border)'>"+sel+"</select>"+
+        "<button class='btn' style='font-size:11.5px;padding:3px 10px' onclick=\"dvOpenForm('"+x.id+"')\">수정</button>"+
+        "<button class='btn' style='font-size:11.5px;padding:3px 10px;color:#DC2626' onclick=\"dvDelete('"+x.id+"')\">삭제</button>"+
+      "</div></div>";
+  }).join('');
+}
+function dvRowOf(x){ return [x.id,x.requestDate||'',x.requester||'',x.kind||'',x.title||'',x.eventInfo||'',x.deadline||'',x.sender||'',x.status||'접수',x.vendor||'',x.note||'']; }
+function dvOpenForm(id){
+  var x=id?(data.directives||[]).find(function(r){ return r.id===id; }):null;
+  document.getElementById('dv-form-title').textContent=x?'지시 수정':'지시 추가';
+  document.getElementById('dv-f-id').value=x?x.id:'';
+  document.getElementById('dv-f-requester').value=x?(x.requester||''):'병원장님';
+  document.getElementById('dv-f-kind').value=x?(x.kind||'기타'):'화환';
+  document.getElementById('dv-f-title').value=x?(x.title||''):'';
+  document.getElementById('dv-f-event').value=x?(x.eventInfo||''):'';
+  document.getElementById('dv-f-reqdate').value=x?(x.requestDate||''):todayStr;
+  document.getElementById('dv-f-deadline').value=x?(x.deadline||''):'';
+  document.getElementById('dv-f-sender').value=x?(x.sender||''):'';
+  document.getElementById('dv-f-status').value=x?(x.status||'접수'):'접수';
+  document.getElementById('dv-f-vendor').value=x?(x.vendor||''):'';
+  document.getElementById('dv-f-note').value=x?(x.note||''):'';
+  document.getElementById('directive-form-overlay').classList.add('open');
+}
+async function dvSave(){
+  var title=document.getElementById('dv-f-title').value.trim();
+  if(!title){ alert('내용을 입력해주세요'); return; }
+  var id=document.getElementById('dv-f-id').value;
+  var nr={id:id||genId('dv'),
+    requestDate:document.getElementById('dv-f-reqdate').value,
+    requester:document.getElementById('dv-f-requester').value.trim(),
+    kind:document.getElementById('dv-f-kind').value,
+    title:title,
+    eventInfo:document.getElementById('dv-f-event').value.trim(),
+    deadline:document.getElementById('dv-f-deadline').value,
+    sender:document.getElementById('dv-f-sender').value.trim(),
+    status:document.getElementById('dv-f-status').value,
+    vendor:document.getElementById('dv-f-vendor').value.trim(),
+    note:document.getElementById('dv-f-note').value.trim()};
+  var btn=document.getElementById('dv-save-btn'); btn.disabled=true;
+  if(!data.directives) data.directives=[];
+  if(id){
+    var idx=data.directives.findIndex(function(r){ return r.id===id; });
+    var prev=idx>=0?Object.assign({},data.directives[idx]):null;
+    if(idx>=0) data.directives[idx]=nr;
+    var ok=await updateRowSafe('directives',id,dvRowOf(nr));
+    if(!ok) ok=await updateRowSafe('directives',id,dvRowOf(nr));
+    if(!ok){
+      if(idx>=0&&prev) data.directives[idx]=prev;
+      btn.disabled=false;
+      alert('⚠ 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'+(window._lastSaveErr?'\n\n[상세 원인] '+window._lastSaveErr:'')+'\n\n※ 구글시트에 \'directives\' 탭과 헤더가 정확히 있는지도 확인해주세요.');
+      return;
+    }
+  } else {
+    var ok2=await saveRowChecked('directives',dvRowOf(nr),'지시사항');
+    if(!ok2){ btn.disabled=false; return; }
+    data.directives.push(nr);
+  }
+  btn.disabled=false;
+  document.getElementById('directive-form-overlay').classList.remove('open');
+  dvRenderList(); renderDirectiveCard();
+}
+async function dvSetStatus(id,st){
+  var x=(data.directives||[]).find(function(r){ return r.id===id; }); if(!x) return;
+  var prev=x.status; x.status=st;
+  var ok=await updateRowSafe('directives',id,dvRowOf(x));
+  if(!ok) ok=await updateRowSafe('directives',id,dvRowOf(x));
+  if(!ok){ x.status=prev; alert('⚠ 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'+(window._lastSaveErr?'\n\n[상세 원인] '+window._lastSaveErr:'')); }
+  dvRenderList(); renderDirectiveCard();
+}
+async function dvDelete(id){
+  if(!confirm('이 지시를 삭제할까요?')) return;
+  var prevList=(data.directives||[]).slice();
+  data.directives=prevList.filter(function(r){ return r.id!==id; });
+  dvRenderList(); renderDirectiveCard();
+  var ok=await deleteRowSafe('directives',id);
+  if(!ok){ data.directives=prevList; dvRenderList(); renderDirectiveCard(); alert('⚠ 삭제에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'); }
 }
 
 function renderMainAlerts(){
