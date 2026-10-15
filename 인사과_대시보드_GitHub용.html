@@ -365,6 +365,7 @@ tbody tr:hover{background:#FAFBFC}
         <button class="btn" onclick="showLeavesByType()" style="border-color:#B45309;color:#92400E">🏖️ 휴가별 현황</button>
         <button class="btn" onclick="openRotationAnnexModal()" style="border-color:#4338CA;color:#4338CA">🔄 별관인원 설정</button>
         <button class="btn primary" onclick="showDeptStats()">📊 부서별 인원통계</button>
+        <button class="btn" onclick="staffExportExcel()" style="border-color:#059669;color:#047857" title="지금 화면에 보이는 목록(검색·구분·퇴사자 설정 그대로)을 인쇄용 엑셀로 저장">🖨 엑셀(인쇄용)</button>
       </div>
     </div>
     <div style="overflow-x:auto">
@@ -2801,6 +2802,64 @@ function renderStaff() {
     '</tr>';
   }).join('');
   document.getElementById('staff-count').textContent='총 '+filtered.length+'명 표시 중 (전체 '+list.length+'명)';
+}
+
+
+// ── 직원현황 인쇄용 엑셀 (현재 화면의 검색·구분·퇴사자 설정을 그대로 반영) ──
+async function staffExportExcel(){
+  if(typeof ExcelJS==='undefined'){ alert('엑셀 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침 후 다시 시도해주세요.'); return; }
+  var sq=(document.getElementById('staff-search')||{value:''}).value.toLowerCase();
+  var ft=(document.getElementById('staff-filter-type')||{value:''}).value;
+  var showResigned=(document.getElementById('staff-show-resigned')||{checked:false}).checked;
+  var all=data.staff||[];
+  var list=showResigned?all.filter(function(s){ return s.resignDate&&s.resignDate<=todayStr; }):all.filter(function(s){ return !s.resignDate||s.resignDate>todayStr; });
+  list=list.filter(function(s){
+    if(ft&&s.contractType!==ft) return false;
+    if(sq&&(s.name||'').toLowerCase().indexOf(sq)<0&&(s.dept||'').toLowerCase().indexOf(sq)<0) return false;
+    return true;
+  });
+  if(!list.length){ alert('내보낼 직원이 없어요'); return; }
+  function tenure(d){
+    if(!d) return '';
+    var j=new Date(d), n=new Date(todayStr);
+    var y=n.getFullYear()-j.getFullYear(), m=n.getMonth()-j.getMonth();
+    if(m<0){ y--; m+=12; } if(y<0) return '';
+    return y+'년 '+m+'개월';
+  }
+  var heads=['번호','이름','부서','근무지','직급','직책','입사일','재직기간','구분','계약종료']; if(showResigned) heads.push('퇴사일'); heads.push('비고');
+  var widths=[6,12,18,9,10,12,12,12,9,12]; if(showResigned) widths.push(12); widths.push(26);
+  var wb=new ExcelJS.Workbook(), ws=wb.addWorksheet('직원현황',{views:[{state:'frozen',ySplit:3}]});
+  var ncol=heads.length;
+  ws.columns=widths.map(function(w){ return {width:w}; });
+  ws.mergeCells(1,1,1,ncol);
+  var t=ws.getCell(1,1); t.value='서울재활병원 직원현황'+(showResigned?' (퇴사자)':''); t.font={bold:true,size:16}; t.alignment={horizontal:'center',vertical:'middle'};
+  ws.getRow(1).height=28;
+  ws.mergeCells(2,1,2,ncol);
+  var sub=ws.getCell(2,1);
+  var cond=[]; if(ft) cond.push(ft); if(sq) cond.push('검색: '+sq);
+  sub.value='기준일 '+todayStr+'  ·  총 '+list.length+'명'+(cond.length?'  ·  '+cond.join(', '):'');
+  sub.font={size:10,color:{argb:'FF555555'}}; sub.alignment={horizontal:'right'};
+  var hr=ws.getRow(3); heads.forEach(function(h,i){ hr.getCell(i+1).value=h; });
+  hr.height=22;
+  var thin={style:'thin',color:{argb:'FF999999'}}, border={top:thin,left:thin,bottom:thin,right:thin};
+  hr.eachCell(function(c){ c.font={bold:true,color:{argb:'FFFFFFFF'}}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1F3A5F'}}; c.alignment={horizontal:'center',vertical:'middle'}; c.border=border; });
+  list.forEach(function(s,i){
+    var vals=[i+1,s.name||'',s.dept||'',s.location||'본관',s.position||'',s.title||'',s.joinDate||'',tenure(s.joinDate),s.contractType||'',s.contractEnd||''];
+    if(showResigned) vals.push(s.resignDate||'');
+    vals.push(s.note||'');
+    var r=ws.addRow(vals); r.height=20;
+    r.eachCell({includeEmpty:true},function(c,col){
+      c.border=border; c.font={size:10.5};
+      c.alignment={vertical:'middle',horizontal:(col===3||col===ncol)?'left':'center',wrapText:(col===ncol)};
+    });
+    if(i%2===1) r.eachCell({includeEmpty:true},function(c){ c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF3F6FA'}}; });
+  });
+  ws.pageSetup={paperSize:9,orientation:'portrait',fitToPage:true,fitToWidth:1,fitToHeight:0,horizontalCentered:true,
+    margins:{left:0.4,right:0.4,top:0.6,bottom:0.6,header:0.3,footer:0.3},printTitlesRow:'3:3'};
+  ws.headerFooter={oddFooter:'&C&P / &N 쪽'};
+  var buf=await wb.xlsx.writeBuffer();
+  var blob=new Blob([buf],{type:'application/octet-stream'}), url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download='직원현황_'+todayStr+'.xlsx'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
 function openStaffForm(){
