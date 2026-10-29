@@ -1233,6 +1233,29 @@ async function callScript(params){
   }
   return null;
 }
+
+// ── 탭 전체를 덮어써야 하는 항목(당직·연간): 저장 직전에 시트 최신본을 받아 '내가 바꾼 행'만 바꿔서 저장 ──
+async function mergeSaveTab(tab,keyOf,newRows){
+  var prev=window._mergePrev=window._mergePrev||{};
+  var before=prev[tab]||{}, changed=[], keyOrder=Object.keys(newRows[0]||{});
+  function sig(r){ return keyOrder.map(function(kk){ return String(r&&r[kk]!=null?r[kk]:""); }).join("\u0001"); }
+  newRows.forEach(function(r){ var k=keyOf(r); if(!before[k]||sig(before[k])!==sig(r)) changed.push(r); });
+  var result={ok:true,message:""};
+  await otQueue(async function(){
+    var server=null;
+    try{ server=await callScript({tab:tab}); }catch(e){ server=null; }
+    var merged;
+    if(Array.isArray(server)&&server.length){
+      var idx={}; merged=[];
+      server.forEach(function(sr){ if(!sr) return; var o={}; keyOrder.forEach(function(kk){ o[kk]=(sr[kk]===undefined||sr[kk]===null)?"":sr[kk]; }); var k=keyOf(o); if(idx[k]===undefined){ idx[k]=merged.length; merged.push(o); } });
+      changed.forEach(function(r){ var k=keyOf(r); if(idx[k]!==undefined) merged[idx[k]]=r; else { idx[k]=merged.length; merged.push(r); } });
+    } else { merged=newRows; }
+    data[tab]=merged;
+    result=await overwriteTab(tab);
+    if(result&&result.ok){ var snap={}; merged.forEach(function(r){ snap[keyOf(r)]=r; }); prev[tab]=snap; }
+  });
+  return result;
+}
 async function overwriteTab(tab){var rows=data[tab]||[];if(tab!=="duties"){var seen={};rows=rows.filter(function(r){if(!r.id||seen[r.id])return false;seen[r.id]=true;return true;});}var df=["end","start","created","date"];rows=rows.map(function(r){var out={};Object.keys(r).forEach(function(k){out[k]=df.indexOf(k)>=0?formatDateVal(r[k]):r[k];});return out;});data[tab]=rows;saveLocalBackup();
   if(rows.length){
     var headers=Object.keys(rows[0]);
@@ -1418,13 +1441,13 @@ async function syncAll(mode){if(isEditing){setSyncStatus("ok","● 입력 중 (�
     var fdm=filterRows(dm,"dormitory").map(function(r){return normalizeRow(r,"dormitory");});
     if(fdm.length) data.dormitory=fdm;
     var fdt=(dt||[]).filter(function(r){return r&&r.category;}).map(function(r){return normalizeRow(r,"duties");});
-    if(fdt.length) data.duties=fdt;
+    if(fdt.length){ data.duties=fdt; window._mergePrev=window._mergePrev||{}; var sn1={}; fdt.forEach(function(r){ sn1[r.category+'|'+r.member]=r; }); window._mergePrev.duties=sn1; }
     var fst=filterRows(st,"staff").map(function(r){return normalizeRow(r,"staff");});
     if(fst.length) data.staff=fst;
     data.staff.forEach(function(s){ if(s.resignDate) s.resignDate=normalizeDateStr(s.resignDate); if(s.joinDate) s.joinDate=normalizeDateStr(s.joinDate); });
     if(ad&&ad.length) dismissedAlerts=ad;
     var fan=(an||[]).filter(function(r){return r&&r.month;}).map(function(r){return normalizeRow(r,"annual");});
-    if(fan.length) data.annual=fan;
+    if(fan.length){ data.annual=fan; window._mergePrev=window._mergePrev||{}; var sn2={}; fan.forEach(function(r){ sn2[String(r.month)]=r; }); window._mergePrev.annual=sn2; }
     var fsl=filterRows(sl,"staff_leaves").map(function(r){return normalizeRow(r,"staff_leaves");});
     if(fsl.length||!data.staffLeaves.length) data.staffLeaves=fsl;
     data.staffLeaves.forEach(function(l){ if(l.type==="단축근무") l.type="육아기 근로단축"; });
@@ -2653,7 +2676,7 @@ async function saveDutyData(dutyData){
     });
   });
   data.duties=rows;
-  await overwriteTab("duties");
+  await mergeSaveTab("duties",function(r){return r.category+"|"+r.member;},rows);
 }
 
 function renderDuties(){
@@ -4164,7 +4187,7 @@ async function saveAnnualData(annualData){
     rows.push({id:"am"+m,month:String(m),items:JSON.stringify(annualData[m]||[])});
   }
   data.annual=rows;
-  var res=await overwriteTab("annual");
+  var res=await mergeSaveTab("annual",function(r){return String(r.month);},rows);
   if(!res.ok){ alert("저장에 실패했어요.\n\n[상세 원인]\n"+res.message+"\n\n화면에는 방금 수정한 내용이 남아있지만, 새로고침하면 사라질 수 있어요."); }
   return res.ok;
 }
