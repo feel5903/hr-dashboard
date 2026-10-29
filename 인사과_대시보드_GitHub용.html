@@ -3022,13 +3022,20 @@ function otSeedIfEmpty(raw){
     data.overtime=OT_SEED.map(function(a){ return {id:a[0],member:a[1],kind:a[2],date:a[3],timeRange:a[4],hours:a[5],content:a[6],note:a[7]}; });
     if(document.getElementById('pane-overtime').classList.contains('active')) renderOvertime();
     otQueue(async function(){
+      // 첫 줄로 탭/제목 확인 → 실패하면 여기서 중단하고 원인을 그대로 보여줌
+      var f0=OT_SEED[0], r0=await saveRow('overtime',[f0[0],f0[1],f0[2],f0[3],f0[4],String(f0[5]),f0[6],f0[7]]);
+      if(!r0||!r0.ok){
+        localStorage.removeItem('ot_seeded'); data.overtime=[]; if(document.getElementById('pane-overtime').classList.contains('active')) renderOvertime();
+        alert('⚠ 시간외근무 기존 자료를 시트에 저장하지 못했어요. (아무것도 입력되지 않았어요)\n\n[원인] '+((r0&&r0.message)||'알 수 없음')+'\n\n※ 구글시트에 \'overtime\' 탭을 만들고, 1행에 id, member, kind, date, timeRange, hours, content, note 를 넣은 뒤 새로고침해주세요.');
+        return;
+      }
       var fail=0, B=4;
-      for(var i=0;i<OT_SEED.length;i+=B){
+      for(var i=1;i<OT_SEED.length;i+=B){
         var rs=await Promise.all(OT_SEED.slice(i,i+B).map(function(a){ return saveRow('overtime',[a[0],a[1],a[2],a[3],a[4],String(a[5]),a[6],a[7]]); }));
         rs.forEach(function(r){ if(!r||!r.ok) fail++; });
         setSyncStatus('loading','⟳ 시간외근무 자료 입력 중 '+Math.min(i+B,OT_SEED.length)+'/'+OT_SEED.length);
       }
-      if(fail){ localStorage.removeItem('ot_seeded'); alert('⚠ 시간외근무 기존 자료 중 '+fail+'건을 시트에 저장하지 못했어요. 구글시트에 \'overtime\' 탭과 제목(id, member, kind, date, timeRange, hours, content, note)이 있는지 확인하고 새로고침해주세요.'); }
+      if(fail){ localStorage.removeItem('ot_seeded'); alert('⚠ 시간외근무 기존 자료 중 '+fail+'건을 시트에 저장하지 못했어요. 시트의 overtime 탭에 들어간 내용을 확인하고 저에게 알려주세요.'); }
       else setSyncStatus('ok','● 시간외근무 자료 입력 완료');
     });
   }catch(e){}
@@ -3062,8 +3069,8 @@ function renderOvertime(){
     h+='<div style="overflow-x:auto"><table><thead><tr><th>이름</th><th style="text-align:center">근무 건수</th><th style="text-align:center">실제 근무시간</th><th style="text-align:center">적용시간(환산)</th><th style="text-align:center">사용</th><th style="text-align:center">잔여시간</th></tr></thead><tbody>'+
       OT_MEMBERS.map(function(m){
         var c=otCalc(m.n);
-        if(!c.w.length&&!c.u.length) return '<tr style="cursor:pointer" onclick="otSetTab(\''+m.n+'\')"><td><b>'+m.n+' '+m.t+'</b></td><td colspan="5" style="text-align:center;color:var(--text-muted)">기록 없음</td></tr>';
-        return '<tr style="cursor:pointer" onclick="otSetTab(\''+m.n+'\')"><td><b>'+m.n+' '+m.t+'</b></td><td style="text-align:center">'+c.w.length+'건</td><td style="text-align:center">'+otN(c.H)+'</td><td style="text-align:center"><b>'+otN(c.A)+'</b></td><td style="text-align:center">'+otN(c.U)+'</td><td style="text-align:center"><b style="font-size:15px;color:'+(c.R<0?'#DC2626':'var(--lime-dark)')+'">'+otN(c.R)+'</b></td></tr>';
+        if(!c.w.length&&!c.u.length) return '<tr style="cursor:pointer" onclick="otSetTab(\''+m.n+'\')"><td><b>'+m.n+'</b></td><td colspan="5" style="text-align:center;color:var(--text-muted)">기록 없음</td></tr>';
+        return '<tr style="cursor:pointer" onclick="otSetTab(\''+m.n+'\')"><td><b>'+m.n+'</b></td><td style="text-align:center">'+c.w.length+'건</td><td style="text-align:center">'+otN(c.H)+'</td><td style="text-align:center"><b>'+otN(c.A)+'</b></td><td style="text-align:center">'+otN(c.U)+'</td><td style="text-align:center"><b style="font-size:15px;color:'+(c.R<0?'#DC2626':'var(--lime-dark)')+'">'+otN(c.R)+'</b></td></tr>';
       }).join('')+'</tbody></table></div><div style="font-size:12px;color:var(--text-muted);margin-top:10px">※ 적용시간 = 시간 × 배율 (평일·토요일 1.5배, 일요일·공휴일 2배, 자동 적용) / 잔여시간 = 적용시간 − 사용</div>';
     box.innerHTML=h; return;
   }
