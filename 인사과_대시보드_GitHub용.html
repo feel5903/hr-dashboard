@@ -202,12 +202,12 @@ tr.ot-mh td{background:#E8EEF6;border-top:1px solid #D8DFE8;padding:9px 10px;fon
 
 </nav>
 <main class="main">
-  <div class="stats-row" style="grid-template-columns:repeat(6,1fr)">
+  <div class="stats-row" style="grid-template-columns:repeat(4,minmax(150px,1fr)) auto">
     <div class="stat-card" id="directive-card" onclick="openDirectives()" style="cursor:pointer" title="원장님·처장님 지시사항 (클릭하면 목록 열림)"><div class="stat-icon" id="directive-icon" style="background:#FEF3C7">📌</div><div><div class="stat-label" style="font-size:13px;font-weight:700;color:#92400E">지시사항 <span id="directive-dday" style="font-size:11.5px"></span></div><div class="stat-val" id="directive-val" style="color:#92400E">0</div></div></div>
     <div class="stat-card" id="meeting-card" onclick="openMeetings()" style="cursor:pointer" title="회의 세팅 (클릭하면 목록 열림)"><div class="stat-icon" id="meeting-icon" style="background:#CFFAFE">🗓</div><div><div class="stat-label" style="font-size:13px;font-weight:700;color:#0E7490">회의세팅 <span id="meeting-dday" style="font-size:11.5px;white-space:nowrap"></span></div><div class="stat-val" id="meeting-val" style="color:#0E7490">0</div></div></div>
     <div class="stat-card" onclick="goToDueToday()" style="cursor:pointer" title="클릭하면 오늘 마감 업무 보기"><div class="stat-icon coral">🔔</div><div><div class="stat-label" style="font-size:13px;font-weight:700;color:var(--coral)">오늘 마감</div><div class="stat-val coral" id="s-due">0</div></div></div>
     <div class="stat-card" onclick="showAnnualPopup()" style="cursor:pointer" title="클릭하면 이번달 중요업무 보기"><div class="stat-icon" style="background:#E0E7FF">📅</div><div><div class="stat-label" style="font-size:13px;font-weight:700;color:#4338CA"><span id="annual-month-label"></span> 중요업무</div><div class="stat-val" style="color:#4338CA" id="cnt-annual-stat">0</div></div></div>
-    <div class="stat-card" style="grid-column:span 2;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <div class="stat-card" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button id="btn-alert-award" onclick="showAlertPopup('award')" style="display:none;padding:6px 14px;background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;color:#92400E">🎖️ 포상 <span id="cnt-award"></span></button>
       <button id="btn-alert-sabbatical" onclick="showAlertPopup('sabbatical')" style="display:none;padding:6px 14px;background:#D1FAE5;border:1.5px solid #10B981;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;color:#065F46">🌿 안식 <span id="cnt-sabbatical"></span></button>
       <button id="btn-alert-contract" onclick="showAlertPopup('contract')" style="display:none;padding:6px 14px;background:#FEE2E2;border:1.5px solid #EF4444;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;color:#991B1B">📋 계약만료 <span id="cnt-contract"></span></button>
@@ -1391,7 +1391,7 @@ function syncEarlyApply(st,ad,dv){
     renderMainAlerts(); renderDirectiveCard(); saveLocalBackup();
   }catch(e){}
 }
-async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동기화 대기)");return;}
+async function syncAll(mode){if(isEditing){setSyncStatus("ok","● 입력 중 (동기화 대기)");return;}
   if(writePending>0){ setTimeout(syncAll,3000); return; }
   if(syncRunning&&(Date.now()-syncStartedAt)<90000) return;
   syncRunning=true; syncStartedAt=Date.now(); var wmark=writeSeq;
@@ -1401,11 +1401,13 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
     ]);
     if(syncStale(wmark)){ syncRunning=false; setTimeout(syncAll,3000); return; }
     syncEarlyApply(core[0],core[1],core[2]);
+    var hot=(mode==="hot"&&window._fullOK);
+    function cs(t,cold){ return (hot&&cold)?Promise.resolve(undefined):callScript({tab:t}); }
     var rest=await Promise.all([
-      callScript({tab:"daily"}),callScript({tab:"project"}),callScript({tab:"leave"}),callScript({tab:"task"}),
-      callScript({tab:"recruit"}),callScript({tab:"dormitory"}),callScript({tab:"duties"}),callScript({tab:"annual"}),
-      callScript({tab:"staff_leaves"}),callScript({tab:"others"}),callScript({tab:"rotation_annex"}),callScript({tab:"oncall_doctors"}),
-      callScript({tab:"oncall_schedule"}),callScript({tab:"monthly_headcount_manual"}),callScript({tab:"workdays_saved"}),callScript({tab:"hr_events"}),callScript({tab:"wd_admin_tags"}),callScript({tab:"overtime"})
+      cs("daily"),cs("project"),cs("leave"),cs("task"),
+      cs("recruit"),cs("dormitory",1),cs("duties",1),cs("annual",1),
+      cs("staff_leaves",1),cs("others",1),cs("rotation_annex",1),cs("oncall_doctors",1),
+      cs("oncall_schedule",1),cs("monthly_headcount_manual",1),cs("workdays_saved",1),cs("hr_events",1),cs("wd_admin_tags",1),cs("overtime")
     ]);
     if(syncStale(wmark)){ syncRunning=false; setTimeout(syncAll,3000); return; }
     var results=[rest[0],rest[1],rest[2],rest[3],rest[4],rest[5],rest[6],core[0],core[1],rest[7],rest[8],rest[9],rest[10],rest[11],rest[12],rest[13],rest[14],rest[15],rest[16],core[2]];
@@ -1447,7 +1449,7 @@ async function syncAll(){if(isEditing){setSyncStatus("ok","● 입력 중 (동�
     if(fhe.length||!data.hrEvents.length) data.hrEvents=fhe;
     data.hrEvents.forEach(function(r){ if(r.startDate) r.startDate=normalizeDateStr(r.startDate); if(r.endDate) r.endDate=normalizeDateStr(r.endDate); });
     seedOncallDataIfEmpty();
-    lastSyncDone=Date.now();saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();showMissingIdWarning();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}finally{syncRunning=false;}}
+    if(!hot) window._fullOK=true;lastSyncDone=Date.now();saveLocalBackup();setSyncStatus("ok","● 동기화 완료 ("+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})+")");renderAll();showMissingIdWarning();}catch(e){setSyncStatus("err","⚠ 오류 (로컬 데이터 표시 중)");renderAll();}finally{syncRunning=false;}}
 
 function showMissingIdWarning(){
   var el=document.getElementById("missing-id-banner");
@@ -1784,7 +1786,7 @@ function renderLeaveList(wk){
 
 function saveMemo(){var wk=document.getElementById("week-select").value;var val=document.getElementById("meeting-memo").value;localStorage.setItem("memo_"+wk,val);var st=document.getElementById("memo-save-status");st.textContent="✅ 저장됨";setTimeout(function(){st.textContent="";},2000);}
 function loadMemo(){var wk=document.getElementById("week-select").value;var el=document.getElementById("meeting-memo");if(el)el.value=localStorage.getItem("memo_"+wk)||"";}
-function saveFeedback(id,val){var item=data.daily.find(function(x){return x.id===id;});if(item){item.feedback=val;clearTimeout(window._fbTimer);window._fbTimer=setTimeout(function(){updateRowSafe("daily",item.id,[item.id,item.member,item.content,item.created,item.end,item.status,item.note||"",item.feedback||"",item.link||""]);},1000);}}
+function saveFeedback(id,val){var item=data.daily.find(function(x){return x.id===id;});if(item){window._fbPrev=window._fbPrev||{};if(!(id in window._fbPrev))window._fbPrev[id]=item.feedback||"";item.feedback=val;clearTimeout(window._fbTimer);window._fbTimer=setTimeout(function(){var o=dailyRowOf(item);o[7]=window._fbPrev[id];delete window._fbPrev[id];bgWrite(function(){return dailyUpdateMerged(item.id,o,dailyRowOf(item));});},1000);}}
 function openLeaveForm(){document.getElementById("lv-member").innerHTML=members.map(function(m){return"<option>"+m.name+"</option>";}).join("");document.getElementById("lv-date").value=todayStr;document.getElementById("lv-note").value="";document.getElementById("leave-overlay").classList.add("open");}
 async function saveLeave(){var date=document.getElementById("lv-date").value;if(!date){alert("날짜를 선택해주세요");return;}var nr={id:genId("lv"),member:document.getElementById("lv-member").value,date:date,type:document.getElementById("lv-type").value,note:document.getElementById("lv-note").value};var ok=await saveRowChecked("leave",Object.values(nr),"휴가");if(!ok)return;data.leave.push(nr);document.getElementById("leave-overlay").classList.remove("open");renderWeeklySelect();renderWeekly();renderCalendar();}
 async function deleteLeave(id){if(!confirm("휴가를 삭제할까요?"))return;data.leave=data.leave.filter(function(x){return x.id!==id;});await deleteRowSafe("leave",id);renderWeekly();renderCalendar();}
@@ -1974,58 +1976,73 @@ function showCalModal(ds){var allEvts=data.daily.map(function(x){return{date:x.e
 function changeMonth(dir){curMonth.m+=dir;if(curMonth.m>11){curMonth.m=0;curMonth.y++;}if(curMonth.m<0){curMonth.m=11;curMonth.y--;}renderCalendar();}
 async function changeStatus(type,idx,val){
   var x=data[type]&&data[type][idx]; if(!x) return;
-  var prev=x.status; x.status=val; renderAll();
+  var prev=x.status, orig=(type==="daily")?dailyRowOf(x):null; x.status=val; renderAll(); saveLocalBackup();
   if(type!=="daily"){ setTimeout(function(){overwriteTab(type);},500); return; }
-  var row=[x.id,x.member,x.content,x.created,x.end,x.status,x.note||"",x.feedback||"",x.link||""];
-  var ok=await updateRowSafe("daily",x.id,row);
-  if(!ok) ok=await updateRowSafe("daily",x.id,row);
-  if(!ok){ x.status=prev; renderAll(); alert("⚠ 상태 변경이 저장되지 않아 되돌렸어요. 인터넷 연결을 확인하고 다시 시도해주세요."+(window._lastSaveErr?"\n\n[상세 원인] "+window._lastSaveErr:"")); }
+  bgWrite(async function(){
+    var ok=await dailyUpdateMerged(x.id,orig,dailyRowOf(x));
+    if(!ok){ x.status=prev; renderAll(); saveLocalBackup(); alert("⚠ 상태 변경이 저장되지 않아 되돌렸어요. 인터넷 연결을 확인하고 다시 시도해주세요."+(window._lastSaveErr?"\n\n[상세 원인] "+window._lastSaveErr:"")); }
+  });
 }
 function editItem(type,idx){var x=data[type][idx];editIdx=idx;curForm=type;document.getElementById("modal-title").textContent=type==="daily"?"일일 업무 수정":"프로젝트 수정";document.getElementById("field-start").style.display=type==="project"?"block":"none";document.getElementById("field-created").style.display=type==="daily"?"block":"none";document.getElementById("f-member").innerHTML=members.map(function(m){return"<option>"+m.name+"</option>";}).join("");setTimeout(function(){document.getElementById("f-member").value=x.member||"";document.getElementById("f-content").value=x.content||x.name||"";document.getElementById("f-created").value=x.start||x.created||todayStr;document.getElementById("f-end").value=x.end||"";document.getElementById("f-start").value=x.start||"";document.getElementById("f-status").value=x.status||"진행";document.getElementById("f-note").value=x.note||"";setLinkValues(x.link||"");var eld=document.getElementById("field-link");if(eld)eld.style.display=type==="daily"?"":"none";},50);document.getElementById("save-btn").textContent="수정 완료";document.getElementById("overlay").classList.add("open");}
 async function deleteItem(type,idx){
   var x=data[type][idx];
   if(!confirm("["+(x.content||x.name)+"]을 삭제할까요?"))return;
   data[type].splice(idx,1);
-  // 프로젝트 삭제 시 해당 단계(task)들도 각각 안전하게 삭제
+  var relatedTasks=[];
   if(type==="project"&&x.id){
-    var relatedTasks=data.task.filter(function(t){return t.projectId===x.id;});
+    relatedTasks=data.task.filter(function(t){return t.projectId===x.id;});
     data.task=data.task.filter(function(t){return t.projectId!==x.id;});
-    for(var i=0;i<relatedTasks.length;i++){
-      await deleteRowSafe("task",relatedTasks[i].id);
-    }
   }
-  await deleteRowSafe(type,x.id);
-  renderAll();
+  saveLocalBackup(); renderAll();
+  bgWrite(async function(){
+    for(var i=0;i<relatedTasks.length;i++){ await deleteRowSafe("task",relatedTasks[i].id); }
+    var ok=await deleteRowSafe(type,x.id);
+    if(!ok){
+      data[type].splice(Math.min(idx,data[type].length),0,x);
+      relatedTasks.forEach(function(t){ data.task.push(t); });
+      renderAll(); saveLocalBackup();
+      alert("⚠ 삭제에 실패해서 되돌렸어요. 인터넷 연결을 확인하고 다시 시도해주세요.");
+    }
+  });
 }
 function openForm(type){curForm=type;editIdx=null;document.getElementById("modal-title").textContent=type==="daily"?"일일 업무 추가":"프로젝트 추가";document.getElementById("field-start").style.display=type==="project"?"block":"none";document.getElementById("field-created").style.display=type==="daily"?"block":"none";document.getElementById("f-member").innerHTML=members.map(function(m){return"<option>"+m.name+"</option>";}).join("");document.getElementById("f-content").value="";document.getElementById("f-created").value=todayStr;document.getElementById("f-end").value=todayStr;document.getElementById("f-start").value=todayStr;document.getElementById("f-status").value="진행";document.getElementById("f-note").value="";setLinkValues("");var fld=document.getElementById("field-link");if(fld)fld.style.display=type==="daily"?"":"none";document.getElementById("save-btn").textContent="저장";document.getElementById("save-btn").disabled=false;document.getElementById("overlay").classList.add("open");}
 function closeOverlay(){document.getElementById("overlay").classList.remove("open");editIdx=null;document.getElementById("save-btn").textContent="저장";document.getElementById("save-btn").disabled=false;}
 function closeOverlayOutside(e){if(e.target===document.getElementById("overlay"))closeOverlay();}
 async function saveForm(){var btn=document.getElementById("save-btn");if(btn.disabled)return;btn.disabled=true;btn.textContent="저장 중...";var member=document.getElementById("f-member").value;var content=document.getElementById("f-content").value.trim();var end=document.getElementById("f-end").value;var status=document.getElementById("f-status").value;var note=document.getElementById("f-note").value;if(!content){alert("내용을 입력해주세요");btn.disabled=false;btn.textContent="저장";return;}
   if(editIdx!==null){
-    var x=data[curForm][editIdx];var ok=false;
-    if(curForm==="daily"){x.member=member;x.content=content;x.start=document.getElementById("f-created").value||todayStr;x.created=x.start;x.end=end;x.status=status;x.note=note;x.link=getLinkValues();
-      ok=await updateRowSafe("daily",x.id,[x.id,x.member,x.content,x.created,x.end,x.status,x.note,x.feedback||"",x.link||""]);
-      if(!ok) ok=await updateRowSafe("daily",x.id,[x.id,x.member,x.content,x.created,x.end,x.status,x.note,x.feedback||"",x.link||""]);
-    }else if(curForm==="project"){x.member=member;x.name=content;x.start=document.getElementById("f-start").value;x.end=end;x.status=status;x.note=note;
-      ok=await updateRowSafe("project",x.id,[x.id,x.name,x.member,x.start,x.end,x.progress||0,x.status,x.note]);
-      if(!ok) ok=await updateRowSafe("project",x.id,[x.id,x.name,x.member,x.start,x.end,x.progress||0,x.status,x.note]);
-    }
-    if(!ok){ alert("⚠ 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요. (수정 내용이 아직 시트에 반영되지 않았어요)"); btn.disabled=false; btn.textContent="저장"; return; }
-    saveLocalBackup();closeOverlay();renderAll();return;
+    var x=data[curForm][editIdx], ftype=curForm, prevX=Object.assign({},x);
+    var origRow=(ftype==="daily")?dailyRowOf(prevX):null;
+    if(ftype==="daily"){x.member=member;x.content=content;x.start=document.getElementById("f-created").value||todayStr;x.created=x.start;x.end=end;x.status=status;x.note=note;x.link=getLinkValues();}
+    else if(ftype==="project"){x.member=member;x.name=content;x.start=document.getElementById("f-start").value;x.end=end;x.status=status;x.note=note;}
+    saveLocalBackup();closeOverlay();renderAll();
+    bgWrite(async function(){
+      var ok=false;
+      if(ftype==="daily"){ ok=await dailyUpdateMerged(x.id,origRow,dailyRowOf(x)); }
+      else if(ftype==="project"){ var pr=[x.id,x.name,x.member,x.start,x.end,x.progress||0,x.status,x.note]; ok=await updateRowSafe("project",x.id,pr); if(!ok) ok=await updateRowSafe("project",x.id,pr); }
+      if(!ok){
+        Object.keys(prevX).forEach(function(k){ x[k]=prevX[k]; }); renderAll(); saveLocalBackup();
+        alert("⚠ 저장에 실패해서 되돌렸어요. 인터넷 연결을 확인하고 다시 시도해주세요."+(window._lastSaveErr?"\n\n[상세 원인] "+window._lastSaveErr:""));
+      }
+    });
+    return;
   }
   if(curForm==="daily"){
     var sv=document.getElementById("f-created").value||todayStr;var lnk2=getLinkValues();
     var nr={id:genId("d"),member:member,content:content,created:sv,start:sv,end:end,status:status,note:note,feedback:"",link:lnk2};
-    var res=await saveRow("daily",[nr.id,nr.member,nr.content,nr.created,nr.end,nr.status,nr.note,nr.feedback,nr.link||""]);
-    if(!res.ok) res=await saveRow("daily",[nr.id,nr.member,nr.content,nr.created,nr.end,nr.status,nr.note,nr.feedback,nr.link||""]);
-    if(!res.ok){ alert("⚠ 저장에 실패했어요: "+res.message+"\n\n인터넷 연결을 확인하고 다시 시도해주세요. (이 업무는 아직 시트에 저장되지 않았어요)"); btn.disabled=false; btn.textContent="저장"; return; }
-    data.daily.push(nr);
+    data.daily.push(nr); saveLocalBackup(); closeOverlay(); renderAll();
+    bgWrite(async function(){
+      var row=dailyRowOf(nr), res=await saveRow("daily",row); if(!res.ok) res=await saveRow("daily",row);
+      if(!res.ok){ data.daily=data.daily.filter(function(r){ return r.id!==nr.id; }); renderAll(); saveLocalBackup(); alert("⚠ 저장에 실패해서 되돌렸어요: "+res.message+"\n\n인터넷 연결을 확인하고 다시 시도해주세요. (이 업무는 시트에 저장되지 않았어요)"); }
+    });
+    return;
   }else if(curForm==="project"){
-    var nr={id:genId("p"),name:content,member:member,start:document.getElementById("f-start").value,end:end,progress:0,status:status,note:note};
-    var res=await saveRow("project",Object.values(nr));
-    if(!res.ok) res=await saveRow("project",Object.values(nr));
-    if(!res.ok){ alert("⚠ 저장에 실패했어요: "+res.message+"\n\n인터넷 연결을 확인하고 다시 시도해주세요. (이 항목은 아직 시트에 저장되지 않았어요)"); btn.disabled=false; btn.textContent="저장"; return; }
-    data.project.push(nr);
+    var nr2={id:genId("p"),name:content,member:member,start:document.getElementById("f-start").value,end:end,progress:0,status:status,note:note};
+    data.project.push(nr2); saveLocalBackup(); closeOverlay(); renderAll();
+    bgWrite(async function(){
+      var row=Object.values(nr2), res=await saveRow("project",row); if(!res.ok) res=await saveRow("project",row);
+      if(!res.ok){ data.project=data.project.filter(function(r){ return r.id!==nr2.id; }); renderAll(); saveLocalBackup(); alert("⚠ 저장에 실패해서 되돌렸어요: "+res.message+"\n\n인터넷 연결을 확인하고 다시 시도해주세요. (이 항목은 시트에 저장되지 않았어요)"); }
+    });
+    return;
   }
   closeOverlay();renderAll();}
 function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").forEach(function(n){n.classList.remove("active");});if(el)el.classList.add("active");document.querySelectorAll(".pane").forEach(function(p){p.classList.remove("active");});document.getElementById("pane-"+name).classList.add("active");if(name==="settings")renderMemberGrid();if(name==="staff")renderStaff();if(name==="staff")renderStaff();if(name==="workdays"&&typeof wdInit==='function')wdInit();if(name==="calendar")renderCalendar();
@@ -3073,6 +3090,30 @@ function otQueue(fn){
   writeBegin();
   var run=otQ.then(fn).catch(function(e){ try{ console.error(e); }catch(_){} }).then(function(){ writeEnd(); });
   otQ=run; return run;
+}
+
+// ── 화면은 바로 바꾸고 저장은 뒤에서 순서대로 처리 / 같은 업무를 동시에 고쳐도 서로 덮어쓰지 않게 병합 ──
+function bgWrite(fn){ return otQueue(fn); }
+function dailyRowOf(x){ return [x.id,x.member,x.content,x.created,x.end,x.status,x.note||"",x.feedback||"",x.link||""]; }
+async function dailyUpdateMerged(id,origRow,newRow){
+  var row=newRow;
+  try{
+    var rows=await callScript({tab:"daily"});
+    if(Array.isArray(rows)){
+      var srv=rows.find(function(r){ return r&&r.id===id; });
+      if(srv){
+        srv=normalizeRow(srv,"daily");
+        var keys=["id","member","content","created","end","status","note","feedback","link"];
+        row=newRow.map(function(v,i){
+          if(i===0||String(v)!==String(origRow[i])) return v;          // 내가 바꾼 칸은 내 값
+          var sv=srv[keys[i]]; return (sv===undefined||sv===null)?v:sv;   // 안 바꾼 칸은 시트의 최신 값 유지
+        });
+      }
+    }
+  }catch(e){ row=newRow; }
+  var ok=await updateRowSafe("daily",id,row);
+  if(!ok) ok=await updateRowSafe("daily",id,row);
+  return ok;
 }
 function otRows(name,kind){
   return (data.overtime||[]).filter(function(x){ return x.member===name&&x.kind===kind; })
@@ -6539,7 +6580,7 @@ function goToDueToday(){
 }
 
 function renderAll(){try{var op=document.getElementById("pane-overtime");if(op&&op.classList.contains("active"))renderOvertime();}catch(e){}updateStats();renderMemberUI();renderDaily();renderWeeklySelect();renderWeekly();renderProject();renderCalendar();renderRecruit();renderAnnualAlertBtn();renderAnnual();}
-loadHeadcount();renderAll();syncAll();setInterval(function(){ if(!document.hidden) syncAll(); },300000);
+loadHeadcount();renderAll();syncAll();window._syncTick=0;setInterval(function(){ if(document.hidden) return; window._syncTick++; syncAll(window._syncTick%3===0?undefined:'hot'); },300000);
 document.addEventListener('visibilitychange',function(){ if(!document.hidden&&Date.now()-lastSyncDone>60000) syncAll(); });
 
 
