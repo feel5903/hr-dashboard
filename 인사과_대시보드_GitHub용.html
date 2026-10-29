@@ -152,7 +152,16 @@ tbody tr:hover{background:#FAFBFC}
 .ot-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}.ot-card{border:1px solid var(--gray-border);border-radius:10px;padding:10px 16px}.ot-card .l{font-size:12px;color:var(--text-muted)}.ot-card .v{font-size:24px;font-weight:700;margin-top:2px}.ot-card .u{font-size:13px;font-weight:500;color:var(--text-muted)}.ot-card.rem{background:var(--lime-light);border-color:var(--lime)}.ot-card.rem .v{color:var(--lime-dark)}
 .ot-sun{color:#DC2626;font-weight:700}.ot-sat{color:#2563EB;font-weight:600}.ot-hol{display:inline-block;margin-left:6px;font-size:10.5px;font-weight:700;color:#DC2626;background:#FEE2E2;border-radius:8px;padding:1px 7px}
 .ot-mul{font-size:10.5px;color:var(--text-muted)}.ot-mul.m2{color:#DC2626;font-weight:700}.ot-hd{display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px}.ot-tot td{background:#FAFAFA;font-weight:700;border-top:2px solid var(--gray-border)}
-@media(max-width:768px){.ot-cards{grid-template-columns:repeat(2,1fr)}}
+#pane-overtime .card{overflow:visible}
+.ot-stick{position:sticky;top:0;z-index:20;background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.06);padding:10px 0 8px;border-bottom:1px solid var(--gray-border)}
+.ot-wrap{max-width:none;margin:0;padding-left:max(16px,calc((100% - 1180px)/4 + 16px));padding-right:max(16px,calc((100% - 1180px)/4 + 16px))}
+.ot-stick .ot-tabs{margin:0 0 8px}
+.ot-mini{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.ot-mini .ot-card{padding:6px 14px;display:flex;justify-content:space-between;align-items:center}.ot-mini .ot-card .v{font-size:19px;margin:0}
+.ot-tbl{table-layout:fixed;width:100%;min-width:900px}.ot-tbl td{word-break:keep-all;overflow-wrap:anywhere}
+tr.ot-mh td{background:#E8EEF6;border-top:1px solid #D8DFE8;padding:9px 10px;font-size:13px;cursor:pointer}tr.ot-mh.fold td{background:#EEF2F7}.ot-mh .ar{color:var(--navy);display:inline-block;width:16px}.ot-mh .ms{margin-left:12px;font-size:12px;color:var(--text-muted)}
+.ot-fold{display:flex;align-items:center;justify-content:space-between;margin-top:18px;padding:10px 16px;border:1px solid var(--gray-border);border-radius:10px;background:#FAFAFA;cursor:pointer}
+.ot-fold .tag{display:inline-block;background:#E8ECF0;color:#44546E;border-radius:10px;padding:1px 9px;font-size:11.5px;margin-left:8px;font-weight:600}.ot-fold .s{font-size:13px;color:var(--text-muted);margin-left:8px}.ot-fold .arrow{color:var(--navy);font-weight:700;font-size:13px}
+@media(max-width:768px){.ot-cards,.ot-mini{grid-template-columns:repeat(2,1fr)}.ot-wrap{padding:0 .75rem}}
 </style>
 </head>
 <body>
@@ -354,7 +363,7 @@ tbody tr:hover{background:#FAFBFC}
     <div class="card-head"><span class="card-title">⏱ 시간외근무</span>
       <div class="card-actions"><button class="btn" onclick="otExportExcel()" style="border-color:#059669;color:#047857">🖨 엑셀</button></div>
     </div>
-    <div id="ot-body" style="padding:0 1.25rem 1.25rem"></div>
+    <div id="ot-body"></div>
   </div>
 </div>
 <div id="pane-staff" class="pane">
@@ -2026,6 +2035,7 @@ function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").f
   if(name==="annual")renderAnnual();
   if(name==="oncall")salInit();
   if(name==="workdays")wdInit();
+  var mainEl=document.querySelector(".main");if(mainEl)mainEl.style.overflowY=(name==="overtime")?"visible":"";
   if(name==="overtime")renderOvertime();
   if(name==="hrinfo")hrInit();
   if(name==="checklist"){renderChecklist();renderNotes();}}
@@ -3080,38 +3090,81 @@ function otDateHtml(ds){
   return '<span class="'+cls+'">'+escapeHtml(ds.replace(/-/g,'.'))+' ('+wd+')</span>'+(hol?'<span class="ot-hol">'+escapeHtml(hol)+'</span>':'');
 }
 function otSetTab(t){ otTab=t; renderOvertime(); }
+var otUi=(function(){ try{ return JSON.parse(localStorage.getItem('ot_ui')||'{}')||{}; }catch(e){ return {}; } })();
+if(!otUi.m) otUi.m={}; if(!otUi.use) otUi.use={};
+function otSaveUi(){ try{ localStorage.setItem('ot_ui',JSON.stringify(otUi)); }catch(e){} }
+function otColgroup(){ return '<colgroup><col style="width:56px"><col style="width:190px"><col style="width:190px"><col style="width:70px"><col><col style="width:100px"><col style="width:170px"><col style="width:90px"></colgroup>'; }
+function otCurPrevKeys(){
+  var y=parseInt(todayStr.slice(0,4),10), m=parseInt(todayStr.slice(5,7),10), py=m===1?y-1:y, pm=m===1?12:m-1;
+  function k(yy,mm){ return yy+'-'+('0'+mm).slice(-2); }
+  return [k(y,m),k(py,pm)];
+}
+function otMonthOpen(name,key,keysWithRows){
+  var v=otUi.m[name+'|'+key]; if(v!==undefined) return !!v;
+  var cp=otCurPrevKeys();
+  if(cp.indexOf(key)>=0) return true;
+  // 이번 달·지난달에 기록이 없으면 가장 최근 달은 펼침
+  var any=cp.some(function(x){ return keysWithRows.indexOf(x)>=0; });
+  return !any&&keysWithRows[0]===key;
+}
+function otToggleMonth(name,key,cur){ otUi.m[name+'|'+key]=!cur; otSaveUi(); renderOvertime(); }
+function otToggleUse(name){ otUi.use[name]=!otUi.use[name]; otSaveUi(); renderOvertime(); }
 function renderOvertime(){
   var box=document.getElementById('ot-body'); if(!box) return;
-  var h='<div class="ot-tabs"><button class="ot-tab'+(otTab==='all'?' on':'')+'" onclick="otSetTab(\'all\')">전체 요약</button>'+
+  var tabs='<div class="ot-tabs"><button class="ot-tab'+(otTab==='all'?' on':'')+'" onclick="otSetTab(\'all\')">전체 요약</button>'+
     OT_MEMBERS.map(function(m){ return '<button class="ot-tab'+(otTab===m.n?' on':'')+'" onclick="otSetTab(\''+m.n+'\')">'+m.n+'</button>'; }).join('')+'</div>';
+  var h;
   if(otTab==='all'){
-    h+='<div style="overflow-x:auto"><table><thead><tr><th>이름</th><th style="text-align:center">근무 건수</th><th style="text-align:center">실제 근무시간</th><th style="text-align:center">적용시간(환산)</th><th style="text-align:center">사용</th><th style="text-align:center">잔여시간</th></tr></thead><tbody>'+
+    h='<div class="ot-stick"><div class="ot-wrap">'+tabs.replace('margin','margin')+'</div></div><div class="ot-wrap" style="padding-top:14px;padding-bottom:1.25rem"><div style="overflow-x:auto"><table><thead><tr><th>이름</th><th style="text-align:center">근무 건수</th><th style="text-align:center">실제 근무시간</th><th style="text-align:center">적용시간(환산)</th><th style="text-align:center">사용</th><th style="text-align:center">잔여시간</th></tr></thead><tbody>'+
       OT_MEMBERS.map(function(m){
         var c=otCalc(m.n);
         if(!c.w.length&&!c.u.length) return '<tr style="cursor:pointer" onclick="otSetTab(\''+m.n+'\')"><td><b>'+m.n+'</b></td><td colspan="5" style="text-align:center;color:var(--text-muted)">기록 없음</td></tr>';
         return '<tr style="cursor:pointer" onclick="otSetTab(\''+m.n+'\')"><td><b>'+m.n+'</b></td><td style="text-align:center">'+c.w.length+'건</td><td style="text-align:center">'+otN(c.H)+'</td><td style="text-align:center"><b>'+otN(c.A)+'</b></td><td style="text-align:center">'+otN(c.U)+'</td><td style="text-align:center"><b style="font-size:15px;color:'+(c.R<0?'#DC2626':'var(--lime-dark)')+'">'+otN(c.R)+'</b></td></tr>';
-      }).join('')+'</tbody></table></div><div style="font-size:12px;color:var(--text-muted);margin-top:10px">※ 적용시간 = 시간 × 배율 (평일·토요일 1.5배, 일요일·공휴일 2배, 자동 적용) / 잔여시간 = 적용시간 − 사용</div>';
+      }).join('')+'</tbody></table></div><div style="font-size:12px;color:var(--text-muted);margin-top:10px">※ 적용시간 = 시간 × 배율 (평일·토요일 1.5배, 일요일·공휴일 2배, 자동 적용) / 잔여시간 = 적용시간 − 사용</div></div>';
     box.innerHTML=h; return;
   }
   var m=OT_MEMBERS.find(function(x){ return x.n===otTab; })||OT_MEMBERS[0], c=otCalc(m.n);
-  h+='<div class="ot-cards"><div class="ot-card"><div class="l">시간외 근무 (실제)</div><div class="v">'+otN(c.H)+'<span class="u"> 시간</span></div></div>'+
-    '<div class="ot-card"><div class="l">적용시간 (환산 후)</div><div class="v">'+otN(c.A)+'<span class="u"> 시간</span></div></div>'+
-    '<div class="ot-card"><div class="l">사용</div><div class="v">'+otN(c.U)+'<span class="u"> 시간</span></div></div>'+
-    '<div class="ot-card rem"><div class="l">잔여시간</div><div class="v"'+(c.R<0?' style="color:#DC2626"':'')+'>'+otN(c.R)+'<span class="u"> 시간</span></div></div></div>';
-  h+='<div class="ot-hd"><b>1. 시간외근무</b><button class="btn lime" onclick="otOpenForm(\'근무\')">+ 시간외 추가</button></div><div style="overflow-x:auto"><table><thead><tr><th style="text-align:center">연번</th><th>일자</th><th style="text-align:center">근무시간</th><th style="text-align:center">시간</th><th>내역</th><th style="text-align:center">적용시간</th><th>비고</th><th style="text-align:center">관리</th></tr></thead><tbody>';
-  h+=c.w.length?c.w.map(function(x,i){
-    var r=otRate(x.date);
-    return '<tr><td style="text-align:center">'+(i+1)+'</td><td>'+otDateHtml(x.date)+'</td><td style="text-align:center;font-size:12px">'+escapeHtml(x.timeRange||'')+'</td><td style="text-align:center">'+otN(x.hours)+'</td><td>'+escapeHtml(x.content||'')+'</td>'+
-      '<td style="text-align:center"><b style="color:var(--navy)">'+otN(x.hours*r)+'</b><div class="ot-mul'+(r===2?' m2':'')+'">'+otN(x.hours)+' × '+r+'</div></td><td style="font-size:12px;color:var(--text-muted)">'+escapeHtml(x.note||'')+'</td>'+
-      '<td style="text-align:center"><div class="action-btns"><button class="edit-btn" onclick="otOpenForm(\'근무\',\''+x.id+'\')">✏️</button><button class="del-btn" onclick="otDelete(\''+x.id+'\')">🗑️</button></div></td></tr>';
-  }).join('')+'<tr class="ot-tot"><td colspan="3" style="text-align:center">총계</td><td style="text-align:center">'+otN(c.H)+'</td><td></td><td style="text-align:center">'+otN(c.A)+'</td><td colspan="2"></td></tr>':'<tr><td colspan="8" class="empty">기록이 없어요</td></tr>';
+  var remColor=c.R<0?' style="color:#DC2626"':'';
+  h='<div class="ot-stick"><div class="ot-wrap">'+tabs+
+    '<div class="ot-mini"><div class="ot-card"><span class="l">실제 근무</span><span class="v">'+otN(c.H)+'<span class="u"> 시간</span></span></div>'+
+    '<div class="ot-card"><span class="l">적용시간</span><span class="v">'+otN(c.A)+'<span class="u"> 시간</span></span></div>'+
+    '<div class="ot-card"><span class="l">사용</span><span class="v">'+otN(c.U)+'<span class="u"> 시간</span></span></div>'+
+    '<div class="ot-card rem"><span class="l">잔여시간</span><span class="v"'+remColor+'>'+otN(c.R)+'<span class="u"> 시간</span></span></div></div></div></div>';
+  h+='<div class="ot-wrap" style="padding-bottom:1.25rem">';
+  // 1. 시간외근무 — 월별 묶음 (최신 월이 위, 월 안에서는 날짜순)
+  var idxOf={}; c.w.forEach(function(x,i){ idxOf[x.id]=i+1; });
+  var groups={}, keys=[];
+  c.w.forEach(function(x){ var k=(x.date||'').slice(0,7)||'날짜없음'; if(!groups[k]){ groups[k]=[]; keys.push(k); } groups[k].push(x); });
+  keys.sort().reverse();
+  h+='<div class="ot-hd"><b>1. 시간외근무</b><button class="btn lime" onclick="otOpenForm(\'근무\')">+ 시간외 추가</button></div><div style="overflow-x:auto"><table class="ot-tbl">'+otColgroup()+
+    '<thead><tr><th style="text-align:center">연번</th><th>일자</th><th style="text-align:center">근무시간</th><th style="text-align:center">시간</th><th>내역</th><th style="text-align:center">적용시간</th><th>비고</th><th style="text-align:center">관리</th></tr></thead><tbody>';
+  if(!c.w.length) h+='<tr><td colspan="8" class="empty">기록이 없어요</td></tr>';
+  keys.forEach(function(k){
+    var xs=groups[k], open=otMonthOpen(m.n,k,keys), mh=0, ma=0;
+    xs.forEach(function(x){ mh+=x.hours; ma+=x.hours*otRate(x.date); });
+    var cp=otCurPrevKeys(), tag=k===cp[0]?' (이번 달)':(k===cp[1]?' (지난달)':'');
+    h+='<tr class="ot-mh'+(open?'':' fold')+'" onclick="otToggleMonth(\''+m.n+'\',\''+k+'\','+open+')"><td colspan="8"><span class="ar">'+(open?'▼':'▶')+'</span><b>'+k.replace('-','.')+tag+'</b><span class="ms">'+xs.length+'건 · 실제 '+otN(mh)+'시간 · 적용 '+otN(ma)+'시간</span></td></tr>';
+    if(open) xs.forEach(function(x){
+      var r=otRate(x.date);
+      h+='<tr><td style="text-align:center">'+idxOf[x.id]+'</td><td>'+otDateHtml(x.date)+'</td><td style="text-align:center;font-size:12px">'+escapeHtml(x.timeRange||'')+'</td><td style="text-align:center">'+otN(x.hours)+'</td><td>'+escapeHtml(x.content||'')+'</td>'+
+        '<td style="text-align:center"><b style="color:var(--navy)">'+otN(x.hours*r)+'</b><div class="ot-mul'+(r===2?' m2':'')+'">'+otN(x.hours)+' × '+r+'</div></td><td style="font-size:12px;color:var(--text-muted)">'+escapeHtml(x.note||'')+'</td>'+
+        '<td style="text-align:center"><div class="action-btns"><button class="edit-btn" onclick="otOpenForm(\'근무\',\''+x.id+'\')">✏️</button><button class="del-btn" onclick="otDelete(\''+x.id+'\')">🗑️</button></div></td></tr>';
+    });
+  });
+  if(c.w.length) h+='<tr class="ot-tot"><td colspan="3" style="text-align:center">총계 (전체 기간)</td><td style="text-align:center">'+otN(c.H)+'</td><td></td><td style="text-align:center">'+otN(c.A)+'</td><td colspan="2"></td></tr>';
   h+='</tbody></table></div><div style="font-size:12px;color:var(--text-muted);margin-top:8px"><span class="ot-sun">빨강</span> 일요일·공휴일 (×2) · <span class="ot-sat">파랑</span> 토요일 (×1.5) · 평일 (×1.5)</div>';
-  h+='<div class="ot-hd" style="margin-top:20px"><b>2. 사용내역</b><button class="btn lime" onclick="otOpenForm(\'사용\')">+ 사용 추가</button></div><div style="overflow-x:auto"><table><thead><tr><th style="text-align:center">연번</th><th>일자</th><th style="text-align:center">시간</th><th>비고</th><th style="text-align:center">관리</th></tr></thead><tbody>';
-  h+=c.u.length?c.u.map(function(x,i){
-    return '<tr><td style="text-align:center">'+(i+1)+'</td><td>'+otDateHtml(x.date)+'</td><td style="text-align:center">'+otN(x.hours)+'</td><td style="font-size:12px">'+escapeHtml(x.note||'')+'</td>'+
-      '<td style="text-align:center"><div class="action-btns"><button class="edit-btn" onclick="otOpenForm(\'사용\',\''+x.id+'\')">✏️</button><button class="del-btn" onclick="otDelete(\''+x.id+'\')">🗑️</button></div></td></tr>';
-  }).join('')+'<tr class="ot-tot"><td colspan="2" style="text-align:center">총계</td><td style="text-align:center">'+otN(c.U)+'</td><td colspan="2"></td></tr>':'<tr><td colspan="5" class="empty">기록이 없어요</td></tr>';
-  h+='</tbody></table></div><div class="ot-hd" style="margin-top:20px"><b>3. 사용 후 잔여시간</b><b style="font-size:18px;color:'+(c.R<0?'#DC2626':'var(--lime-dark)')+'">'+otN(c.A)+' − '+otN(c.U)+' = '+otN(c.R)+'시간</b></div>';
+  // 2. 사용내역 — 기본 접힘
+  var useOpen=!!otUi.use[m.n];
+  h+='<div class="ot-fold" onclick="otToggleUse(\''+m.n+'\')"><div><b>2. 사용내역</b><span class="tag">'+c.u.length+'건</span><span class="s">사용 '+otN(c.U)+'시간</span></div><div style="display:flex;align-items:center;gap:12px"><button class="btn lime" onclick="event.stopPropagation();otOpenForm(\'사용\')">+ 사용 추가</button><span class="arrow">'+(useOpen?'접기 ▲':'펼치기 ▼')+'</span></div></div>';
+  if(useOpen){
+    h+='<div style="overflow-x:auto"><table class="ot-tbl" style="margin-top:6px">'+otColgroup()+'<thead><tr><th style="text-align:center">연번</th><th colspan="2">일자</th><th style="text-align:center">시간</th><th colspan="3">비고</th><th style="text-align:center">관리</th></tr></thead><tbody>';
+    h+=c.u.length?c.u.map(function(x,i){
+      return '<tr><td style="text-align:center">'+(i+1)+'</td><td colspan="2">'+otDateHtml(x.date)+'</td><td style="text-align:center">'+otN(x.hours)+'</td><td colspan="3" style="font-size:12px">'+escapeHtml(x.note||'')+'</td>'+
+        '<td style="text-align:center"><div class="action-btns"><button class="edit-btn" onclick="otOpenForm(\'사용\',\''+x.id+'\')">✏️</button><button class="del-btn" onclick="otDelete(\''+x.id+'\')">🗑️</button></div></td></tr>';
+    }).join('')+'<tr class="ot-tot"><td colspan="3" style="text-align:center">총계</td><td style="text-align:center">'+otN(c.U)+'</td><td colspan="4"></td></tr>':'<tr><td colspan="8" class="empty">기록이 없어요</td></tr>';
+    h+='</tbody></table></div>';
+  }
+  h+='<div class="ot-hd" style="margin-top:16px"><b>3. 사용 후 잔여시간</b><b style="font-size:18px;color:'+(c.R<0?'#DC2626':'var(--lime-dark)')+'">'+otN(c.A)+' − '+otN(c.U)+' = '+otN(c.R)+'시간</b></div></div>';
   box.innerHTML=h;
 }
 function otOpenForm(kind,id){
