@@ -6279,7 +6279,7 @@ function computeMemberWorkdays(staff, periodStart, periodEnd, holidaySet){
     if(lv.start<=twDateStr(effEnd)&&lv.end>=twDateStr(effStart)){
       var clipStart=lv.start>twDateStr(effStart)?lv.start:twDateStr(effStart);
       var clipEnd=lv.end<twDateStr(effEnd)?lv.end:twDateStr(effEnd);
-      var label=lv.type+' '+clipStart+'~'+clipEnd+(isShortHourType(lv.type)?'(주'+lv.hours+'h)':'');
+      var label=lv.type+' '+lv.start+'~'+lv.end+(isShortHourType(lv.type)?'(주'+lv.hours+'h)':'');
       typesUsed[label]=true;
     }
   });
@@ -6326,7 +6326,7 @@ function calcWorkdays(){
         teamTotal+=r.total;
         var adminTag=wdGetAdminTag(s.name);
         var adminHtml=adminTag?('<div style="color:#2563EB;font-weight:600">'+escapeHtml(adminTag)+'</div>'):'';
-        rows+='<tr><td style="padding-left:1.5rem">'+s.name+'</td><td style="text-align:center">'+r.total+'일</td><td style="font-size:11px;color:var(--text-muted)">'+adminHtml+(r.note?'<div>'+r.note+'</div>':'')+'</td></tr>';
+        rows+='<tr><td style="padding-left:1.5rem">'+s.name+'</td><td style="text-align:center">'+r.total+'일</td><td style="font-size:11px;color:var(--text-muted)">'+adminHtml+(r.note?'<div style="color:#444">'+r.note+'</div>':'')+'</td></tr>';
         teamRows.push({name:s.name, baseWeekdays:r.baseWeekdays, uploadLeave:r.uploadLeave, total:r.total, note:r.note, adminTag:adminTag});
       });
       groupHtml+='<tr style="background:var(--gray-light)"><td style="font-weight:700">'+teamName+' ('+members.length+'명)</td><td style="text-align:center;font-weight:700">'+(Math.round(teamTotal*1000)/1000)+'일</td><td></td></tr>'+rows;
@@ -6370,9 +6370,11 @@ async function wdBuildExcelWorkbook(mn, resultsByTeam){
       var teamData=resultsByTeam[teamName];
       var blockStartRow=sheet.rowCount+1;
       teamData.rows.forEach(function(r){
-        var noteCombined=[r.adminTag,r.note].filter(Boolean).join(' / ');
-        var row=sheet.addRow({group:teamName,name:r.name,base:r.baseWeekdays,leave:r.uploadLeave||'',total:r.total,note:noteCombined});
-        if(r.adminTag){ row.getCell('note').font={color:{argb:'FF2563EB'},bold:true}; }
+        var row=sheet.addRow({group:teamName,name:r.name,base:r.baseWeekdays,leave:r.uploadLeave||'',total:r.total,note:''});
+        var noteCell=row.getCell('note'), parts=[];
+        if(r.adminTag) parts.push({text:r.adminTag,font:{color:{argb:'FF2563EB'},bold:true}});
+        if(r.note) parts.push({text:(r.adminTag?'\n':'')+r.note,font:{color:{argb:'FF444444'},bold:false}});
+        if(parts.length){ noteCell.value={richText:parts}; noteCell.alignment={wrapText:true,vertical:'middle'}; if(r.adminTag&&r.note) row.height=32; }
         if(r.note||r.adminTag){ row.eachCell(function(cell,colNumber){ if(colNumber>1) cell.fill=noteFill; }); }
       });
       var blockEndRow=sheet.rowCount;
