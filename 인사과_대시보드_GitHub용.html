@@ -494,7 +494,7 @@ tr.ot-mh td{background:#E8EEF6;border-top:1px solid #D8DFE8;padding:9px 10px;fon
       <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px">+ 새 휴가 추가</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <div class="field" style="margin:0"><label>종류</label>
-          <select id="sl-type" onchange="toggleSlHours()"><option>출산휴가</option><option>육아휴직</option><option>안식휴가</option><option>병가</option><option>난임휴가</option><option>육아기 근로단축</option><option>임신기 근로단축</option><option>기타</option></select>
+          <select id="sl-type" onchange="toggleSlHours()"><option>출산휴가</option><option>육아휴직</option><option>안식휴가</option><option>병가</option><option>난임휴가</option><option>육아기 근로단축</option><option>임신기 근로단축</option><option>가족돌봄휴직(단축근무)</option><option>기타</option></select>
         </div>
         <div class="field" style="margin:0" id="sl-hours-field"><label>주당 근무시간</label><input type="number" id="sl-hours" placeholder="예: 30" step="0.5"></div>
         <div class="field" style="margin:0"><label>시작일</label><input type="date" id="sl-start"></div>
@@ -1197,7 +1197,23 @@ function cleanCorruptedNote(v){
   if(hh==="00"&&mm==="00") return dateStr;
   return dateStr+" "+hh+":"+mm;
 }
-function normalizeRow(row,tab){var df=["end","start","created","date","joinDate","contractEnd"];var out={};Object.keys(row).forEach(function(k){if(!k||k==="")return;var tk=k.trim();if(!tk)return;out[tk]=df.indexOf(tk)>=0?formatDateVal(row[k]):(tk==="note"?cleanCorruptedNote(row[k]):row[k]);});if(tab==="daily"){if(!out.feedback)out.feedback="";if(!out.start&&out.created)out.start=out.created;if(!out.created&&out.start)out.created=out.start;}if(tab==="staff"){if(out.joinDate)out.joinDate=formatDateVal(out.joinDate);if(out.contractEnd)out.contractEnd=formatDateVal(out.contractEnd);}return out;}
+function fixScheduleText(v){
+  if(v===undefined||v===null||v==="") return v;
+  var d=null;
+  if(v instanceof Date) d=v;
+  else if(typeof v==="string"){
+    var t=v.trim();
+    var m1899=t.match(/^\w{3}\s+\w{3}\s+\d{1,2}\s+189\d\s+(\d{2}):(\d{2})/); if(m1899) return m1899[1]+":"+m1899[2];
+    if(/^\w{3}\s+\w{3}\s+\d{1,2}\s+\d{4}\s+\d{2}:\d{2}:\d{2}/.test(t)&&(t.indexOf("GMT")>=0||t.indexOf("표준시")>=0)) d=new Date(t.replace(/\s*\(.*\)\s*$/,""));
+    else if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(t)) d=new Date(t);
+  }
+  if(!d||isNaN(d.getTime())) return v;
+  var k=new Date(d.getTime()+9*3600000), p=function(n){return String(n).padStart(2,"0");};
+  var mo=p(k.getUTCMonth()+1), da=p(k.getUTCDate()), hh=p(k.getUTCHours()), mi=p(k.getUTCMinutes());
+  if(k.getUTCFullYear()===1899||k.getUTCFullYear()===1900) return hh+":"+mi;
+  return (hh==="00"&&mi==="00")?(mo+"/"+da):(mo+"/"+da+" "+hh+":"+mi);
+}
+function normalizeRow(row,tab){var df=["end","start","created","date","joinDate","contractEnd"];var out={};Object.keys(row).forEach(function(k){if(!k||k==="")return;var tk=k.trim();if(!tk)return;out[tk]=df.indexOf(tk)>=0?formatDateVal(row[k]):(tk==="note"?cleanCorruptedNote(row[k]):row[k]);});if(tab==="daily"){if(!out.feedback)out.feedback="";if(!out.start&&out.created)out.start=out.created;if(!out.created&&out.start)out.created=out.start;}if(tab==="recruit"&&out.schedule)out.schedule=fixScheduleText(out.schedule);if(tab==="staff"){if(out.joinDate)out.joinDate=formatDateVal(out.joinDate);if(out.contractEnd)out.contractEnd=formatDateVal(out.contractEnd);}return out;}
 var missingIdWarnings=[];
 function filterRows(rows,tabName){
   var seen={};
@@ -4583,7 +4599,7 @@ function openStaffLeaves(staffId){
   renderStaffLeaveList(staffId);
   document.getElementById("staff-leave-overlay").classList.add("open");
 }
-function isShortHourType(type){ return type==="육아기 근로단축"||type==="임신기 근로단축"; }
+function isShortHourType(type){ return type==="육아기 근로단축"||type==="임신기 근로단축"||type==="가족돌봄휴직(단축근무)"; }
 function toggleSlHours(){
   var type=document.getElementById("sl-type").value;
   var field=document.getElementById("sl-hours-field");
