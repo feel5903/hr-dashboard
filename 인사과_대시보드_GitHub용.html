@@ -390,6 +390,7 @@ tr.ot-mh td{background:#E8EEF6;border-top:1px solid #D8DFE8;padding:9px 10px;fon
         <button class="btn" onclick="openRotationAnnexModal()" style="border-color:#4338CA;color:#4338CA">🔄 별관인원 설정</button>
         <button class="btn primary" onclick="showDeptStats()">📊 부서별 인원통계</button>
         <button class="btn" onclick="staffExportExcel()" style="border-color:#059669;color:#047857" title="지금 화면에 보이는 목록(검색·구분·퇴사자 설정 그대로)을 인쇄용 엑셀로 저장">🖨 엑셀(인쇄용)</button>
+        <button class="btn" onclick="openSanjae()" style="border-color:#0E7490;color:#0E7490;white-space:nowrap" title="직원현황을 기준으로 산재인증용 직종별 인력자료 엑셀을 만들어요">🏥 산재인력자료</button>
       </div>
     </div>
     <div style="overflow-x:auto">
@@ -1022,6 +1023,18 @@ tr.ot-mh td{background:#E8EEF6;border-top:1px solid #D8DFE8;padding:9px 10px;fon
   </div>
 </div>
 
+<div class="overlay" id="sanjae-overlay">
+  <div class="modal" style="width:820px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column">
+    <h3>🏥 산재인력자료 만들기</h3>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">현재 재직 중인 직원을 기준으로 직종별 시트(물리·작업·간호사 등)를 만들어요. 퇴사자는 빠지고 신규 입사자는 자동으로 들어가요.</div>
+    <style>.sj-t{width:100%;border-collapse:collapse;font-size:12.5px}.sj-t th,.sj-t td{border:1px solid #ddd;padding:4px 8px;text-align:left}.sj-t th{background:#F3F4F6}</style>
+    <div id="sanjae-body" style="overflow-y:auto;flex:1;min-height:120px"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('sanjae-overlay').classList.remove('open')">취소</button>
+      <button class="btn lime" onclick="sanjaeMake()">📥 엑셀 만들기</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="ot-form-overlay">
   <div class="modal" style="width:520px;max-width:96vw;max-height:90vh;overflow-y:auto">
     <h3 id="ot-form-title">시간외근무 추가</h3>
@@ -2933,6 +2946,126 @@ function renderStaff() {
 
 
 // ── 직원현황 인쇄용 엑셀 (현재 화면의 검색·구분·퇴사자 설정을 그대로 반영) ──
+// ── 산재인증 인력자료 (직원현황 → 직종별 시트 엑셀) ──
+var SANJAE_CATS=[
+  {k:'doc',sheet:'재활의학과전문의',title:'재활의학과 전문의'},{k:'pt',sheet:'물리',title:'물리치료사'},
+  {k:'ot',sheet:'작업',title:'작업치료사'},{k:'sw',sheet:'사회복지사',title:'사회복지사'},
+  {k:'rn',sheet:'간호사',title:'간호사'},{k:'na',sheet:'간호조무사',title:'간호조무사'},
+  {k:'adm',sheet:'행정',title:'행정(기타)'}
+];
+var SANJAE_BASE={"doc": ["이지선", "이규범", "고유정", "김지용", "이자영", "최현숙", "차은혜"], "pt": ["배유리", "박경춘", "김가람", "김지영", "이혜빈", "한당찬", "심우일", "추도연", "황윤태", "오지혜", "이지영B", "유태호", "유혜연", "한재인", "김도희", "한승희", "권예은", "김은애", "최한영", "강다영", "이현미", "유단비", "양현", "최경아", "안란", "임하은", "이정은", "권은희", "이유빈", "김지은", "박상덕", "정연희", "박성국", "정영환", "김정수", "이성철", "권순인", "김문형", "이영민", "길지혜", "최영우", "박도혁", "한보배", "송시진", "정인화", "김진경", "조유빈", "손보경", "윤지원", "진선영", "서예랑", "박성진", "정채빈", "김정훈", "박지현", "윤종은", "박준호", "김진희B", "김호상", "백효진", "김성용", "김동환", "차미지", "천유진", "오준규", "김솔지", "서다연", "김경미", "박기정", "박정연", "김태웅", "최유정", "손가을", "김은정B", "송인의"], "ot": ["손수영", "이은혜", "이용수", "강현영", "김은정", "정예지", "박진영", "박혜인", "박휘인", "정혜지", "양희경", "한광원", "김희수", "최하영", "민소현", "유지숙", "박영환", "전지혜", "곽보경", "이민희", "정현주", "성현욱", "이지선B", "전민희", "허혜현", "윤하정", "최주예", "임주영", "김재민", "최한설", "위성은", "나상빈", "정주하", "이민채", "김민강", "엄예향", "이다은", "이지영", "이상규", "박효빈", "이조훈", "김단설", "한보라", "김영태", "조한샘", "우지은", "박찬화", "오상화", "옥동찬", "김현경", "송현아", "최정윤", "서찬이", "황나영"], "sw": ["유주영", "박희현", "김진희", "나유재", "박미진", "전유진"], "rn": ["기영남", "한예원", "김지원", "변정희", "노유정", "이인솔", "신혜진", "김이슬", "윤태원", "김지민", "임지우", "추아연", "김유진", "김신형", "이수지", "조아란", "박서희", "박다윤", "임미례", "박희진", "김지연", "김현정", "최루디아", "서란미", "서혜영", "김연지", "박민정", "백지수", "김정민", "장인지", "배주은", "안형준", "이가현", "김지수", "김선경", "송보성", "이은지", "이희진", "허예주", "이미진", "양선아", "윤연수", "방정민", "최은별", "김현숙", "박지혜", "강성희"], "na": ["이유리", "최해월", "김전성", "허순효", "윤재희", "정상민", "황아름", "배인숙", "정이덕", "김미영", "이윤영"], "adm": ["김병진"]};
+var SANJAE_DEPT={"doc": ["병원장", "부원장", "회복기병원부", "공공어린이재활병원부", "소아청소년진료과", "성인진료과"], "pt": ["근골격계물리치료팀", "성인치료과", "소아물리치료팀", "소아청소년치료과", "수도권공공어린이재활운영단", "신경계물리치료팀", "지역사회재활지원팀", "청소년물리치료팀", "미래기획실"], "ot": ["성인작업치료팀", "소아작업치료팀", "수도권공공어린이재활운영단", "지역사회재활지원팀", "지역장애인보건의료센터", "청소년작업치료팀"], "sw": ["성인사회복지팀", "지역장애인보건의료센터", "수도권공공어린이재활운영단"], "rn": ["성인간호과", "성인병동간호팀", "소아청소년간호과", "소아청소년병동간호팀", "외래간호팀", "보험심사팀", "적정의료서비스센터", "감염관리실", "지역장애인보건의료센터", "수도권공공어린이재활운영단", "고객경험실", "QPS실"], "na": ["성인병동간호팀", "외래간호팀"], "adm": ["행정처"]};
+var SANJAE_EXCL=["김지혜", "배지우", "문유진", "조상연", "권민정", "윤수훈", "임은지", "김수민", "류송옥", "최필상", "홍재연", "김형중", "유상운", "김지환", "이혜원", "김수미", "정은혜", "정서현", "허용균", "서예은", "황인건", "양희연", "이지선C", "고인아", "김석규", "박상지", "이한영", "윤혜림", "김재용", "오영임", "손민정", "이은혜B", "도유진", "박은지", "최지혜", "김나흔", "김명숙", "박상민", "유현동", "김현준", "이경원", "최아름", "강지현", "이장춘", "김남윤", "임문희", "김주홍", "배지은", "공지현", "강혁", "이용우", "김신형B", "류시영", "이상기", "신동윤", "이상훈", "김우석", "박현미", "김미나", "김윤희", "노영금", "이지혜", "장길섭", "김형표", "김봉구", "서윤경", "정재인"];
+var sanjaeSaved={}, sanjaeSavedRows={}, sanjaeRows=[];
+function sanjaeCatName(k){ if(k==='x') return '제외(대상 아님)'; var c=SANJAE_CATS.find(function(c){return c.k===k;}); return c?c.sheet:k; }
+function sanjaeBaseMap(){
+  var m={};
+  Object.keys(SANJAE_BASE).forEach(function(k){ SANJAE_BASE[k].forEach(function(n){ m[n]=k; }); });
+  SANJAE_EXCL.forEach(function(n){ if(!m[n]) m[n]='x'; });
+  return m;
+}
+// 새로 들어온 사람의 직종을 부서·직책으로 추측
+function sanjaeGuess(s){
+  var d=s.dept||'', t=s.title||'';
+  if(/간호조무/.test(t)) return 'na';
+  if(/물리치료/.test(d)||/물리치료사/.test(t)) return 'pt';
+  if(/작업치료/.test(d)||/작업치료사/.test(t)) return 'ot';
+  if(/사회복지/.test(d)||/사회복지사/.test(t)) return 'sw';
+  if(/간호팀|간호과/.test(d)||/^간호사$|수간호사/.test(t)) return 'rn';
+  return null;
+}
+function sanjaeActive(s){
+  if(!s||!s.name) return false;
+  if(s.resignDate&&s.resignDate<=todayStr) return false;
+  if(s.joinDate&&s.joinDate>todayStr) return false;
+  return true;
+}
+async function openSanjae(){
+  sanjaeSaved={}; sanjaeSavedRows={};
+  try{
+    var sv=await callScript({tab:'sanjae_class'});
+    if(Array.isArray(sv)) sv.forEach(function(r){ if(r&&r.name&&r.category){ sanjaeSaved[r.name]=r.category; sanjaeSavedRows[r.name]=r.id||('sj_'+r.name); } });
+  }catch(e){}
+  var base=sanjaeBaseMap();
+  sanjaeRows=(data.staff||[]).filter(sanjaeActive).map(function(s){
+    var known=sanjaeSaved[s.name]||base[s.name];
+    var g=known?null:sanjaeGuess(s);
+    return {s:s, known:known||null, cur:known||g||'x', isNew:!known, guessed:!known&&!!g};
+  });
+  sanjaeRender();
+  document.getElementById('sanjae-overlay').classList.add('open');
+}
+function sanjaeSet(i,k){ sanjaeRows[i].cur=k; sanjaeRender(true); }
+function sanjaeSelHtml(i,cur){
+  var opts=SANJAE_CATS.map(function(c){ return '<option value="'+c.k+'"'+(c.k===cur?' selected':'')+'>'+c.sheet+'</option>'; }).join('')+'<option value="x"'+(cur==='x'?' selected':'')+'>제외(대상 아님)</option>';
+  return '<select onchange="sanjaeSet('+i+',this.value)" style="padding:3px 6px;font-size:12px">'+opts+'</select>';
+}
+function sanjaeRender(keepScroll){
+  var body=document.getElementById('sanjae-body'); var sc=body.scrollTop;
+  var counts={}; sanjaeRows.forEach(function(r){ counts[r.cur]=(counts[r.cur]||0)+1; });
+  var chips=SANJAE_CATS.map(function(c){ return '<span style="display:inline-block;background:#EEF2F7;border-radius:12px;padding:3px 10px;margin:2px 4px 2px 0;font-size:12px">'+c.sheet+' <b>'+(counts[c.k]||0)+'</b></span>'; }).join('')+'<span style="display:inline-block;background:#F3F4F6;color:#6B7280;border-radius:12px;padding:3px 10px;margin:2px 0;font-size:12px">제외 <b>'+(counts.x||0)+'</b></span>';
+  var tr=function(r,i){ var s=r.s; return '<tr><td>'+escapeHtml(s.name)+'</td><td>'+escapeHtml(s.dept||'')+'</td><td>'+escapeHtml(s.position||'')+'</td><td>'+escapeHtml(s.title||'')+'</td><td>'+escapeHtml(s.joinDate||'')+'</td><td>'+sanjaeSelHtml(i,r.cur)+'</td></tr>'; };
+  var head='<tr><th>이름</th><th>부서</th><th>직급</th><th>직책</th><th>입사일</th><th>직종(시트)</th></tr>';
+  var newIdx=[], allIdx=[]; sanjaeRows.forEach(function(r,i){ if(r.isNew) newIdx.push(i); allIdx.push(i); });
+  var changed=sanjaeRows.filter(function(r){ return !r.isNew&&r.known!==r.cur; }).length;
+  var h='<div style="margin-bottom:10px">'+chips+'</div>';
+  h+='<div style="font-weight:700;margin:8px 0 4px;color:'+(newIdx.length?'#B45309':'#047857')+'">'+(newIdx.length?'⚠ 처음 보는 직원 '+newIdx.length+'명 — 직종을 확인해주세요 (부서·직책으로 추측해 둔 값이에요)':'✔ 처음 보는 직원이 없어요')+'</div>';
+  if(newIdx.length) h+='<table class="sj-t" style="background:#FFFBEB">'+head+newIdx.map(function(i){ return tr(sanjaeRows[i],i); }).join('')+'</table>';
+  h+='<details style="margin-top:12px"'+(changed?' open':'')+'><summary style="cursor:pointer;font-weight:600">전체 명단 보기 · 직종 바꾸기 ('+sanjaeRows.length+'명)'+(changed?' — 바꾼 사람 '+changed+'명':'')+'</summary><table class="sj-t" style="margin-top:6px">'+head+allIdx.map(function(i){ return tr(sanjaeRows[i],i); }).join('')+'</table></details>';
+  body.innerHTML=h; if(keepScroll) body.scrollTop=sc;
+}
+async function sanjaeMake(){
+  if(typeof ExcelJS==='undefined'){ alert('엑셀 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침 후 다시 시도해주세요.'); return; }
+  // 새로 정하거나 바꾼 분류는 기억해두기 (다음부터 자동)
+  var todo=sanjaeRows.filter(function(r){ return r.cur!==r.known; });
+  var failMsg='';
+  for(var i=0;i<todo.length;i++){
+    var r=todo[i], id=sanjaeSavedRows[r.s.name]||('sj_'+r.s.name), row=[id,r.s.name,r.cur], ok=false;
+    if(sanjaeSavedRows[r.s.name]){ ok=await updateRowSafe('sanjae_class',id,row); }
+    else { var res=await saveRow('sanjae_class',row); ok=res.ok; if(!ok) failMsg=res.message||''; }
+    if(!ok){ failMsg=failMsg||'저장 실패'; break; }
+    sanjaeSaved[r.s.name]=r.cur; sanjaeSavedRows[r.s.name]=id; r.known=r.cur; r.isNew=false;
+  }
+  var wb=new ExcelJS.Workbook();
+  var thin={style:'thin',color:{argb:'FF000000'}}, border={top:thin,left:thin,bottom:thin,right:thin};
+  var summary=[];
+  SANJAE_CATS.forEach(function(c){
+    var list=sanjaeRows.filter(function(r){ return r.cur===c.k; }).map(function(r){ return r.s; });
+    if(!list.length) return;
+    var order=SANJAE_DEPT[c.k]||[];
+    var di=function(d){ var x=order.indexOf(d); return x<0?1000:x; };
+    list.sort(function(a,b){
+      var x=di(a.dept)-di(b.dept); if(x) return x;
+      if(x===0&&di(a.dept)===1000){ var y=(a.dept||'').localeCompare(b.dept||'','ko'); if(y) return y; }
+      if(c.k==='rn'){ var rk={'간호사':0,'수간호사':1,'주임':2,'팀장':3}, ra=rk[a.title]===undefined?4:rk[a.title], rb=rk[b.title]===undefined?4:rk[b.title]; if(ra!==rb) return ra-rb; }
+      return (a.joinDate||'').localeCompare(b.joinDate||'')||(a.name||'').localeCompare(b.name||'','ko');
+    });
+    var ws=wb.addWorksheet(c.sheet);
+    ws.columns=[{width:12.4},{width:14.6},{width:27},{width:13},{width:12},{width:16}];
+    var t=ws.getCell('A1'); t.value=c.title; t.font={name:'맑은 고딕',size:11,bold:true}; t.alignment={horizontal:'left',vertical:'middle'};
+    ['No.','성명','부서','직급','입사일자','직책'].forEach(function(h,i){
+      var cell=ws.getRow(2).getCell(i+1); cell.value=h; cell.font={name:'Arial',size:11,bold:true}; cell.alignment={horizontal:'center',vertical:'middle'}; cell.border=border;
+    });
+    list.forEach(function(s,i){
+      var r=ws.getRow(i+3);
+      [i+1,s.name||'',s.dept||'',s.position||'',(s.joinDate||'').replace(/-/g,'/'),s.title||''].forEach(function(v,j){
+        var cell=r.getCell(j+1); cell.value=v; cell.font={name:'Arial',size:10}; cell.border=border;
+        cell.alignment={horizontal:j===4?'center':'left',vertical:'middle'};
+      });
+    });
+    ws.pageSetup={paperSize:9,orientation:'portrait',fitToPage:true,fitToWidth:1,fitToHeight:0,horizontalCentered:true};
+    ws.views=[{state:'frozen',ySplit:2}];
+    summary.push(c.sheet+' '+list.length+'명');
+  });
+  var d=new Date(), yy=String(d.getFullYear()).slice(2), mm=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+  var buf=await wb.xlsx.writeBuffer();
+  var blob=new Blob([buf],{type:'application/octet-stream'}), url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download='산재인력자료_'+yy+mm+dd+'.xlsx'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  document.getElementById('sanjae-overlay').classList.remove('open');
+  if(failMsg) alert('엑셀은 만들었어요. 다만 직종 선택을 기억해두지 못했어요.\n\n구글시트에 \'sanjae_class\' 탭을 만들고 1행에 id, name, category 를 넣으면 다음부터 기억해요.\n\n[원인] '+failMsg);
+  else setSyncStatus('ok','● 산재인력자료 엑셀 저장됨 ('+summary.join(' · ')+')');
+}
+
 async function staffExportExcel(){
   if(typeof ExcelJS==='undefined'){ alert('엑셀 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침 후 다시 시도해주세요.'); return; }
   var sq=(document.getElementById('staff-search')||{value:''}).value.toLowerCase();
