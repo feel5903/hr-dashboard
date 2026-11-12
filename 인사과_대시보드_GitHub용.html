@@ -4237,7 +4237,7 @@ function renderMainAlerts(){
     var pDiff=Math.floor((pAnn1yr-today)/86400000);
     // 근속 1년 도달일 1개월 전 ~ 1개월 후까지 노출
     if(pDiff>=-30&&pDiff<=30){var ptype='근속1년퇴직연금',pyear=String(pAnn1yr.getFullYear());if(!isDismissed(s.id,ptype,pyear))pensions.push({s:s,label:'근속1년 퇴직연금',type:ptype,year:pyear,diff:pDiff,annDate:fmtAnnDate(pAnn1yr)});}
-    [5,10,15].forEach(function(n){
+    [5,10,15,20,25,30].forEach(function(n){
       var ann=new Date(join); ann.setFullYear(join.getFullYear()+n);
       var diff=Math.floor((ann-today)/86400000);
       // 해당일 2개월 전 ~ 해당일 1개월 후까지 노출 (이미 지났어도 한동안 계속 챙길 수 있게)
@@ -4303,6 +4303,9 @@ function showAlertPopup(type){
     '5주년 포상':      {color:'#1D4ED8', icon:'🎖️'},
     '10주년 포상':     {color:'#7C3AED', icon:'🏅'},
     '15주년 포상':     {color:'#B45309', icon:'🏆'},
+    '20주년 포상':     {color:'#BE185D', icon:'🥇'},
+    '25주년 포상':     {color:'#0E7490', icon:'💎'},
+    '30주년 포상':     {color:'#B91C1C', icon:'👑'},
     '간호사 조기정착': {color:'#065F46', icon:'🌱'},
     '7주년 안식':      {color:'#0F766E', icon:'🌿'},
     '20주년 안식':     {color:'#7C3AED', icon:'🌳'}
@@ -4314,7 +4317,7 @@ function showAlertPopup(type){
 
   var rows='';
   if(type==='award'){
-    var order=['5주년 포상','10주년 포상','15주년 포상','간호사 조기정착'];
+    var order=['5주년 포상','10주년 포상','15주년 포상','20주년 포상','25주년 포상','30주년 포상','간호사 조기정착'];
     var groups={};
     items.forEach(function(a){if(!groups[a.label])groups[a.label]=[];groups[a.label].push(a);});
     order.forEach(function(lbl){
