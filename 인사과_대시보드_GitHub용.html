@@ -3139,7 +3139,7 @@ async function sanjaeMake(){
 }
 
 // ── 공지사항 (마감일 임박 카드 + 고정 공지) ──
-var ntOpen={}, ntQ=Promise.resolve();
+var ntOpen={}, ntQ=Promise.resolve(), ntPage=1, NT_PER_PAGE=9;
 function ntToday(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function ntLoadRows(rows){
   return filterRows(rows,'notices').map(function(r){
@@ -3188,7 +3188,9 @@ function renderNotice(){
       return '<div class="nt-card nt-c-'+lv+'" onclick="ntFocus(\''+x.id+'\')"><div class="nt-tag">'+tag+'</div><div class="nt-ti">'+escapeHtml(x.title)+'</div><div class="nt-dd"><span>마감 '+ntDateLabel(x.deadline)+'</span>'+ntBadge(d)+'</div></div>';
     }).join('')+'</div>';
   } else h+='<div style="padding:14px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;color:#047857;font-size:13px">✔ 7일 이내에 마감되는 공지가 없어요.</div>';
-  var S=ntSorted(), n=L.length;
+  var SA=ntSorted(), n=L.length, pages=Math.max(1,Math.ceil(SA.length/NT_PER_PAGE));
+  if(ntPage>pages) ntPage=pages; if(ntPage<1) ntPage=1;
+  var S=SA.slice((ntPage-1)*NT_PER_PAGE, ntPage*NT_PER_PAGE);
   var byCreated=L.slice().sort(function(a,b){ return (a.created||'').localeCompare(b.created||'')||String(a.id).localeCompare(String(b.id)); }), no={}; byCreated.forEach(function(x,i){ no[x.id]=i+1; });
   h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 8px"><div style="font-weight:700">전체 공지</div><button class="btn lime" onclick="ntOpenForm()">+ 글쓰기</button></div>';
   h+='<div style="overflow-x:auto"><table class="nt-t"><thead><tr><th style="width:56px">구분</th><th>제목</th><th style="width:170px">마감일</th><th style="width:140px">남은 기간</th><th style="width:120px">작성자</th><th style="width:90px">관리</th></tr></thead><tbody>';
@@ -3201,9 +3203,18 @@ function renderNotice(){
       +'<td><button class="btn" style="padding:2px 7px" onclick="ntOpenForm(\''+x.id+'\')">✏️</button> <button class="btn" style="padding:2px 7px" onclick="ntDelete(\''+x.id+'\')">🗑</button></td></tr>';
     if(open&&has) h+='<tr><td></td><td class="l" colspan="5" style="background:#FAFAFA;white-space:pre-wrap;color:#374151;font-size:13px;line-height:1.55">'+escapeHtml(x.content)+'</td></tr>';
   });
-  h+='</tbody></table></div><div style="margin-top:10px;font-size:12px;color:var(--text-muted)">제목을 누르면 내용이 펼쳐져요 · 최근에 쓴 공지가 위에 있고 번호는 입력한 순서예요 · 마감일이 지난 공지는 자동으로 회색이 돼요 · 📌 고정한 공지는 항상 목록 맨 위에 있어요</div>';
+  h+='</tbody></table></div>';
+  if(pages>1){
+    var b=function(label,p,on,dis){ return '<button onclick="'+(dis?'':'ntGo('+p+')')+'" style="min-width:34px;height:34px;margin:0 2px;border:1px solid '+(on?'#8BC34A':'#ddd')+';background:'+(on?'#8BC34A':'#fff')+';color:'+(on?'#fff':(dis?'#ccc':'#555'))+';font-weight:'+(on?'700':'400')+';font-size:14px;border-radius:2px;cursor:'+(dis?'default':'pointer')+'">'+label+'</button>'; };
+    var st=Math.max(1,Math.min(ntPage-2,pages-4)), en=Math.min(pages,st+4);
+    h+='<div style="text-align:center;margin:16px 0 4px">'+b('«',1,false,ntPage===1)+b('‹',ntPage-1,false,ntPage===1);
+    for(var pi=st;pi<=en;pi++) h+=b(pi,pi,pi===ntPage,false);
+    h+=b('›',ntPage+1,false,ntPage===pages)+b('»',pages,false,ntPage===pages)+'</div>';
+  }
+  h+='<div style="margin-top:10px;font-size:12px;color:var(--text-muted)">제목을 누르면 내용이 펼쳐져요 · 최근에 쓴 공지가 위에 있고 번호는 입력한 순서예요 · 마감일이 지난 공지는 자동으로 회색이 돼요 · 📌 고정한 공지는 항상 목록 맨 위에 있어요</div>';
   body.innerHTML=h;
 }
+function ntGo(p){ ntPage=p; renderNotice(); }
 function ntToggle(id){ ntOpen[id]=!ntOpen[id]; renderNotice(); }
 function ntFocus(id){ var x=(data.notices||[]).find(function(r){return r.id===id;}); if(x&&x.content) ntOpen[id]=true; renderNotice(); var el=document.getElementById('nt-row-'+id); if(el) el.scrollIntoView({block:'center',behavior:'smooth'}); }
 function ntOpenForm(id){
