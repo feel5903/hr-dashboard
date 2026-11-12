@@ -4283,7 +4283,7 @@ function renderMainAlerts(){
 
 function showAlertPopup(type){
   var items=(window._alertData||{})[type]||[];
-  var titles={award:'🎖️ 포상 대상자',sabbatical:'🌿 안식휴가 대상자',contract:'📋 계약만료 대상자',pension:'💰 근속1년 퇴직연금 대상자'};
+  var titles={award:'🎖️ 장기근속자',sabbatical:'🌿 안식휴가 대상자',contract:'📋 계약만료 대상자',pension:'💰 근속1년 퇴직연금 대상자'};
   if(!items.length){
     var existing0=document.getElementById('alert-popup-modal');
     if(existing0) existing0.remove();
@@ -4323,7 +4323,7 @@ function showAlertPopup(type){
     order.forEach(function(lbl){
       var gs=groupStyles[lbl]||{color:'#374151',icon:'•'};
       var cnt=(groups[lbl]||[]).length;
-      rows+='<tr><td colspan="5" style="background:#f9fafb;font-weight:700;font-size:13px;padding:7px 10px;color:'+gs.color+';border-bottom:1px solid #e5e7eb">'+gs.icon+' '+lbl+' ('+cnt+'명)</td></tr>';
+      rows+='<tr><td colspan="5" style="background:#f9fafb;font-weight:700;font-size:13px;padding:7px 10px;color:'+gs.color+';border-bottom:1px solid #e5e7eb">'+gs.icon+' '+lbl.replace(/주년 포상$/,'주년')+' ('+cnt+'명)</td></tr>';
       (groups[lbl]||[]).forEach(function(a){
         var dLabel=a.diff===0?'<b style="color:#EF4444">[오늘]</b>':(a.diff<0?'<b style="color:#DC2626">지난 '+(-a.diff)+'일</b>':'D-'+a.diff);
         rows+='<tr style="border-bottom:1px solid #f3f4f6">'+
