@@ -64,6 +64,9 @@ body{font-family:"Noto Sans KR",sans-serif;font-size:14px;color:var(--text);back
 @keyframes ntglow{50%{box-shadow:0 0 0 5px rgba(239,68,68,.25)}}
 @keyframes ntblink{50%{opacity:.35}}.nt-blink{animation:ntblink 1s infinite}
 .nav-badge.nt-nav-blink{animation:ntblink 1.2s infinite}
+.lib-bc{font-size:14px;margin-bottom:12px;color:#6B7280}.lib-bc a{color:#4B7A12;cursor:pointer;font-weight:600}.lib-bc a:hover{text-decoration:underline}.lib-bc b{color:#111827}.lib-bc span{margin:0 4px}
+.lib-t{width:100%;border-collapse:collapse;border-top:2px solid #8bc34a;background:#fff}.lib-t th{padding:10px 8px;font-size:12.5px;color:#6B7280;background:#FAFAFA;border-bottom:1px solid #E5E7EB;text-align:center}.lib-t td{padding:10px 8px;border-bottom:1px solid #EEF0F3;font-size:13.5px;vertical-align:middle}.lib-t td.c{text-align:center;color:#4B5563}.lib-t td.c .btn{white-space:nowrap}.lib-t td:last-child{white-space:nowrap}.lib-t td.l{text-align:left}
+.lib-t tr.lib-folder{cursor:pointer}.lib-t tr.lib-folder:hover,.lib-t tbody tr:hover{background:#F7FBF1}.lib-name{font-weight:600;color:#111827}.lib-cnt{font-size:11px;background:#EEF2F7;color:#6B7280;border-radius:10px;padding:1px 7px;margin-left:4px;font-weight:500}.lib-desc{font-size:12px;color:#6B7280;margin-top:2px}.lib-where{font-size:11.5px;color:#4B7A12;margin-top:2px}.lib-empty{text-align:center;color:#9CA3AF;padding:50px 0;line-height:1.9;font-size:14px}.lib-note{font-size:12.5px;color:#6B7280;margin-bottom:8px}
 .nt-t{width:100%;border-collapse:collapse;border-top:2px solid #8bc34a;background:#fff}
 .nt-t th{background:#fafafa;padding:10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:center}.nt-t th:nth-child(2){text-align:left;padding-left:36px}.nt-t td.l{padding-left:36px}
 .nt-t td{padding:10px;border-bottom:1px solid #eee;text-align:center;font-size:13.5px}.nt-t td.l{text-align:left}
@@ -197,6 +200,7 @@ tr.ot-mh td{background:#E8EEF6;border-top:1px solid #D8DFE8;padding:9px 10px;fon
   <div class="nav-item" onclick="switchNav('daily',this)"><span class="nav-icon">📋</span>일일 업무</div>
   <div class="nav-item" onclick="switchNav('weekly',this)"><span class="nav-icon">📊</span>주간 보고</div>
   <div class="nav-item" onclick="switchNav('project',this)"><span class="nav-icon">🗂️</span>프로젝트<span class="nav-badge" id="badge-project" style="display:none">0</span></div>
+  <div class="nav-item" onclick="switchNav('library',this)"><span class="nav-icon">📚</span>자료실</div>
   <div class="nav-item" onclick="switchNav('recruit',this)"><span class="nav-icon">👥</span>채용현황<span class="nav-badge" id="badge-recruit" style="display:none">0</span></div>
   <div class="nav-item" onclick="switchNav('oncall',this)"><span class="nav-icon">🩺</span>당직의 급여계산기</div>
   <div class="nav-item" onclick="switchNav('workdays',this)"><span class="nav-icon">🧮</span>치료과 근무일수</div>
@@ -235,6 +239,18 @@ tr.ot-mh td{background:#E8EEF6;border-top:1px solid #D8DFE8;padding:9px 10px;fon
   <div class="card">
     <div class="card-head"><span class="card-title" style="font-size:18px">📢 공지사항</span></div>
     <div id="nt-body" style="padding:14px 20px 26px"></div>
+  </div>
+</div>
+<div id="pane-library" class="pane">
+  <div class="card">
+    <div class="card-head"><span class="card-title">📚 자료실</span>
+      <div class="card-actions">
+        <div style="position:relative;display:inline-flex;align-items:center"><span style="position:absolute;left:8px;font-size:13px">🔍</span><input type="text" id="lib-search" oninput="libSearch(this.value)" placeholder="전체 자료 검색..." autocomplete="off" style="padding:4px 8px 4px 28px;border:1px solid var(--gray-border);border-radius:var(--radius);font-size:12px;width:170px"></div>
+        <button class="btn" onclick="libNewFolder()">＋ 새 폴더</button>
+        <button class="btn lime" id="lib-up-btn" onclick="libOpenUpload()">⬆ 파일 올리기</button>
+      </div>
+    </div>
+    <div id="lib-body" style="padding:14px 20px 26px"></div>
   </div>
 </div>
 <div id="pane-daily" class="pane">
@@ -1071,6 +1087,25 @@ tr.ot-mh td{background:#E8EEF6;border-top:1px solid #D8DFE8;padding:9px 10px;fon
     <div class="modal-actions">
       <button class="btn" onclick="document.getElementById('nt-form-overlay').classList.remove('open')">취소</button>
       <button class="btn lime" onclick="ntSave()">저장</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="lib-up-overlay">
+  <div class="modal" style="width:520px;max-width:96vw;max-height:90vh;overflow-y:auto">
+    <h3>파일 올리기</h3>
+    <div id="lib-up-where" style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px"></div>
+    <div id="lib-drop" style="border:2px dashed #C5CAD3;border-radius:8px;padding:16px;text-align:center;background:#FAFBFC" ondragover="event.preventDefault();this.style.background='#F0F8E6'" ondragleave="this.style.background='#FAFBFC'" ondrop="event.preventDefault();this.style.background='#FAFBFC';libPick(event.dataTransfer.files)">
+      <div style="font-size:13px;margin-bottom:8px">여기에 파일을 끌어다 놓거나 아래 버튼으로 선택 (여러 개 가능, 최대 15MB)</div>
+      <input type="file" id="lib-up-file" multiple onchange="libPick(this.files)">
+    </div>
+    <div id="lib-up-list" style="font-size:12.5px;margin:10px 0;max-height:120px;overflow-y:auto"></div>
+    <div class="row">
+      <div class="field"><label>올리는 사람</label><select id="lib-up-author"></select></div>
+    </div>
+    <div class="field"><label>설명 <span style="font-weight:400;color:var(--text-muted);font-size:11.5px">(선택, 파일 1개일 때)</span></label><textarea id="lib-up-desc" rows="2" style="width:100%"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('lib-up-overlay').classList.remove('open')">취소</button>
+      <button class="btn lime" onclick="libDoUpload()">올리기</button>
     </div>
   </div>
 </div>
@@ -2145,7 +2180,7 @@ async function saveForm(){var btn=document.getElementById("save-btn");if(btn.dis
     return;
   }
   closeOverlay();renderAll();}
-function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").forEach(function(n){n.classList.remove("active");});if(el)el.classList.add("active");document.querySelectorAll(".pane").forEach(function(p){p.classList.remove("active");});document.getElementById("pane-"+name).classList.add("active");if(name==="settings")renderMemberGrid();if(name==="staff")renderStaff();if(name==="staff")renderStaff();if(name==="workdays"&&typeof wdInit==='function')wdInit();if(name==="calendar")renderCalendar();
+function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").forEach(function(n){n.classList.remove("active");});if(el)el.classList.add("active");document.querySelectorAll(".pane").forEach(function(p){p.classList.remove("active");});document.getElementById("pane-"+name).classList.add("active");if(name==="settings")renderMemberGrid();if(name==="library")libOpen();if(name==="staff")renderStaff();if(name==="staff")renderStaff();if(name==="workdays"&&typeof wdInit==='function')wdInit();if(name==="calendar")renderCalendar();
   if(name==="recruit")renderRecruit();
   if(name==="duties")renderDuties();
   if(name==="dormitory")renderDormitory();if(name==="project")renderProject();if(name==="weekly"){renderWeeklySelect();renderWeekly();}
@@ -3280,6 +3315,182 @@ async function ntPoll(){
   ntPolling=false;
 }
 setInterval(ntPoll,30000);
+
+// ── 자료실 (폴더 구조 + 파일 업로드/다운로드, 파일은 구글 드라이브에 저장) ──
+var LIB_MAX_MB=15, libCur='', libBusy={}, libQ=Promise.resolve(), libLoaded=false, libPolling=false, libQuery='';
+function libRows(rows){
+  return filterRows(rows,'library').map(function(r){
+    return {id:String(r.id),type:String(r.type||'file'),parent:String(r.parent||''),name:String(r.name||''),desc:String(r.desc||''),filename:String(r.filename||''),fileid:String(r.fileid||''),size:parseInt(r.size)||0,author:String(r.author||''),created:normalizeDateStr(r.created)};
+  });
+}
+function libRowOf(x){ return [x.id,x.type,x.parent||'',x.name,x.desc||'',x.filename||'',x.fileid||'',x.size||0,x.author||'',x.created||'']; }
+function libItems(){ return data.library||[]; }
+function libById(id){ return libItems().find(function(x){return x.id===id;}); }
+function libPath(id){ var p=[],x=libById(id),g=0; while(x&&g++<30){ p.unshift(x); x=x.parent?libById(x.parent):null; } return p; }
+function libSizeLabel(n){ if(!n) return ''; if(n<1024) return n+'B'; if(n<1048576) return Math.round(n/1024)+'KB'; return (n/1048576).toFixed(1)+'MB'; }
+function libIcon(x){
+  if(x.type==='folder') return '📁';
+  var e=(x.filename.split('.').pop()||'').toLowerCase();
+  if(e==='hwp'||e==='hwpx') return '📝'; if(/^xls/.test(e)||e==='csv') return '📊'; if(e==='pdf') return '📕';
+  if(/^doc/.test(e)) return '📘'; if(/^ppt/.test(e)) return '📙'; if(/^(png|jpe?g|gif|bmp)$/.test(e)) return '🖼️'; if(e==='zip') return '🗜️';
+  return '📄';
+}
+function libSortFolders(a,b){ var ya=/^\d{4}/.test(a.name), yb=/^\d{4}/.test(b.name); if(ya&&yb) return b.name.localeCompare(a.name,'ko',{numeric:true}); return a.name.localeCompare(b.name,'ko',{numeric:true}); }
+function libOpen(){ libRender(); libPoll(true); }
+function libGo(id){ libCur=id||''; libQuery=''; var s=document.getElementById('lib-search'); if(s) s.value=''; libRender(); }
+function libSearch(v){ libQuery=(v||'').trim().toLowerCase(); libRender(); }
+function libRender(){
+  var body=document.getElementById('lib-body'); if(!body) return;
+  var E=escapeHtml, all=libItems(), h='';
+  if(libCur&&!libById(libCur)) libCur='';
+  var path=libPath(libCur);
+  h+='<div class="lib-bc"><a onclick="libGo(\'\')">📚 자료실</a>'+path.map(function(p,i){ return ' <span>›</span> '+(i===path.length-1?'<b>'+E(p.name)+'</b>':'<a onclick="libGo(\''+p.id+'\')">'+E(p.name)+'</a>'); }).join('')+'</div>';
+  var list;
+  if(libQuery){
+    list=all.filter(function(x){ return x.type==='file'&&((x.name+' '+x.desc+' '+x.filename).toLowerCase().indexOf(libQuery)>=0); });
+    h+='<div class="lib-note">🔍 전체 자료에서 "'+E(libQuery)+'" 검색 결과 '+list.length+'건</div>';
+  } else {
+    var fo=all.filter(function(x){return x.type==='folder'&&x.parent===libCur;}).sort(libSortFolders);
+    var fi=all.filter(function(x){return x.type==='file'&&x.parent===libCur;}).sort(function(a,b){ return (b.created||'').localeCompare(a.created||'')||(b.id>a.id?1:-1); });
+    list=fo.concat(fi);
+  }
+  if(!list.length) h+='<div class="lib-empty">'+(libQuery?'검색 결과가 없어요.':(libCur?'비어 있는 폴더예요.<br>위의 <b>⬆ 파일 올리기</b> 또는 <b>＋ 새 폴더</b>를 눌러보세요.':'아직 폴더가 없어요.<br><b>＋ 새 폴더</b>로 "2026년" 같은 폴더를 먼저 만들어보세요.'))+'</div>';
+  else {
+    h+='<table class="lib-t"><thead><tr><th style="width:56px"></th><th style="text-align:left">이름</th><th style="width:90px">크기</th><th style="width:110px">올린 날짜</th><th style="width:90px">올린 사람</th><th style="width:190px">관리</th></tr></thead><tbody>';
+    list.forEach(function(x){
+      var busy=libBusy[x.id], isF=x.type==='folder';
+      var cnt=isF?all.filter(function(y){return y.parent===x.id;}).length:0;
+      var where=(libQuery&&x.parent)?'<div class="lib-where">📁 '+libPath(x.parent).map(function(p){return E(p.name);}).join(' › ')+'</div>':'';
+      h+='<tr id="lib-row-'+x.id+'"'+(isF?' class="lib-folder" onclick="libGo(\''+x.id+'\')"':'')+'>'
+        +'<td class="c" style="font-size:20px">'+libIcon(x)+'</td>'
+        +'<td class="l"><div class="lib-name">'+E(x.name)+(isF?' <span class="lib-cnt">'+cnt+'</span>':'')+'</div>'
+        +(x.desc?'<div class="lib-desc">'+E(x.desc)+'</div>':'')+(!isF&&x.filename&&x.filename!==x.name?'<div class="lib-desc" style="color:#9CA3AF">'+E(x.filename)+'</div>':'')+where+'</td>'
+        +'<td class="c">'+(isF?'':libSizeLabel(x.size))+'</td><td class="c">'+(x.created||'')+'</td><td class="c">'+E(x.author)+'</td>'
+        +'<td class="c" onclick="event.stopPropagation()">'
+        +(busy?'<span style="color:#6B7280;font-size:12px">⏳ '+E(busy)+'</span>'
+          :(isF?'<button class="btn" onclick="libRename(\''+x.id+'\')" title="이름 바꾸기">✏️</button> <button class="btn" onclick="libDelete(\''+x.id+'\')" title="삭제">🗑</button>'
+               :'<button class="btn lime" onclick="libDownload(\''+x.id+'\')">⬇ 받기</button> <button class="btn" onclick="libRename(\''+x.id+'\')" title="이름/설명 수정">✏️</button> <button class="btn" onclick="libDelete(\''+x.id+'\')" title="삭제">🗑</button>'))
+        +'</td></tr>';
+    });
+    h+='</tbody></table>';
+  }
+  body.innerHTML=h;
+  var bt=document.getElementById('lib-up-btn'); if(bt) bt.disabled=!libCur&&false;
+}
+// ---- 서버 통신 ----
+async function libPost(body){
+  try{
+    var r=await fetch(SHEET_URL,{method:'POST',mode:'cors',redirect:'follow',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)});
+    var t=await r.text(); try{ return JSON.parse(t); }catch(e){ return {status:'error',message:'응답 오류: '+t.slice(0,120)}; }
+  }catch(e){ return {status:'error',message:'네트워크 오류: '+e.message}; }
+}
+function libQueue(fn){ writeBegin(); var run=libQ.then(fn).catch(function(e){ try{console.error(e);}catch(_){} }).then(function(){ writeEnd(); }); libQ=run; return run; }
+async function libPoll(force){
+  if(!force&&(document.hidden||libPolling||syncRunning||writePending>0)) return;
+  if(!document.getElementById('pane-library').classList.contains('active')) return;
+  libPolling=true; var mark=writeSeq;
+  try{
+    var rows=await callScript({tab:'library'});
+    if(Array.isArray(rows)&&!syncStale(mark)){
+      var nl=libRows(rows), sig=function(l){ return JSON.stringify(l.map(libRowOf)); };
+      if(!libLoaded||sig(nl)!==sig(libItems())){ data.library=nl; libLoaded=true; libRender(); }
+    }
+  }catch(e){}
+  libPolling=false;
+}
+setInterval(function(){ libPoll(false); },30000);
+var LIB_HINT="\n\n※ ① 구글시트에 'library' 탭이 있는지 (1행: id,type,parent,name,desc,filename,fileid,size,author,created) ② Apps Script에 자료실 코드를 추가하고 '새 버전'으로 배포했는지 확인해주세요.";
+// ---- 폴더 ----
+function libNewFolder(){
+  var name=prompt('새 폴더 이름 (예: 2026년, 사업계획서)'); if(name===null) return; name=name.trim(); if(!name) return;
+  if(libItems().some(function(x){return x.type==='folder'&&x.parent===libCur&&x.name===name;})){ alert('같은 이름의 폴더가 이미 있어요.'); return; }
+  var nx={id:genId('lf'),type:'folder',parent:libCur,name:name,desc:'',filename:'',fileid:'',size:0,author:libAuthor(),created:ntToday()};
+  data.library=libItems().concat([nx]); libRender();
+  libQueue(async function(){
+    var res=await saveRow('library',libRowOf(nx)); if(!res.ok) res=await saveRow('library',libRowOf(nx));
+    if(!res.ok){ data.library=libItems().filter(function(r){return r.id!==nx.id;}); libRender(); alert('⚠ 폴더 저장에 실패해서 되돌렸어요: '+(res.message||'')+LIB_HINT); }
+  });
+}
+function libAuthor(){ var a=''; try{ a=localStorage.getItem('nt_author')||''; }catch(e){} return a||OT_MEMBERS[3].n; }
+function libRename(id){
+  var x=libById(id); if(!x) return;
+  var nn=prompt((x.type==='folder'?'폴더':'파일')+' 이름', x.name); if(nn===null) return; nn=nn.trim(); if(!nn) return;
+  var nd=x.desc; if(x.type==='file'){ nd=prompt('설명 (선택)', x.desc||''); if(nd===null) nd=x.desc; }
+  var prev=Object.assign({},x); x.name=nn; x.desc=nd; libRender();
+  libQueue(async function(){
+    var ok=await updateRowSafe('library',id,libRowOf(x)); if(!ok) ok=await updateRowSafe('library',id,libRowOf(x));
+    if(!ok){ Object.assign(x,prev); libRender(); alert('⚠ 저장에 실패해서 되돌렸어요.'+LIB_HINT); }
+  });
+}
+function libDescendants(id){ var out=[],st=[id]; while(st.length){ var c=st.pop(); libItems().forEach(function(y){ if(y.parent===c){ out.push(y); if(y.type==='folder') st.push(y.id); } }); } return out; }
+function libDelete(id){
+  var x=libById(id); if(!x) return;
+  var kids=x.type==='folder'?libDescendants(id):[], nf=kids.filter(function(k){return k.type==='file';}).length;
+  var msg=x.type==='folder'?('📁 ["'+x.name+'"] 폴더를 삭제할까요?\n'+(kids.length?'⚠ 안에 있는 폴더·파일 '+kids.length+'개(파일 '+nf+'개)도 모두 함께 삭제돼요.':'비어 있는 폴더예요.')):('["'+x.name+'"] 파일을 삭제할까요?');
+  if(!confirm(msg)) return;
+  if(kids.length>=3 && !confirm('정말 삭제할까요? 되돌릴 수 없어요.')) return;
+  var all=[x].concat(kids), ids=all.map(function(r){return r.id;}), fids=all.filter(function(r){return r.type==='file'&&r.fileid;}).map(function(r){return r.fileid;});
+  var prev=libItems().slice(); data.library=prev.filter(function(r){ return ids.indexOf(r.id)<0; }); libRender();
+  libQueue(async function(){
+    var res=await libPost({action:'deleteRows',tab:'library',ids:ids});
+    if(!res||res.status!=='ok'){ data.library=prev; libRender(); alert('⚠ 삭제에 실패해서 되돌렸어요: '+((res&&res.message)||'')); return; }
+    if(fids.length) await libPost({action:'trashFiles',fileIds:fids});
+  });
+}
+// ---- 업로드 ----
+var libPicked=[];
+function libOpenUpload(){
+  libPicked=[]; document.getElementById('lib-up-file').value=''; document.getElementById('lib-up-desc').value='';
+  var path=libPath(libCur).map(function(p){return p.name;}).join(' › ');
+  document.getElementById('lib-up-where').textContent='저장 위치: 📚 자료실'+(path?' › '+path:'');
+  var sel=document.getElementById('lib-up-author'); sel.innerHTML=OT_MEMBERS.map(function(m){ return '<option>'+m.n+'</option>'; }).join(''); sel.value=libAuthor();
+  libShowPicked(); document.getElementById('lib-up-overlay').classList.add('open');
+}
+function libPick(files){
+  libPicked=Array.prototype.slice.call(files||[]); var big=libPicked.filter(function(f){return f.size>LIB_MAX_MB*1048576;});
+  if(big.length){ alert(big.map(function(f){return f.name;}).join(', ')+'\n→ '+LIB_MAX_MB+'MB를 넘는 파일은 올릴 수 없어요. (압축하거나 나눠서 올려주세요)'); libPicked=libPicked.filter(function(f){return f.size<=LIB_MAX_MB*1048576;}); }
+  libShowPicked();
+}
+function libShowPicked(){
+  var el=document.getElementById('lib-up-list');
+  el.innerHTML=libPicked.length?libPicked.map(function(f){ return '<div style="padding:3px 0">• '+escapeHtml(f.name)+' <span style="color:#9CA3AF">('+libSizeLabel(f.size)+')</span></div>'; }).join(''):'<span style="color:#9CA3AF">아직 선택한 파일이 없어요</span>';
+}
+function libReadB64(f){ return new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(){ var s=String(r.result); res(s.slice(s.indexOf(',')+1)); }; r.onerror=function(){ rej(r.error); }; r.readAsDataURL(f); }); }
+function libDoUpload(){
+  if(!libPicked.length){ alert('올릴 파일을 선택해주세요.'); return; }
+  var files=libPicked.slice(), desc=document.getElementById('lib-up-desc').value.trim(), author=document.getElementById('lib-up-author').value, parent=libCur;
+  try{ localStorage.setItem('nt_author',author); }catch(e){}
+  document.getElementById('lib-up-overlay').classList.remove('open');
+  files.forEach(function(f){
+    var nx={id:genId('lx'),type:'file',parent:parent,name:f.name,desc:files.length===1?desc:'',filename:f.name,fileid:'',size:f.size,author:author,created:ntToday()};
+    data.library=libItems().concat([nx]); libBusy[nx.id]='올리는 중...'; libRender();
+    libQueue(async function(){
+      var fail=function(m){ delete libBusy[nx.id]; data.library=libItems().filter(function(r){return r.id!==nx.id;}); libRender(); alert('⚠ "'+f.name+'" 업로드에 실패했어요: '+m+LIB_HINT); };
+      var b64; try{ b64=await libReadB64(f); }catch(e){ return fail('파일을 읽지 못했어요'); }
+      var up=await libPost({action:'uploadFile',name:f.name,mime:f.type||'application/octet-stream',data:b64});
+      if(!up||up.status!=='ok'||!up.fileId){ return fail((up&&up.message)||'알 수 없는 오류'); }
+      nx.fileid=up.fileId; libBusy[nx.id]='기록 중...'; libRender();
+      var res=await saveRow('library',libRowOf(nx)); if(!res.ok) res=await saveRow('library',libRowOf(nx));
+      if(!res.ok){ libPost({action:'trashFiles',fileIds:[up.fileId]}); return fail(res.message||'시트 저장 실패'); }
+      delete libBusy[nx.id]; libRender();
+    });
+  });
+}
+// ---- 다운로드 ----
+async function libDownload(id){
+  var x=libById(id); if(!x||!x.fileid) return;
+  libBusy[id]='받는 중...'; libRender();
+  try{
+    var r=await fetch(SHEET_URL+'?action=downloadFile&fileId='+encodeURIComponent(x.fileid)+'&t='+Date.now(),{redirect:'follow',mode:'cors'});
+    var j=JSON.parse(await r.text());
+    if(j.status!=='ok'||!j.data) throw new Error(j.message||'파일을 찾을 수 없어요');
+    var bin=atob(j.data), arr=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+    var blob=new Blob([arr],{type:j.mime||'application/octet-stream'}), a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download=x.filename||x.name; document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1500);
+  }catch(e){ alert('⚠ 다운로드에 실패했어요: '+e.message+'\n(Apps Script에 자료실 코드를 추가하고 새 버전으로 배포했는지 확인해주세요)'); }
+  delete libBusy[id]; libRender();
+}
 
 async function staffExportExcel(){
   if(typeof ExcelJS==='undefined'){ alert('엑셀 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침 후 다시 시도해주세요.'); return; }
