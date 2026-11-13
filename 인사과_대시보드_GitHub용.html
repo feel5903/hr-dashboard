@@ -64,6 +64,19 @@ body{font-family:"Noto Sans KR",sans-serif;font-size:14px;color:var(--text);back
 @keyframes ntglow{50%{box-shadow:0 0 0 5px rgba(239,68,68,.25)}}
 @keyframes ntblink{50%{opacity:.35}}.nt-blink{animation:ntblink 1s infinite}
 .nav-badge.nt-nav-blink{animation:ntblink 1.2s infinite}
+.mtc-sum{display:flex;gap:16px;font-size:13px;color:#6B7280;margin:2px 0 4px;padding-bottom:10px;border-bottom:1px solid #EEF0F3}.mtc-sum b{color:#111827}
+.mtc-grp{font-size:12.5px;font-weight:700;color:#6B7280;margin:16px 0 8px;display:flex;align-items:center;gap:8px}.mtc-grp:after{content:"";flex:1;height:1px;background:#EEF0F3}
+.mtc{display:flex;gap:16px;border:1px solid #E5E7EB;border-radius:10px;padding:13px 16px;margin-bottom:9px;background:#fff}.mtc.done{opacity:.7}
+.mtc-date{width:76px;flex:none;padding-top:1px}.mtc-date .d{font-size:14.5px;font-weight:800;color:#111827;white-space:nowrap}.mtc-date .t{font-size:13px;color:#6B7280;margin-top:3px}
+.mtc-main{flex:1;min-width:0}.mtc-title{font-size:15.5px;font-weight:700;color:#111827}.mtc-meta{font-size:13px;color:#6B7280;margin-top:5px}.mtc-meta i{font-style:normal;color:#D1D5DB;margin:0 8px}
+.mtc-items{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;align-items:center}
+.mtc-chip{font-family:inherit;cursor:pointer;border-radius:6px;padding:3px 10px;font-size:12.5px;font-weight:700}.mtc-chip.need{background:#FEF3C7;border:1px solid #F5C451;color:#92400E}.mtc-chip.ok{background:none;border:none;color:#047857;padding:3px 2px;font-weight:600}.mtc-chip:disabled{cursor:default}
+.mtc-note{font-size:12.5px;color:#6B7280;margin-top:8px;padding-left:9px;border-left:2px solid #E5E7EB;white-space:pre-wrap}
+.mtc-side{flex:none;min-width:118px;display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;gap:8px}
+.mtc-dd{font-size:12.5px;font-weight:800;border-radius:12px;padding:3px 11px;white-space:nowrap}.mtc-st{font-size:12px;font-weight:700;margin-top:6px}
+.mtc-act{display:flex;gap:6px;align-items:center}.mtc-more{position:relative}
+.mtc-menu{display:none;position:absolute;right:0;top:110%;background:#fff;border:1px solid #E5E7EB;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,.12);z-index:50;min-width:84px;overflow:hidden}.mtc-menu.open{display:block}
+.mtc-menu a{display:block;padding:8px 14px;font-size:13px;cursor:pointer;color:#374151}.mtc-menu a:hover{background:#F3F4F6}
 .lib-bc{font-size:14px;margin-bottom:12px;color:#6B7280}.lib-bc a{color:#4B7A12;cursor:pointer;font-weight:600}.lib-bc a:hover{text-decoration:underline}.lib-bc b{color:#111827}.lib-bc span{margin:0 4px}
 .lib-t{width:100%;border-collapse:collapse;border-top:2px solid #8bc34a;background:#fff}.lib-t th{padding:10px 8px;font-size:12.5px;color:#6B7280;background:#FAFAFA;border-bottom:1px solid #E5E7EB;text-align:center}.lib-t td{padding:10px 8px;border-bottom:1px solid #EEF0F3;font-size:13.5px;vertical-align:middle}.lib-t td.c{text-align:center;color:#4B5563}.lib-t td.c .btn{white-space:nowrap}.lib-t td:last-child{white-space:nowrap}.lib-t td.l{text-align:left}
 .lib-t tr.lib-folder{cursor:pointer}.lib-t tr.lib-folder:hover,.lib-t tbody tr:hover{background:#F7FBF1}.lib-name{font-weight:600;color:#111827}.lib-cnt{font-size:11px;background:#EEF2F7;color:#6B7280;border-radius:10px;padding:1px 7px;margin-left:4px;font-weight:500}.lib-desc{font-size:12px;color:#6B7280;margin-top:2px}.lib-where{font-size:11.5px;color:#4B7A12;margin-top:2px}.lib-empty{text-align:center;color:#9CA3AF;padding:50px 0;line-height:1.9;font-size:14px}.lib-note{font-size:12.5px;color:#6B7280;margin-bottom:8px}
@@ -1095,7 +1108,7 @@ tr.ot-mh td{background:#E8EEF6;border-top:1px solid #D8DFE8;padding:9px 10px;fon
     <h3>파일 올리기</h3>
     <div id="lib-up-where" style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px"></div>
     <div id="lib-drop" style="border:2px dashed #C5CAD3;border-radius:8px;padding:16px;text-align:center;background:#FAFBFC" ondragover="event.preventDefault();this.style.background='#F0F8E6'" ondragleave="this.style.background='#FAFBFC'" ondrop="event.preventDefault();this.style.background='#FAFBFC';libPick(event.dataTransfer.files)">
-      <div style="font-size:13px;margin-bottom:8px">여기에 파일을 끌어다 놓거나 아래 버튼으로 선택 (여러 개 가능, 최대 15MB)</div>
+      <div style="font-size:13px;margin-bottom:8px">여기에 파일을 끌어다 놓거나 아래 버튼으로 선택 (여러 개 가능, 최대 100MB)</div>
       <input type="file" id="lib-up-file" multiple onchange="libPick(this.files)">
     </div>
     <div id="lib-up-list" style="font-size:12.5px;margin:10px 0;max-height:120px;overflow-y:auto"></div>
@@ -3317,7 +3330,7 @@ async function ntPoll(){
 setInterval(ntPoll,30000);
 
 // ── 자료실 (폴더 구조 + 파일 업로드/다운로드, 파일은 구글 드라이브에 저장) ──
-var LIB_MAX_MB=15, libCur='', libBusy={}, libQ=Promise.resolve(), libLoaded=false, libPolling=false, libQuery='';
+var LIB_MAX_MB=100, LIB_CHUNK=3*1024*1024, libCur='', libBusy={}, libQ=Promise.resolve(), libLoaded=false, libPolling=false, libQuery='';
 function libRows(rows){
   return filterRows(rows,'library').map(function(r){
     return {id:String(r.id),type:String(r.type||'file'),parent:String(r.parent||''),name:String(r.name||''),desc:String(r.desc||''),filename:String(r.filename||''),fileid:String(r.fileid||''),size:parseInt(r.size)||0,author:String(r.author||''),created:normalizeDateStr(r.created)};
@@ -3466,8 +3479,24 @@ function libDoUpload(){
     data.library=libItems().concat([nx]); libBusy[nx.id]='올리는 중...'; libRender();
     libQueue(async function(){
       var fail=function(m){ delete libBusy[nx.id]; data.library=libItems().filter(function(r){return r.id!==nx.id;}); libRender(); alert('⚠ "'+f.name+'" 업로드에 실패했어요: '+m+LIB_HINT); };
-      var b64; try{ b64=await libReadB64(f); }catch(e){ return fail('파일을 읽지 못했어요'); }
-      var up=await libPost({action:'uploadFile',name:f.name,mime:f.type||'application/octet-stream',data:b64});
+      var up;
+      if(f.size<=LIB_CHUNK){
+        var b64; try{ b64=await libReadB64(f); }catch(e){ return fail('파일을 읽지 못했어요'); }
+        up=await libPost({action:'uploadFile',name:f.name,mime:f.type||'application/octet-stream',data:b64});
+      } else {
+        var st=await libPost({action:'uploadStart',name:f.name,mime:f.type||'application/octet-stream'});
+        if(!st||st.status!=='ok'||!st.session) return fail((st&&st.message)||'업로드를 시작하지 못했어요');
+        up=null;
+        for(var off=0;off<f.size;off+=LIB_CHUNK){
+          var end=Math.min(off+LIB_CHUNK,f.size), part, r2=null;
+          try{ part=await libReadB64(f.slice(off,end)); }catch(e){ return fail('파일을 읽지 못했어요'); }
+          for(var tr=0;tr<3&&!(r2&&r2.status==='ok');tr++) r2=await libPost({action:'uploadChunk',session:st.session,start:off,end:end,total:f.size,data:part});
+          if(!r2||r2.status!=='ok') return fail((r2&&r2.message)||'조각 전송 실패');
+          libBusy[nx.id]='올리는 중 '+Math.round(end/f.size*100)+'%'; libRender();
+          if(end>=f.size) up=r2;
+        }
+        if(!up||!up.fileId) return fail('마지막 조각 처리에 실패했어요');
+      }
       if(!up||up.status!=='ok'||!up.fileId){ return fail((up&&up.message)||'알 수 없는 오류'); }
       nx.fileid=up.fileId; libBusy[nx.id]='기록 중...'; libRender();
       var res=await saveRow('library',libRowOf(nx)); if(!res.ok) res=await saveRow('library',libRowOf(nx));
@@ -3481,10 +3510,26 @@ async function libDownload(id){
   var x=libById(id); if(!x||!x.fileid) return;
   libBusy[id]='받는 중...'; libRender();
   try{
-    var r=await fetch(SHEET_URL+'?action=downloadFile&fileId='+encodeURIComponent(x.fileid)+'&t='+Date.now(),{redirect:'follow',mode:'cors'});
-    var j=JSON.parse(await r.text());
-    if(j.status!=='ok'||!j.data) throw new Error(j.message||'파일을 찾을 수 없어요');
-    var bin=atob(j.data), arr=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+    var arr;
+    if(x.size>LIB_CHUNK){
+      arr=new Uint8Array(x.size); var pos=0;
+      while(pos<x.size){
+        var j=null;
+        for(var tr=0;tr<3&&!(j&&j.status==='ok'&&j.data);tr++){
+          try{ var rr=await fetch(SHEET_URL+'?action=downloadChunk&fileId='+encodeURIComponent(x.fileid)+'&start='+pos+'&end='+Math.min(pos+LIB_CHUNK,x.size)+'&t='+Date.now(),{redirect:'follow',mode:'cors'}); j=JSON.parse(await rr.text()); }catch(e){ j=null; }
+        }
+        if(!j||j.status!=='ok'||!j.data) throw new Error((j&&j.message)||'조각 받기 실패');
+        var bin2=atob(j.data); for(var k=0;k<bin2.length;k++) arr[pos+k]=bin2.charCodeAt(k);
+        pos+=bin2.length; libBusy[id]='받는 중 '+Math.round(pos/x.size*100)+'%'; libRender();
+        if(!bin2.length) break;
+      }
+      var mime0='application/octet-stream', j={mime:mime0};
+    } else {
+      var r=await fetch(SHEET_URL+'?action=downloadFile&fileId='+encodeURIComponent(x.fileid)+'&t='+Date.now(),{redirect:'follow',mode:'cors'});
+      var j=JSON.parse(await r.text());
+      if(j.status!=='ok'||!j.data) throw new Error(j.message||'파일을 찾을 수 없어요');
+      var bin=atob(j.data); arr=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+    }
     var blob=new Blob([arr],{type:j.mime||'application/octet-stream'}), a=document.createElement('a');
     a.href=URL.createObjectURL(blob); a.download=x.filename||x.name; document.body.appendChild(a); a.click();
     setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1500);
@@ -4154,7 +4199,7 @@ function dvRenderList(){
       "<div style='display:flex;gap:6px;align-items:center;justify-content:flex-end;margin-top:6px'>"+
         (x.status==='완료'
           ?"<button class='btn' style='font-size:11.5px;padding:3px 10px' onclick=\"dvSetStatus('"+x.id+"','진행중')\">↩ 진행중으로</button>"
-          :"<button class='btn lime' style='font-size:11.5px;padding:3px 12px' onclick=\"dvSetStatus('"+x.id+"','완료')\">✔ 완료</button>")+
+          :"<button class='btn lime' style='font-size:11.5px;padding:3px 12px' onclick=\"dvSetStatus('"+x.id+"','완료')\">완료</button>")+
         "<button class='btn' style='font-size:11.5px;padding:3px 10px' onclick=\"dvOpenForm('"+x.id+"')\">수정</button>"+
         "<button class='btn' style='font-size:11.5px;padding:3px 10px;color:#DC2626' onclick=\"dvDelete('"+x.id+"')\">삭제</button>"+
       "</div></div>";
@@ -4233,32 +4278,55 @@ function mtRenderList(){
   rows.sort(function(a,b){ var A=mtWhen(a),B=mtWhen(b); return mtFilter==='done'?(B<A?-1:(B>A?1:0)):(A<B?-1:(A>B?1:0)); });
   var box=document.getElementById('mt-list');
   if(!rows.length){ box.innerHTML="<div class='empty'>"+(mtFilter==='done'?'완료된 회의가 없어요':'진행 중인 회의가 없어요')+"</div>"; return; }
-  box.innerHTML=rows.map(function(x){
-    var done=x.status==='완료', n=done?null:dvDday(x.deadline), pend=mtPending(x), urgent=!done&&n!==null&&n<=3&&pend.length>0;
-    var badge=done?"<span style='background:#D1FAE5;color:#065F46;padding:2px 9px;border-radius:12px;font-size:11.5px;font-weight:700'>완료</span>"
-      :(n!==null?"<span style='background:"+(n<=3?'#FEE2E2':'#CFFAFE')+";color:"+(n<=3?'#B91C1C':'#0E7490')+";padding:2px 9px;border-radius:12px;font-size:11.5px;font-weight:700;white-space:nowrap'>"+dvDdayLabel(n)+"</span>":"<span style='color:#9CA3AF;font-size:11.5px'>날짜 미정</span>");
-    var meta=[mtDateLabel(x)]; if(x.place) meta.push(escapeHtml(x.place)); if(x.headcount) meta.push(escapeHtml(x.headcount)+'명');
-    var it=mtParseItems(x.items);
-    var chips=MT_ITEMS.map(function(k){
-      var v=it[k], memo=v.memo?' '+escapeHtml(v.memo):'';
-      if(v.st==='없음') return "<span style='background:#F3F4F6;color:#9CA3AF;border-radius:14px;padding:3px 10px;font-size:11.5px'>"+k+" 필요없음</span>";
-      var need=v.st==='필요';
-      return "<button "+(done?'disabled ':'')+"onclick=\"mtToggleItem('"+x.id+"','"+k+"')\" title='클릭하면 주문필요 ↔ 주문완료' style='cursor:pointer;border-radius:14px;padding:3px 10px;font-size:11.5px;font-weight:700;font-family:inherit;border:1.5px solid "+(need?'#F59E0B':'#10B981')+";background:"+(need?'#FEF3C7':'#D1FAE5')+";color:"+(need?'#92400E':'#065F46')+"'>"+(need?'⚠ ':'✔ ')+k+(need?' 주문필요':' 주문완료')+memo+"</button>";
-    }).join(' ');
-    return "<div style='border:1px solid "+(urgent?'#FCA5A5':'var(--gray-border)')+";border-radius:10px;padding:.7rem .9rem;margin-bottom:8px;"+(done?'opacity:.75;':'')+"'>"+
-      "<div style='display:flex;align-items:center;gap:8px;flex-wrap:wrap'>"+badge+"<b style='font-size:13.5px'>"+escapeHtml(x.title||'')+"</b></div>"+
-      "<div style='font-size:12px;color:var(--text-muted);margin-top:5px'>"+meta.join(' · ')+(x.requester?" · "+escapeHtml(x.requester):'')+"</div>"+
-      "<div style='display:flex;gap:6px;flex-wrap:wrap;margin-top:7px'>"+chips+"</div>"+
-      (x.note?"<div style='font-size:12px;color:var(--text-muted);margin-top:5px;white-space:pre-wrap'>"+escapeHtml(x.note)+"</div>":'')+
-      "<div style='display:flex;gap:6px;align-items:center;justify-content:flex-end;margin-top:6px'>"+
-        (done?"<button class='btn' style='font-size:11.5px;padding:3px 10px' onclick=\"mtSetStatus('"+x.id+"','진행중')\">↩ 진행중으로</button>"
-             :"<button class='btn lime' style='font-size:11.5px;padding:3px 12px' onclick=\"mtSetStatus('"+x.id+"','완료')\">✔ 완료</button>")+
-        "<button class='btn' style='font-size:11.5px;padding:3px 10px' onclick=\"mtOpenForm('"+x.id+"',true)\" title='같은 내용으로 새 회의 만들기'>복사</button>"+
-        "<button class='btn' style='font-size:11.5px;padding:3px 10px' onclick=\"mtOpenForm('"+x.id+"')\">수정</button>"+
-        "<button class='btn' style='font-size:11.5px;padding:3px 10px;color:#DC2626' onclick=\"mtDelete('"+x.id+"')\">삭제</button>"+
-      "</div></div>";
-  }).join('');
+  var act=(data.directives||[]).filter(function(x){ return mtIs(x)&&x.status!=='완료'; });
+  var nPend=act.filter(function(x){ return mtPending(x).length; }).length, nSoon=act.filter(function(x){ var d=dvDday(x.deadline); return d!==null&&d<=3; }).length;
+  var h="<div class='mtc-sum'><span>진행중 <b>"+act.length+"건</b></span><span>주문 필요 <b>"+nPend+"건</b></span></div>", lastG=null;
+  rows.forEach(function(x){
+    var done=x.status==='완료', n=done?null:dvDday(x.deadline), pend=mtPending(x), it=mtParseItems(x.items), E=escapeHtml;
+    var badge=done?"<span class='mtc-dd' style='background:#D1FAE5;color:#065F46'>완료</span>"
+      :(n!==null?"<span class='mtc-dd' style='background:"+(n<=3?'#FEE2E2':'#CFFAFE')+";color:"+(n<=3?'#B91C1C':'#0E7490')+"'>"+dvDdayLabel(n)+"</span>":"<span style='color:#9CA3AF;font-size:12px'>날짜 미정</span>");
+    var stx='';
+    var chips=MT_ITEMS.filter(function(k){ return it[k].st!=='없음'; }).map(function(k){
+      var v=it[k], memo=v.memo?E(v.memo):'', need=v.st==='필요';
+      return "<button "+(done?'disabled ':'')+"onclick=\"mtToggleItem('"+x.id+"','"+k+"')\" title='클릭하면 주문필요 ↔ 주문완료' class='mtc-chip "+(need?'need':'ok')+"'>"+(need?'⚠ ':'✔ ')+k+(need?' 주문필요':'')+(memo?' '+memo:(need?'':' 주문완료'))+"</button>";
+    }).join('');
+    if(!chips) chips="<span style='font-size:12.5px;color:#9CA3AF'>주문할 항목 없음</span>";
+    var meta=[]; if(x.place) meta.push(E(x.place)); if(x.headcount) meta.push(E(x.headcount)+'명'); if(x.requester) meta.push('요청 '+E(x.requester));
+    h+="<div class='mtc"+(done?' done':'')+"'>"+
+      "<div class='mtc-date'><div class='d'>"+E(mtDateShort(x))+"</div>"+(x.meetingTime?"<div class='t'>"+E(x.meetingTime)+"</div>":'')+"</div>"+
+      "<div class='mtc-main'><div class='mtc-title'>"+E(x.title||'')+"</div>"+
+        (meta.length?"<div class='mtc-meta'>"+meta.join('<i>|</i>')+"</div>":'')+
+        "<div class='mtc-items'>"+chips+"</div>"+
+        (x.note?"<div class='mtc-note'>"+E(x.note)+"</div>":'')+"</div>"+
+      "<div class='mtc-side'><div style='text-align:right'>"+badge+stx+"</div>"+
+        "<div class='mtc-act'>"+
+          (done?"<button class='btn' style='font-size:12px;padding:4px 11px' onclick=\"mtSetStatus('"+x.id+"','진행중')\">↩ 진행중으로</button>"
+               :"<button class='btn' style='font-size:12px;padding:4px 14px;color:#374151;font-weight:600' onclick=\"mtSetStatus('"+x.id+"','완료')\">완료</button>")+
+          "<div class='mtc-more'><button class='btn' style='font-size:15px;padding:0 8px;line-height:24px' onclick=\"mtMenu(event,'"+x.id+"')\">⋯</button>"+
+            "<div class='mtc-menu' id='mtm-"+x.id+"'><a onclick=\"mtOpenForm('"+x.id+"',true)\">복사</a><a onclick=\"mtOpenForm('"+x.id+"')\">수정</a><a style='color:#DC2626' onclick=\"mtDelete('"+x.id+"')\">삭제</a></div></div>"+
+        "</div></div></div>";
+  });
+  box.innerHTML=h;
 }
+function mtDateShort(x){ if(!x.deadline) return '날짜 미정'; var d=new Date(x.deadline+'T00:00:00Z'); return (d.getUTCMonth()+1)+'/'+d.getUTCDate()+'('+'일월화수목금토'[d.getUTCDay()]+')'; }
+function mtWeekRange(ds){ var d=new Date(ds+'T00:00:00Z'), w=(d.getUTCDay()+6)%7, a=new Date(d.getTime()-w*86400000), b=new Date(a.getTime()+6*86400000); function f(t){ return (t.getUTCMonth()+1)+'/'+t.getUTCDate(); } return f(a)+' ~ '+f(b); }
+function mtGroupLabel(x,byMonth){
+  if(!x.deadline) return '날짜 미정';
+  var p=x.deadline.split('-');
+  if(byMonth) return p[0]+'년 '+parseInt(p[1],10)+'월';
+  var w=ntWeekIdx(x.deadline)-ntWeekIdx(ntToday());
+  if(w<0) return '지난 일정 (미완료)';
+  if(w===0) return '이번 주 · '+mtWeekRange(x.deadline);
+  if(w===1) return '다음 주 · '+mtWeekRange(x.deadline);
+  if(w<=3) return mtWeekRange(x.deadline);
+  return parseInt(p[1],10)+'월';
+}
+function mtMenu(ev,id){
+  ev.stopPropagation(); var m=document.getElementById('mtm-'+id), was=m&&m.classList.contains('open');
+  document.querySelectorAll('.mtc-menu.open').forEach(function(e){ e.classList.remove('open'); });
+  if(m&&!was) m.classList.add('open');
+}
+document.addEventListener('click',function(){ document.querySelectorAll('.mtc-menu.open').forEach(function(e){ e.classList.remove('open'); }); });
 function mtRenderItemsForm(o){
   document.getElementById('mt-f-items').innerHTML=MT_ITEMS.map(function(k,i){
     var v=o[k]||{st:'없음',memo:''};
