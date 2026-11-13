@@ -3198,12 +3198,13 @@ function ntLoadRows(rows){
 function ntRowOf(x){ return [x.id,x.title,x.deadline||'',x.pinned?'Y':'',x.content||'',x.author||'',x.created||'']; }
 function ntDiff(dl){ if(!dl) return null; var a=new Date(ntToday()+'T00:00:00'), b=new Date(dl+'T00:00:00'); return Math.round((b-a)/86400000); }
 function ntLevel(d){ if(d===null) return 'none'; if(d<0) return 'past'; if(d===0) return 'today'; if(d<=3) return 'soon'; if(d<=7) return 'week'; return 'ok'; }
+var ntBlinkD=null; // 깜빡이는 마감일(D-값): 가장 빠른 마감만
 function ntBadge(d){
   var lv=ntLevel(d);
   if(lv==='none') return '<span style="color:#9CA3AF">-</span>';
   if(lv==='past') return '<span class="nt-d nt-past">마감됨</span>';
-  if(lv==='today') return '<span class="nt-d nt-today nt-blink">🔔 D-DAY</span>';
-  if(lv==='soon') return '<span class="nt-d nt-soon nt-blink">⏰ D-'+d+'</span>';
+  if(lv==='today') return '<span class="nt-d nt-today'+(d===ntBlinkD?' nt-blink':'')+'">🔔 D-DAY</span>';
+  if(lv==='soon') return '<span class="nt-d nt-soon'+(d===ntBlinkD?' nt-blink':'')+'">⏰ D-'+d+'</span>';
   if(lv==='week') return '<span class="nt-d nt-week">D-'+d+'</span>';
   return '<span class="nt-d nt-ok">D-'+d+'</span>';
 }
@@ -3222,6 +3223,7 @@ function ntSorted(){
 }
 function renderNotice(){
   var L=data.notices||[];
+  ntBlinkD=null; L.forEach(function(x){ var d=ntDiff(x.deadline); if(d!==null&&d>=0&&(ntBlinkD===null||d<ntBlinkD)) ntBlinkD=d; }); if(ntBlinkD!==null&&ntBlinkD>3) ntBlinkD=null;
   // 왼쪽 메뉴 배지: 마감 3일 이내
   var urgent=L.filter(function(x){ var d=ntDiff(x.deadline); return d!==null&&d>=0&&d<=3; }).length;
   var bd=document.getElementById('badge-notice'); if(bd){ bd.textContent=urgent; bd.style.display=urgent?'':'none'; }
