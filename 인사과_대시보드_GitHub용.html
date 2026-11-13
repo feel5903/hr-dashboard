@@ -4249,8 +4249,8 @@ function renderMeetingCard(){
   var parts=[]; if(active.length&&minD!==null) parts.push(dvDdayLabel(minD)); if(pend) parts.push('주문'+pend);
   dd.textContent=parts.join('·');
   if(!active.length){ val.style.color=dd.style.color='#9CA3AF'; card.style.background=''; card.style.borderColor=''; icon.style.background='#F3F4F6'; }
-  else if(pend&&minD!==null&&minD<=3){ val.style.color=dd.style.color='#B91C1C'; card.style.background='#FEF2F2'; card.style.borderColor='#EF4444'; icon.style.background='#FEE2E2'; }
-  else { val.style.color=dd.style.color='#0E7490'; card.style.background='#ECFEFF'; card.style.borderColor='#22D3EE'; icon.style.background='#CFFAFE'; }
+  else if(pend&&minD!==null&&minD<=3){ val.style.color=dd.style.color='#B91C1C'; card.style.background=''; card.style.borderColor=''; icon.style.background='#FEE2E2'; }
+  else { val.style.color=dd.style.color='#0E7490'; card.style.background=''; card.style.borderColor=''; icon.style.background='#CFFAFE'; }
 }
 function openMeetings(){ mtRenderList(); document.getElementById('meeting-overlay').classList.add('open'); }
 function mtSetFilter(f){ mtFilter=f; mtRenderList(); }
