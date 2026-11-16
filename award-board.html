@@ -285,6 +285,12 @@
   table.roster td.num-cell{font-variant-numeric:tabular-nums; white-space:nowrap; color:var(--muted);}
   table.roster td.award-cell{min-width:340px;}
   .row-star{color:var(--spot); font-weight:800; margin-right:4px;}
+  .card.resigned{background:#F0EFEA; border-color:#D5D3CA;}
+  .card.resigned .card-name, .card.resigned .card-dept{color:#7D857F;}
+  .resign-badge{display:inline-block; font-size:10.5px; font-weight:800; color:#5E6761; background:#E1E0D8; border:1px solid #CFCDC3; border-radius:6px; padding:1px 6px; margin-left:6px; vertical-align:middle; white-space:nowrap;}
+  table.roster tbody tr.resigned{background:#F3F2ED;}
+  table.roster tbody tr.resigned td{color:#858D87;}
+  table.roster tbody tr.resigned:hover{background:#E9E8E1;}
   .mini-chip{
     font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:20px;
     display:inline-flex; align-items:center; gap:3px; white-space:nowrap; margin:1px 3px 1px 0;
@@ -314,6 +320,11 @@
   <div class="toolbar">
     <div class="search-box"><input type="text" id="searchInput" placeholder="이름 또는 소속 검색"></div>
     <select id="deptFilter"><option value="">전체 소속</option></select>
+    <select id="statusFilter" title="재직 상태">
+      <option value="active">재직자</option>
+      <option value="resigned">퇴사자</option>
+      <option value="all">재직+퇴사 전체</option>
+    </select>
     <select id="sortSelect">
       <option value="name">이름순</option>
       <option value="tenure_desc">근속연수 많은순</option>
@@ -411,6 +422,11 @@
       </div>
       <div class="row2">
         <div class="field"><label>입사일</label><input type="date" id="fHire"></div>
+        <div class="field">
+          <label class="check-row"><input type="checkbox" id="fResigned"> 퇴사</label>
+          <input type="date" id="fResignDate" style="display:none; margin-top:6px;" title="퇴사일(모르면 비워두세요)">
+          <div id="resignHint" style="display:none; font-size:11px; color:var(--muted); margin-top:4px;">퇴사일을 비워두면 근속연수는 기준일까지로 계산돼요.</div>
+        </div>
       </div>
 
       <div class="field">
@@ -434,7 +450,7 @@
       </div>
     </div>
     <div class="modal-foot">
-      <button class="btn" id="deleteBtn" style="color:var(--rose); border-color:var(--rose);">🗑 직원 삭제(퇴사)</button>
+      <button class="btn" id="deleteBtn" style="color:var(--rose); border-color:var(--rose);">🗑 완전 삭제</button>
       <div style="display:flex; gap:8px;">
         <button class="btn" id="cancelBtn">취소</button>
         <button class="btn btn-primary" id="saveBtn">저장</button>
@@ -550,6 +566,18 @@ function tenureMonths(hireISO, ref){
   return (ref.getFullYear()-h.getFullYear())*12 + (ref.getMonth()-h.getMonth());
 }
 
+function refDateFor(e){
+  if(e.resigned && e.resignDate){
+    const d = new Date(e.resignDate+'T00:00:00');
+    if(!isNaN(d)) return d;
+  }
+  return baseDate;
+}
+function empTenureText(e){ return tenureText(e.hire, refDateFor(e)); }
+function empTenureMonths(e){ return tenureMonths(e.hire, refDateFor(e)); }
+function resignLabel(e){ return '퇴사' + (e.resignDate ? ' ' + e.resignDate.replace(/-/g,'.') : ''); }
+function resignBadge(e){ return e.resigned ? `<span class="resign-badge">${resignLabel(e)}</span>` : ''; }
+
 function normalizeHireDate(v){
   if(!v) return '';
   const s = String(v);
@@ -562,7 +590,15 @@ function normalizeHireDate(v){
   const da = String(d.getDate()).padStart(2,'0');
   return `${y}-${mo}-${da}`;
 }
+// 퇴사 정보는 시트의 기존 awards_json 칸에 '퇴사' 항목으로 함께 저장한다(Apps Script 수정 불필요).
 function normalizeAwards(e){
+  if(e.awards && e.awards['퇴사']!==undefined){
+    const raw = e.awards['퇴사'];
+    const v = Array.isArray(raw) ? raw[0] : raw;
+    e.resigned = true;
+    e.resignDate = /^\d{4}-\d{2}-\d{2}$/.test(String(v||'')) ? String(v) : '';
+    const copy = {...e.awards}; delete copy['퇴사']; e.awards = copy;
+  }
   const out = {};
   for(const [name,val] of Object.entries(e.awards||{})){
     if(Array.isArray(val)) out[name] = val.filter(v=>v!=='' && v!=null);
@@ -571,6 +607,8 @@ function normalizeAwards(e){
   e.awards = out;
   e.hire = normalizeHireDate(e.hire);
   e.title = e.title || '';
+  e.resigned = (e.resigned===true || e.resigned==='TRUE' || e.resigned==='true');
+  e.resignDate = e.resigned ? normalizeHireDate(e.resignDate) : '';
   return e;
 }
 function flatAwardEntries(awards){
@@ -654,7 +692,7 @@ async function pushToSheetOnce(){
   const res = await fetchWithTimeout(SHEET_API_URL, {
     method:'POST',
     headers: {'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify({employees, departments})
+    body: JSON.stringify({employees: employees.map(toSheetEmp), departments})
   }, 8000);
   const data = await res.json();
   if(data.status!=='ok') throw new Error(data.message||'unknown error');
@@ -711,7 +749,13 @@ async function postActionWithRetry(payload){
   }
   renderSyncStatus();
 }
-async function upsertEmployee(emp){ await postActionWithRetry({action:'upsert', employee:emp}); }
+function toSheetEmp(e){
+  const c = {...e, awards: {...(e.awards||{})}};
+  if(e.resigned) c.awards['퇴사'] = [e.resignDate || 'O'];
+  delete c.resigned; delete c.resignDate;
+  return c;
+}
+async function upsertEmployee(emp){ await postActionWithRetry({action:'upsert', employee:toSheetEmp(emp)}); }
 async function deleteEmployee(id){ await postActionWithRetry({action:'delete', id}); }
 async function addDeptRemote(name){ await postActionWithRetry({action:'addDept', name}); }
 function renderSyncStatus(){
@@ -764,8 +808,10 @@ function render(){
   const tenureMaxMonths = tenureMaxRaw!==''? (isNaN(parseFloat(tenureMaxRaw))? null : parseFloat(tenureMaxRaw)*12) : null;
 
   const refYear = baseDate.getFullYear();
+  const status = document.getElementById('statusFilter').value;
+  const scope = employees.filter(e=> status==='all' ? true : (status==='resigned' ? e.resigned : !e.resigned));
 
-  let list = employees.filter(e=>{
+  let list = scope.filter(e=>{
     if(q && !(e.name.toLowerCase().includes(q) || (e.dept||'').toLowerCase().includes(q))) return false;
     if(dept==='__CSO_ALL__'){
       if(!(e.dept||'').startsWith('CSO')) return false;
@@ -776,7 +822,7 @@ function render(){
     if(onlyHasAward && employeeAwardCount(e)===0) return false;
     if(onlyNoAward && employeeAwardCount(e)>0) return false;
     if(tenureMinMonths!==null || tenureMaxMonths!==null){
-      const tm = tenureMonths(e.hire, baseDate);
+      const tm = empTenureMonths(e);
       if(tenureMinMonths!==null && tm < tenureMinMonths) return false;
       if(tenureMaxMonths!==null && tm >= tenureMaxMonths) return false;
     }
@@ -790,8 +836,8 @@ function render(){
 
   list.sort((a,b)=>{
     if(sort==='name') return a.name.localeCompare(b.name,'ko');
-    if(sort==='tenure_desc') return tenureMonths(b.hire,baseDate)-tenureMonths(a.hire,baseDate);
-    if(sort==='tenure_asc') return tenureMonths(a.hire,baseDate)-tenureMonths(b.hire,baseDate);
+    if(sort==='tenure_desc') return empTenureMonths(b)-empTenureMonths(a);
+    if(sort==='tenure_asc') return empTenureMonths(a)-empTenureMonths(b);
     return 0;
   });
   currentFilteredList = list;
@@ -799,18 +845,23 @@ function render(){
   document.getElementById('emptyState').style.display = list.length? 'none':'block';
   document.getElementById('grid').style.display = (currentView==='card')? 'grid':'none';
   document.getElementById('tableWrap').style.display = (currentView==='table')? 'block':'none';
-  const isFiltered = list.length !== employees.length;
-  document.getElementById('resultCount').textContent = isFiltered
-    ? `조건에 맞는 인원: ${list.length}명 (전체 ${employees.length}명 중)`
-    : `전체 ${employees.length}명`;
+  const resignedTotal = employees.filter(e=>e.resigned).length;
+  const scopeLabel = status==='resigned' ? '퇴사자' : (status==='all' ? '재직+퇴사 전체' : '재직자');
+  const isFiltered = list.length !== scope.length;
+  let countText = isFiltered
+    ? `조건에 맞는 인원: ${list.length}명 (${scopeLabel} ${scope.length}명 중)`
+    : `${scopeLabel} ${scope.length}명`;
+  if(status==='active' && resignedTotal>0) countText += ` · 퇴사자 ${resignedTotal}명은 '퇴사자' 보기에서 확인`;
+  document.getElementById('resultCount').textContent = countText;
 
   if(currentView==='card') renderCards(list, refYear); else renderTable(list, refYear);
 
   // stats
-  const total = employees.length;
-  const thisYearCount = employees.filter(e=>employeeHasYear(e, refYear)).length;
+  const total = scope.length;
+  const thisYearCount = scope.filter(e=>employeeHasYear(e, refYear)).length;
+  const totalLabel = status==='resigned' ? '퇴사자' : (status==='all' ? '전체(퇴사 포함)' : '전체 인원');
   document.getElementById('statRow').innerHTML = `
-    <div class="stat-chip"><b>${total}</b><span>전체 인원</span></div>
+    <div class="stat-chip"><b>${total}</b><span>${totalLabel}</span></div>
     <div class="stat-chip"><b style="color:var(--spot)">${thisYearCount}</b><span>${refYear} 수상</span></div>
   `;
 }
@@ -821,21 +872,21 @@ function renderCards(list, refYear){
   for(const e of list){
     const hasThisYear = employeeHasYear(e, refYear);
     const card = document.createElement('div');
-    card.className = 'card' + (hasThisYear?' thisyear':'') + (editMode?' editmode':'');
+    card.className = 'card' + (hasThisYear?' thisyear':'') + (e.resigned?' resigned':'') + (editMode?' editmode':'');
     const awardEntries = flatAwardEntries(e.awards);
     card.innerHTML = `
       ${hasThisYear?'<div class="card-star">★ '+refYear+' 수상</div>':''}
       ${editMode?'<div class="card-edit-hint">✎ 편집</div>':''}
       <div class="card-head">
         <div>
-          <div class="card-name">${e.name}${e.title?` <span style="font-size:12px; font-weight:700; color:var(--primary);">· ${e.title}</span>`:''}</div>
+          <div class="card-name">${e.name}${e.title?` <span style="font-size:12px; font-weight:700; color:var(--primary);">· ${e.title}</span>`:''}${resignBadge(e)}</div>
           <div class="card-dept">${e.dept||'-'}</div>
         </div>
         ${e.seoul?'<span class="seoul-badge">서울거주</span>':''}
       </div>
       <div class="card-meta">
         <span>입사 <b>${e.hire||'-'}</b></span>
-        <span>근속 <b>${tenureText(e.hire, baseDate)}</b></span>
+        <span>근속 <b>${empTenureText(e)}</b></span>
       </div>
       <div class="award-chips">
         ${awardEntries.length? awardEntries.map(({name,val})=>{
@@ -870,13 +921,13 @@ function renderTable(list, refYear){
       return `<span class="mini-chip" style="background:var(--${tier}-tint); color:var(--${tier})">${yrLabel}${chipLabel(name,val)}</span>`;
     }).join('') : '<span class="no-award">-</span>';
     const tr = document.createElement('tr');
-    tr.className = hasThisYear? 'thisyear':'';
+    tr.className = (hasThisYear? 'thisyear':'') + (e.resigned? ' resigned':'');
     tr.innerHTML = `
-      <td class="name-cell">${hasThisYear?'<span class="row-star">★</span>':''}${e.name}${e.title?` <span style="font-size:11px; font-weight:700; color:var(--primary);">· ${e.title}</span>`:''}</td>
+      <td class="name-cell">${hasThisYear?'<span class="row-star">★</span>':''}${e.name}${e.title?` <span style="font-size:11px; font-weight:700; color:var(--primary);">· ${e.title}</span>`:''}${resignBadge(e)}</td>
       <td class="dept-cell">${e.dept||'-'}</td>
       <td>${e.seoul?'<span class="seoul-dot" title="서울거주"></span>':''}</td>
       <td class="num-cell">${e.hire||'-'}</td>
-      <td class="num-cell">${tenureText(e.hire, baseDate)}</td>
+      <td class="num-cell">${empTenureText(e)}</td>
       <td class="award-cell">${chips}</td>
     `;
     tr.addEventListener('click', ()=> editMode? openEdit(e.id) : openView(e.id));
@@ -888,7 +939,7 @@ function openView(id){
   const e = employees.find(x=>x.id===id);
   if(!e) return;
   document.getElementById('viewName').textContent = e.name + (e.title? '  · '+e.title:'') + (e.seoul? '  ·  서울거주':'');
-  document.getElementById('viewMeta').innerHTML = `<span>소속 <b>${e.dept||'-'}</b></span>&nbsp;&nbsp;<span>입사 <b>${e.hire||'-'}</b></span>&nbsp;&nbsp;<span>근속 <b>${tenureText(e.hire,baseDate)}</b></span>`;
+  document.getElementById('viewMeta').innerHTML = `<span>소속 <b>${e.dept||'-'}</b></span>&nbsp;&nbsp;<span>입사 <b>${e.hire||'-'}</b></span>&nbsp;&nbsp;<span>근속 <b>${empTenureText(e)}</b></span>${e.resigned?`&nbsp;&nbsp;<span class="resign-badge" style="margin-left:0;">${resignLabel(e)}</span>`:''}`;
   const awardEntries = flatAwardEntries(e.awards);
   document.getElementById('viewAwards').innerHTML = awardEntries.length? awardEntries.map(({name,val})=>{
     if(isPendingText(val)){
@@ -935,7 +986,7 @@ let draftEmployee = null;
 
 function openEdit(id){
   const existing = id ? employees.find(x=>x.id===id) : null;
-  draftEmployee = existing ? JSON.parse(JSON.stringify(existing)) : {id:null, name:'', dept:'', title:'', hire:todayISO(new Date()), seoul:false, awards:{}};
+  draftEmployee = existing ? JSON.parse(JSON.stringify(existing)) : {id:null, name:'', dept:'', title:'', hire:todayISO(new Date()), seoul:false, resigned:false, resignDate:'', awards:{}};
   currentEditId = id || null;
   document.getElementById('editTitle').textContent = existing? existing.name+' 정보 수정' : '새 직원 추가';
   document.getElementById('fName').value = draftEmployee.name;
@@ -943,6 +994,9 @@ function openEdit(id){
   document.getElementById('fTitle').value = draftEmployee.title || '';
   document.getElementById('fHire').value = draftEmployee.hire;
   document.getElementById('fSeoul').checked = draftEmployee.seoul;
+  document.getElementById('fResigned').checked = !!draftEmployee.resigned;
+  document.getElementById('fResignDate').value = draftEmployee.resignDate || '';
+  toggleResignFields();
   document.getElementById('newAwardName').innerHTML = awardNameOptions();
   document.getElementById('newAwardDate').value = '';
   document.getElementById('newAwardTier').value = '내부';
@@ -951,6 +1005,13 @@ function openEdit(id){
   renderAwardEditList(draftEmployee);
   document.getElementById('editOverlay').classList.add('show');
 }
+
+function toggleResignFields(){
+  const on = document.getElementById('fResigned').checked;
+  document.getElementById('fResignDate').style.display = on ? 'block' : 'none';
+  document.getElementById('resignHint').style.display = on ? 'block' : 'none';
+}
+document.getElementById('fResigned').addEventListener('change', toggleResignFields);
 
 function closeModals(){
   document.getElementById('viewOverlay').classList.remove('show');
@@ -987,6 +1048,8 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
   draftEmployee.title = document.getElementById('fTitle').value.trim();
   draftEmployee.hire = document.getElementById('fHire').value;
   draftEmployee.seoul = document.getElementById('fSeoul').checked;
+  draftEmployee.resigned = document.getElementById('fResigned').checked;
+  draftEmployee.resignDate = draftEmployee.resigned ? document.getElementById('fResignDate').value : '';
   if(!draftEmployee.name){ alert('이름을 입력해주세요.'); return; }
   if(currentEditId){
     const idx = employees.findIndex(x=>x.id===currentEditId);
@@ -1003,7 +1066,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
 
 document.getElementById('deleteBtn').addEventListener('click', async ()=>{
   if(!currentEditId) return;
-  if(!confirm(draftEmployee.name+' 님을 명단에서 삭제할까요? (퇴사 처리)')) return;
+  if(!confirm(draftEmployee.name+' 님을 완전히 삭제할까요?\n삭제하면 통계에서도 빠집니다.\n퇴사자라면 삭제하지 말고 수정 화면에서 "퇴사"에 체크해주세요.')) return;
   const idToDelete = currentEditId;
   employees = employees.filter(x=>x.id!==idToDelete);
   populateDeptFilter();
@@ -1047,9 +1110,9 @@ document.getElementById('exportBtn').addEventListener('click', ()=>{
 
 document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   const list = currentFilteredList.length? currentFilteredList : employees;
-  const headers = ['소속','이름','직책','서울거주','입사일','근속연수', ...AWARD_ORDER, '수상이력요약'];
+  const headers = ['소속','이름','직책','서울거주','입사일','퇴사일','근속연수', ...AWARD_ORDER, '수상이력요약'];
   const rows = list.map(e=>{
-    const row = [e.dept||'', e.name, e.title||'', e.seoul?'Y':'', e.hire||'', tenureText(e.hire, baseDate)];
+    const row = [e.dept||'', e.name, e.title||'', e.seoul?'Y':'', e.hire||'', e.resigned?(e.resignDate||'퇴사'):'', empTenureText(e)];
     AWARD_ORDER.forEach(awardName=>{
       const entries = (e.awards && e.awards[awardName]) || [];
       row.push(entries.map(v=>displayAwardValue(v)).join(' / '));
@@ -1061,7 +1124,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   const aoa = [headers, ...rows];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols'] = [
-    {wch:14},{wch:10},{wch:10},{wch:8},{wch:11},{wch:12},
+    {wch:14},{wch:10},{wch:10},{wch:8},{wch:11},{wch:11},{wch:12},
     ...AWARD_ORDER.map(()=>({wch:16})),
     {wch:50}
   ];
@@ -1108,7 +1171,7 @@ document.querySelectorAll('.view-toggle-btn').forEach(btn=>{
 });
 
 ['searchInput'].forEach(id=> document.getElementById(id).addEventListener('input', render));
-['deptFilter','sortSelect'].forEach(id=> document.getElementById(id).addEventListener('change', render));
+['deptFilter','sortSelect','statusFilter'].forEach(id=> document.getElementById(id).addEventListener('change', render));
 function updateTenureFilterStyle(){
   const min = document.getElementById('tenureMin').value;
   const max = document.getElementById('tenureMax').value;
