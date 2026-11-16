@@ -77,6 +77,7 @@ body{font-family:"Noto Sans KR",sans-serif;font-size:14px;color:var(--text);back
 .mtc-act{display:flex;gap:6px;align-items:center}.mtc-more{position:relative}
 .mtc-menu{display:none;position:absolute;right:0;top:110%;background:#fff;border:1px solid #E5E7EB;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,.12);z-index:50;min-width:84px;overflow:hidden}.mtc-menu.open{display:block}
 .mtc-menu a{display:block;padding:8px 14px;font-size:13px;cursor:pointer;color:#374151}.mtc-menu a:hover{background:#F3F4F6}
+#staff-table td,#staff-table th{overflow:hidden}.sf-l{padding-left:6px!important;padding-right:6px!important}
 .lib-bc{font-size:14px;margin-bottom:12px;color:#6B7280}.lib-bc a{color:#4B7A12;cursor:pointer;font-weight:600}.lib-bc a:hover{text-decoration:underline}.lib-bc b{color:#111827}.lib-bc span{margin:0 4px}
 .lib-t{width:100%;border-collapse:collapse;border-top:2px solid #8bc34a;background:#fff}.lib-t th{padding:10px 8px;font-size:12.5px;color:#6B7280;background:#FAFAFA;border-bottom:1px solid #E5E7EB;text-align:center}.lib-t td{padding:10px 8px;border-bottom:1px solid #EEF0F3;font-size:13.5px;vertical-align:middle}.lib-t td.c{text-align:center;color:#4B5563}.lib-t td.c .btn{white-space:nowrap}.lib-t td:last-child{white-space:nowrap}.lib-t td.l{text-align:left}
 .lib-t tr.lib-folder{cursor:pointer}.lib-t tr.lib-folder:hover,.lib-t tbody tr:hover{background:#F7FBF1}.lib-name{font-weight:600;color:#111827}.lib-cnt{font-size:11px;background:#EEF2F7;color:#6B7280;border-radius:10px;padding:1px 7px;margin-left:4px;font-weight:500}.lib-desc{font-size:12px;color:#6B7280;margin-top:2px}.lib-where{font-size:11.5px;color:#4B7A12;margin-top:2px}.lib-empty{text-align:center;color:#9CA3AF;padding:50px 0;line-height:1.9;font-size:14px}.lib-note{font-size:12.5px;color:#6B7280;margin-bottom:8px}
@@ -445,12 +446,13 @@ tr.ot-mh td{background:#E8EEF6;border-top:1px solid #D8DFE8;padding:9px 10px;fon
       </div>
     </div>
     <div style="overflow-x:auto">
-      <table>
+      <table id="staff-table" style="table-layout:fixed;min-width:1000px">
+        <colgroup><col style="width:92px"><col style="width:200px"><col style="width:74px"><col style="width:74px"><col style="width:104px"><col style="width:104px"><col style="width:74px"><col style="width:96px"><col style="width:104px"><col><col style="width:96px"></colgroup>
         <thead><tr>
-          <th>이름</th><th>부서</th><th style="text-align:center">직급</th>
-          <th style="text-align:center">직책</th><th style="text-align:center">입사일</th>
-          <th style="text-align:center">재직기간</th><th style="text-align:center">구분</th>
-          <th style="text-align:center">계약종료</th><th style="text-align:center">관리</th>
+          <th>이름</th><th>부서</th><th class="sf-l" style="text-align:center">직급</th>
+          <th class="sf-l" style="text-align:center">직책</th><th class="sf-l" style="text-align:center">입사일</th>
+          <th class="sf-l" style="text-align:center">재직기간</th><th style="text-align:center">만나이</th><th style="text-align:center">구분</th>
+          <th style="text-align:center">계약종료</th><th>비고</th><th style="text-align:center">관리</th>
         </tr></thead>
         <tbody id="staff-tbody"></tbody>
       </table>
@@ -2193,7 +2195,7 @@ async function saveForm(){var btn=document.getElementById("save-btn");if(btn.dis
     return;
   }
   closeOverlay();renderAll();}
-function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").forEach(function(n){n.classList.remove("active");});if(el)el.classList.add("active");document.querySelectorAll(".pane").forEach(function(p){p.classList.remove("active");});document.getElementById("pane-"+name).classList.add("active");if(name==="settings")renderMemberGrid();if(name==="library")libOpen();if(name==="staff")renderStaff();if(name==="staff")renderStaff();if(name==="workdays"&&typeof wdInit==='function')wdInit();if(name==="calendar")renderCalendar();
+function switchNav(name,el){document.querySelectorAll(".nav-item,.member-nav").forEach(function(n){n.classList.remove("active");});if(el)el.classList.add("active");document.querySelectorAll(".pane").forEach(function(p){p.classList.remove("active");});document.getElementById("pane-"+name).classList.add("active");if(name==="settings")renderMemberGrid();if(name==="library")libOpen();if(name==="staff")staffBirthLoad(true);if(name==="staff")renderStaff();if(name==="staff")renderStaff();if(name==="workdays"&&typeof wdInit==='function')wdInit();if(name==="calendar")renderCalendar();
   if(name==="recruit")renderRecruit();
   if(name==="duties")renderDuties();
   if(name==="dormitory")renderDormitory();if(name==="project")renderProject();if(name==="weekly"){renderWeeklySelect();renderWeekly();}
@@ -3017,7 +3019,8 @@ function renderStaff() {
   }
   var tbody=document.getElementById('staff-tbody');
   if(!tbody) return;
-  if(!filtered.length){tbody.innerHTML='<tr><td colspan="10" class="empty">검색 결과 없음</td></tr>';document.getElementById('staff-count').textContent='';return;}
+  staffBirthLoad(false);
+  if(!filtered.length){tbody.innerHTML='<tr><td colspan="11" class="empty">검색 결과 없음</td></tr>';document.getElementById('staff-count').textContent='';return;}
   tbody.innerHTML=filtered.map(function(s,i){
     var ic=s.contractType==='계약직';
     var ce=s.contractEnd||'';
@@ -3025,10 +3028,11 @@ function renderStaff() {
     return '<tr'+(isResigned?' style="opacity:.55"':'')+'>'+
       '<td style="font-weight:600">'+(s.name||'')+(isResigned?' <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;background:#FEE2E2;color:#991B1B">퇴사 '+s.resignDate+'</span>':'')+'</td>'+
       '<td style="font-size:12px">'+(s.dept||'')+(s.location==='별관'?' <button onclick="toggleStaffLocation(\''+s.id+'\')" title="클릭하면 본관으로 전환됩니다" style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:8px;border:none;cursor:pointer;background:#E0E7FF;color:#4338CA">별관</button>':'')+'</td>'+
-      '<td style="text-align:center;font-size:12px">'+(s.position||'')+'</td>'+
-      '<td style="text-align:center;font-size:12px">'+(s.title||'')+'</td>'+
-      '<td style="text-align:center;font-size:12px">'+(s.joinDate||'')+'</td>'+
-      '<td style="text-align:center;font-size:12px;color:var(--navy)">'+calcTenure(s.joinDate)+'</td>'+
+      '<td class="sf-l" style="text-align:center;font-size:12px">'+(s.position||'')+'</td>'+
+      '<td class="sf-l" style="text-align:center;font-size:12px">'+(s.title||'')+'</td>'+
+      '<td class="sf-l" style="text-align:center;font-size:12px">'+(s.joinDate||'')+'</td>'+
+      '<td class="sf-l" style="text-align:center;font-size:12px;color:var(--navy)">'+calcTenure(s.joinDate)+'</td>'+
+      '<td style="text-align:center;font-size:12px">'+staffAge(s)+'</td>'+
       '<td style="text-align:center"><span style="font-size:11px;padding:2px 8px;border-radius:12px;background:'+(ic?'#FEF3C7':'#DCFCE7')+';color:'+(ic?'#92400E':'#065F46')+'">'+(s.contractType||'')+'</span></td>'+
       '<td style="text-align:center;font-size:12px;color:'+(ce?'#DC2626':'#aaa')+'">'+(ce||'-')+'</td>'+
       '<td style="font-size:11px;color:#6B7280;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(s.note||'')+'</td>'+
@@ -3038,7 +3042,7 @@ function renderStaff() {
       '</div></td>'+
     '</tr>';
   }).join('');
-  document.getElementById('staff-count').textContent='총 '+filtered.length+'명 표시 중 (전체 '+list.length+'명)';
+  document.getElementById('staff-count').innerHTML='총 '+filtered.length+'명 표시 중 (전체 '+list.length+'명)'+(function(){ if(!data.staffBirth||showResigned) return ''; var k=staffBirthMissingList().length; return k?' · <a onclick="staffBirthMissing()" style="color:#B45309;cursor:pointer;text-decoration:underline">만나이 미등록 '+k+'명</a>':''; })();
 }
 
 
@@ -4092,6 +4096,39 @@ function renderMonthlyHeadcountTable(){
   body.innerHTML=rows;
 }
 
+// 만나이: 구글시트 staff_birth 탭(이름·입사일·생년월일 8자리)으로 오늘 기준 계산 (주민번호는 저장하지 않음)
+var staffBirthAt=0, staffBirthLoading=false;
+function staffBirthParse(rows){
+  var m={}, byName={};
+  (rows||[]).forEach(function(r){
+    var n=String(r.name||'').trim(), j=String(r.join||'').replace(/\D/g,''), b=String(r.birth||'').replace(/\D/g,'');
+    if(!n||b.length!==8) return;
+    m[n+'|'+j]=b; (byName[n]=byName[n]||{})[b]=1;
+  });
+  data.staffBirth=m; data.staffBirthByName=byName;
+}
+async function staffBirthLoad(force){
+  if(staffBirthLoading) return; if(!force&&Date.now()-staffBirthAt<300000) return;
+  staffBirthLoading=true; staffBirthAt=Date.now();
+  try{ var rows=await callScript({tab:'staff_birth'}); if(Array.isArray(rows)&&rows.length){ staffBirthParse(rows); staffBirthLoading=false; renderStaff(); return; } }catch(e){}
+  staffBirthLoading=false;
+}
+function staffBirthOf(s){
+  if(s.birth) return String(s.birth).replace(/\D/g,'');
+  var j=String(s.joinDate||'').replace(/\D/g,''), b=(data.staffBirth||{})[(s.name||'')+'|'+j];
+  if(b) return b;
+  var bn=(data.staffBirthByName||{})[s.name||'']; // 재입사 등으로 입사일이 달라도 같은 사람이면(생년월일이 하나뿐이면) 사용
+  if(bn){ var k=Object.keys(bn); if(k.length===1) return k[0]; }
+  return '';
+}
+function staffAge(s){
+  var b=staffBirthOf(s); if(b.length!==8) return '<span style="color:#CBD5E1">-</span>';
+  var py=+b.slice(0,4), pm=+b.slice(4,6), pd=+b.slice(6,8), t=todayStr.split('-').map(Number);
+  var a=t[0]-py; if(t[1]<pm||(t[1]===pm&&t[2]<pd)) a--;
+  return a>=0&&a<120?a+'세':'<span style="color:#CBD5E1">-</span>';
+}
+function staffBirthMissingList(){ return (data.staff||[]).filter(function(s){ return (!s.resignDate||s.resignDate>todayStr)&&!staffBirthOf(s); }).map(function(s){ return s.name; }); }
+function staffBirthMissing(){ var l=staffBirthMissingList(); alert('만나이(생년월일)가 없는 재직자 '+l.length+'명\n\n'+l.join(', ')+'\n\n※ 구글시트 \'staff_birth\' 탭에 이름·입사일·생년월일을 추가하면 나와요.'); }
 async function toggleStaffLocation(id){
   var s=(data.staff||[]).find(function(x){return x.id===id;});
   if(!s) return;
