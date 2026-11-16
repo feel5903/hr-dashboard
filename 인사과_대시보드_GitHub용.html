@@ -77,7 +77,7 @@ body{font-family:"Noto Sans KR",sans-serif;font-size:14px;color:var(--text);back
 .mtc-act{display:flex;gap:6px;align-items:center}.mtc-more{position:relative}
 .mtc-menu{display:none;position:absolute;right:0;top:110%;background:#fff;border:1px solid #E5E7EB;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,.12);z-index:50;min-width:84px;overflow:hidden}.mtc-menu.open{display:block}
 .mtc-menu a{display:block;padding:8px 14px;font-size:13px;cursor:pointer;color:#374151}.mtc-menu a:hover{background:#F3F4F6}
-#staff-table td,#staff-table th{overflow:hidden}.sf-l{padding-left:6px!important;padding-right:6px!important}
+#staff-table td,#staff-table th{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sf-l{padding-left:6px!important;padding-right:6px!important}
 .lib-bc{font-size:14px;margin-bottom:12px;color:#6B7280}.lib-bc a{color:#4B7A12;cursor:pointer;font-weight:600}.lib-bc a:hover{text-decoration:underline}.lib-bc b{color:#111827}.lib-bc span{margin:0 4px}
 .lib-t{width:100%;border-collapse:collapse;border-top:2px solid #8bc34a;background:#fff}.lib-t th{padding:10px 8px;font-size:12.5px;color:#6B7280;background:#FAFAFA;border-bottom:1px solid #E5E7EB;text-align:center}.lib-t td{padding:10px 8px;border-bottom:1px solid #EEF0F3;font-size:13.5px;vertical-align:middle}.lib-t td.c{text-align:center;color:#4B5563}.lib-t td.c .btn{white-space:nowrap}.lib-t td:last-child{white-space:nowrap}.lib-t td.l{text-align:left}
 .lib-t tr.lib-folder{cursor:pointer}.lib-t tr.lib-folder:hover,.lib-t tbody tr:hover{background:#F7FBF1}.lib-name{font-weight:600;color:#111827}.lib-cnt{font-size:11px;background:#EEF2F7;color:#6B7280;border-radius:10px;padding:1px 7px;margin-left:4px;font-weight:500}.lib-desc{font-size:12px;color:#6B7280;margin-top:2px}.lib-where{font-size:11.5px;color:#4B7A12;margin-top:2px}.lib-empty{text-align:center;color:#9CA3AF;padding:50px 0;line-height:1.9;font-size:14px}.lib-note{font-size:12.5px;color:#6B7280;margin-bottom:8px}
@@ -446,8 +446,8 @@ tr.ot-mh td{background:#E8EEF6;border-top:1px solid #D8DFE8;padding:9px 10px;fon
       </div>
     </div>
     <div style="overflow-x:auto">
-      <table id="staff-table" style="table-layout:fixed;min-width:1000px">
-        <colgroup><col style="width:92px"><col style="width:200px"><col style="width:74px"><col style="width:74px"><col style="width:104px"><col style="width:104px"><col style="width:74px"><col style="width:96px"><col style="width:104px"><col><col style="width:96px"></colgroup>
+      <table id="staff-table" style="table-layout:fixed;width:100%;min-width:1080px">
+        <colgroup><col style="width:6%"><col style="width:14%"><col style="width:8%"><col style="width:10%"><col style="width:7%"><col style="width:8%"><col style="width:6%"><col style="width:7%"><col style="width:8%"><col style="width:20%"><col style="width:6%"></colgroup>
         <thead><tr>
           <th>이름</th><th>부서</th><th class="sf-l" style="text-align:center">직급</th>
           <th class="sf-l" style="text-align:center">직책</th><th class="sf-l" style="text-align:center">입사일</th>
@@ -3035,7 +3035,7 @@ function renderStaff() {
       '<td style="text-align:center;font-size:12px">'+staffAge(s)+'</td>'+
       '<td style="text-align:center"><span style="font-size:11px;padding:2px 8px;border-radius:12px;background:'+(ic?'#FEF3C7':'#DCFCE7')+';color:'+(ic?'#92400E':'#065F46')+'">'+(s.contractType||'')+'</span></td>'+
       '<td style="text-align:center;font-size:12px;color:'+(ce?'#DC2626':'#aaa')+'">'+(ce||'-')+'</td>'+
-      '<td style="font-size:11px;color:#6B7280;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(s.note||'')+'</td>'+
+      '<td style="font-size:11.5px;color:#4B5563;white-space:normal;line-height:1.35" title="'+(s.note||'').replace(/"/g,'&quot;')+'">'+(s.note||'')+'</td>'+
       '<td style="text-align:center"><div class="action-btns">'+
         '<button class="edit-btn" data-sid="'+s.id+'" onclick="editStaff(this.dataset.sid)">✏️</button>'+
         '<button class="edit-btn" data-sid="'+s.id+'" onclick="openStaffLeaves(this.dataset.sid)" title="휴가 관리" style="color:#B45309">🏖️</button>'+
